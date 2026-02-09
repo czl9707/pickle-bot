@@ -757,18 +757,26 @@ wheels = [
 [[package]]
 name = "pickle-bot"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "litellm" },
+    { name = "pydantic" },
+    { name = "python-dotenv" },
+    { name = "pyyaml" },
+    { name = "rich" },
     { name = "textual" },
     { name = "typer" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "litellm" },
-    { name = "textual" },
-    { name = "typer" },
+    { name = "litellm", specifier = ">=1.0.0" },
+    { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "rich", specifier = ">=13.0.0" },
+    { name = "textual", specifier = ">=0.21.0" },
+    { name = "typer", specifier = ">=0.12.0" },
 ]
 
 [[package]]
