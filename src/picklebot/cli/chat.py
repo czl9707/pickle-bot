@@ -12,7 +12,7 @@ from picklebot.skills.registry import SkillRegistry
 console = Console()
 
 
-async def run_chat(config: Config) -> None:
+async def run_interactive_session(config: Config) -> None:
     """Run interactive chat session."""
     # Set up skill registry
     registry = SkillRegistry()

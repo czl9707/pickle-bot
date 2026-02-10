@@ -5,7 +5,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from picklebot.cli.commands import run_chat
+from picklebot.cli.chat import run_interactive_session
 from picklebot.cli.skills import skills_app
 from picklebot.config import Config
 from picklebot.utils.logging import setup_logging
@@ -67,7 +67,7 @@ def chat(
 
     config = ctx.obj.get("config")
 
-    asyncio.run(run_chat(config))
+    asyncio.run(run_interactive_session(config))
 
 app.add_typer(skills_app, name="skills", help="Manage and interact with skills")
 

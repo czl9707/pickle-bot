@@ -4,10 +4,31 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from picklebot.config import LLMConfig
+
+
+@dataclass
+class LLMMessage:
+    """
+    A message in the conversation.
+
+    Compatible with litellm's ChatCompletionMessageParam format.
+    """
+
+    role: str  # "system", "user", "assistant", "tool"
+    content: str
+    tool_call_id: Optional[str] = None
+    tool_calls: Optional[list["LLMToolCall"]] = None
+
 
 @dataclass
 class LLMToolCall:
-    """A tool/function call from the LLM."""
+    """
+    A tool/function call from the LLM.
+
+    Simplified adapter over litellm's ChatCompletionMessageToolCall
+    which has nested structure (function.name, function.arguments).
+    """
 
     id: str
     name: str
@@ -15,18 +36,12 @@ class LLMToolCall:
 
 
 @dataclass
-class LLMMessage:
-    """A message in the conversation."""
-
-    role: str  # "system", "user", "assistant", "tool"
-    content: str
-    tool_call_id: Optional[str] = None
-    tool_calls: Optional[list[LLMToolCall]] = None
-
-
-@dataclass
 class LLMResponse:
-    """Response from an LLM provider."""
+    """
+    Response from an LLM provider.
+
+    Simplified adapter over litellm's ModelResponse.
+    """
 
     content: str
     tool_calls: Optional[list[LLMToolCall]] = None
@@ -34,13 +49,16 @@ class LLMResponse:
     usage: Optional[dict[str, Any]] = None
 
 
-class BaseLLMProvider(ABC):
+class LLMProvider(ABC):
     """
     Abstract base class for LLM providers.
 
     All LLM providers should inherit from this class and implement
     the required methods.
     """
+
+    provider_config_name: list[str]
+    name2provider: dict[str, type["LLMProvider"]] = {}
 
     def __init__(
         self,
@@ -62,6 +80,30 @@ class BaseLLMProvider(ABC):
         self.api_key = api_key
         self.api_base = api_base
         self._settings = kwargs
+
+    def __init_subclass__(cls):
+        for c_name in cls.provider_config_name:
+            LLMProvider.name2provider[c_name] = cls
+        return super().__init_subclass__()
+    
+
+    @staticmethod
+    def from_config(config: LLMConfig) -> "LLMProvider":
+        """
+        Create an L 
+        """
+
+        provider_name = config.provider.lower()
+        if provider_name not in LLMProvider.name2provider:
+            raise ValueError(f"Unknown provider: {provider_name}")
+
+        provider_class = LLMProvider.name2provider[provider_name]
+
+        return provider_class(
+            model=config.model,
+            api_key=config.api_key,
+            api_base=config.api_base,
+        )
 
     @abstractmethod
     async def chat(
@@ -113,19 +155,19 @@ class BaseLLMProvider(ABC):
     @property
     def provider_name(self) -> str:
         """Return the name of this provider."""
-        return self.__class__.__name__.replace("Provider", "").lower()
+        return self.provider_config_name[0]
 
     def _convert_messages_to_dict(
         self, messages: list[LLMMessage]
     ) -> list[dict[str, Any]]:
         """
-        Convert LLMMessage objects to dictionaries for API calls.
+        Convert LLMMessage objects to dictionaries for litellm.
 
         Args:
             messages: List of LLMMessage objects
 
         Returns:
-            List of message dictionaries
+            List of message dictionaries ready for litellm
         """
         result = []
         for msg in messages:
