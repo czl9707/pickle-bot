@@ -177,18 +177,14 @@ Pickle-bot supports multiple LLM providers through an abstraction layer:
 - **openai** - OpenAI (GPT models)
 - **anthropic** - Anthropic (Claude models)
 
-To add a new provider, implement `BaseLLMProvider` and register it:
+To add a new provider, inherit from `LLMProvider` and define `provider_config_name`:
 
 ```python
-from picklebot.llm.factory import register_provider
-from picklebot.llm.base import BaseLLMProvider
+from picklebot.provider import LLMProvider
 
-class MyProvider(BaseLLMProvider):
-    async def chat(self, messages, tools):
-        # Your implementation
-        pass
-
-register_provider("myprovider", MyProvider)
+class MyProvider(LLMProvider):
+    provider_config_name = ["myprovider", "my_provider"]
+    # Inherits default chat() implementation using litellm
 ```
 
 ## Development

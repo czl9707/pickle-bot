@@ -18,12 +18,12 @@ class LLMConfig(BaseModel):
     provider: str
     model: str
     api_key: str
-    api_base: str | None
+    api_base: str | None = None
 
     @field_validator("api_base")
     @classmethod
-    def api_base_must_be_url(cls, v: str) -> str:
-        if not v.startswith(("http://", "https://")):
+    def api_base_must_be_url(cls, v: str | None) -> str | None:
+        if v is not None and not v.startswith(("http://", "https://")):
             raise ValueError("api_base must be a valid URL")
         return v
 

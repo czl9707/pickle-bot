@@ -26,7 +26,7 @@ async def run_interactive_session(config: Config) -> None:
     console.print(
         Panel(
             Text(f"Welcome to {config.agent.name}!", style="bold cyan"),
-            title="🤖 Pickle-Bot",
+            title="🐈‍⬛ Pickle",
             border_style="cyan",
         )
     )

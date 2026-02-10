@@ -59,14 +59,13 @@ pickle-bot/
 │       ├── cli/            # CLI interface
 │       │   ├── main.py     # Main CLI with global options
 │       │   ├── skills.py   # Skills subcommand group
-│       │   └── commands.py # Command handlers
+│       │   └── chat.py     # Chat command handler
 │       ├── core/           # Core agent
 │       │   ├── agent.py    # Agent class
 │       │   ├── config.py   # Config (pydantic models)
 │       │   └── state.py    # Agent state
-│       ├── llm/            # LLM provider abstraction
-│       │   ├── base.py     # BaseLLMProvider
-│       │   ├── factory.py  # Provider factory
+│       ├── provider/       # LLM provider abstraction
+│       │   ├── base.py     # LLMProvider base class
 │       │   └── providers.py # Concrete providers
 │       ├── skills/         # Skills system
 │       │   ├── base.py     # BaseSkill interface
@@ -125,12 +124,12 @@ picklebot skills execute <name>  # Execute a skill
 - ✅ No environment variables
 
 ### 2. LLM Provider Abstraction
-- ✅ BaseLLMProvider abstract class
-- ✅ Provider factory with registry
+- ✅ LLMProvider base class with litellm integration
+- ✅ Auto-registration via `provider_config_name`
 - ✅ ZaiProvider (for Z.ai/GLM models)
 - ✅ OpenAIProvider (for GPT models)
 - ✅ AnthropicProvider (for Claude models)
-- ✅ Easy to add new providers
+- ✅ Easy to add new providers (just inherit and set name)
 
 ### 3. Skills System
 - ✅ BaseSkill abstract class

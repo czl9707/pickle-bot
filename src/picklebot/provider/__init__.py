@@ -1,12 +1,15 @@
 """LLM provider abstraction for pickle-bot."""
 
-from picklebot.provider.base import BaseLLMProvider, LLMMessage, LLMResponse, LLMToolCall
-from picklebot.provider.factory import create_provider
+
+from picklebot.provider.base import LLMProvider, LLMResponse, LLMToolCall, Message
+from picklebot.provider.providers import AnthropicProvider, OpenAIProvider, ZaiProvider
 
 __all__ = [
-    "BaseLLMProvider",
-    "LLMMessage",
+    "LLMProvider",
+    "Message",
     "LLMResponse",
     "LLMToolCall",
-    "create_provider",
+    "ZaiProvider",
+    "OpenAIProvider",
+    "AnthropicProvider",
 ]

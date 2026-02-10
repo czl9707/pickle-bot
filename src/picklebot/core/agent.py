@@ -1,11 +1,11 @@
-"""Agent core with LLM provider abstraction."""
-
 import json
 from typing import Any
 
+from litellm.types.completion import ChatCompletionMessageParam as Message
+
 from picklebot.config import Config
-from picklebot.core.state import AgentState, Message
-from picklebot.provider import LLMMessage, LLMToolCall, create_provider
+from picklebot.core.state import AgentState
+from picklebot.provider import LLMToolCall, LLMProvider
 
 
 class Agent:
@@ -25,7 +25,7 @@ class Agent:
         self.config = config
         self.state = AgentState()
         self._skill_registry = None  # Will be set by the CLI or explicitly
-        self._llm_provider = create_provider(config.llm)
+        self._llm_provider = LLMProvider.from_config(config.llm)
 
     def set_skill_registry(self, registry) -> None:
         """Set the skill registry for function calling."""
@@ -43,19 +43,18 @@ class Agent:
 
         return self._skill_registry.get_tool_schemas()
 
-    async def chat(self, message: str, stream: bool = False) -> str:
+    async def chat(self, message: str) -> str:
         """
         Send a message to the LLM and get a response.
 
         Args:
             message: User message
-            stream: Whether to stream the response
 
         Returns:
             Assistant's response text
         """
         # Add user message to history
-        self.state.add_message("user", message)
+        self.state.add_message({"role": "user", "content": message})
 
         # Build messages for LLM
         messages = self._build_messages()
@@ -71,76 +70,28 @@ class Agent:
             return await self._handle_tool_calls(response, messages)
 
         # No tool calls, save and return content
-        self.state.add_message("assistant", response.content)
+        self.state.add_message({"role": "assistant", "content": response.content})
         return response.content
 
-    async def chat_stream(self, message: str):
-        """
-        Send a message to the LLM and stream the response.
-
-        Args:
-            message: User message
-
-        Yields:
-            Chunks of the response as they arrive
-        """
-        # Add user message to history
-        self.state.add_message("user", message)
-
-        # Build messages for LLM
-        messages = self._build_messages()
-
-        # Get tool schemas
-        tools = self.get_tool_schemas() if self._skill_registry else None
-
-        # Stream from LLM provider
-        full_response = ""
-        async for chunk in self._llm_provider.chat_stream(messages, tools):
-            full_response += chunk
-            yield chunk
-
-        # Save complete response
-        self.state.add_message("assistant", full_response)
-
-    def _build_messages(self) -> list[LLMMessage]:
+    def _build_messages(self) -> list[Message]:
         """
         Build messages for LLM API call.
 
         Returns:
-            List of LLMMessage objects
+            List of messages compatible with litellm
         """
         # Start with system prompt
-        messages = [
-            LLMMessage(role="system", content=self.config.agent.system_prompt)
+        messages: list[Message] = [
+            {"role": "system", "content": self.config.agent.system_prompt}
         ]
 
-        # Add conversation history
-        for msg in self.state.get_history(50):
-            # Convert tool_calls to LLMToolCall objects if present
-            tool_calls = None
-            if msg.get("tool_calls"):
-                tool_calls = [
-                    LLMToolCall(
-                        id=tc["id"],
-                        name=tc["function"]["name"],
-                        arguments=tc["function"]["arguments"],
-                    )
-                    for tc in msg["tool_calls"]
-                ]
-
-            messages.append(
-                LLMMessage(
-                    role=msg["role"],
-                    content=msg["content"],
-                    tool_call_id=msg.get("tool_call_id"),
-                    tool_calls=tool_calls,
-                )
-            )
+        # Add conversation history - already in correct format from state
+        messages.extend(self.state.get_history(50))
 
         return messages
 
     async def _handle_tool_calls(
-        self, response, messages: list[LLMMessage]
+        self, response, messages: list[Message]
     ) -> str:
         """
         Handle tool calls from the LLM response.
@@ -161,7 +112,9 @@ class Agent:
             }
             for tc in response.tool_calls
         ]
-        self.state.add_message("assistant", response.content, tool_calls=tool_call_dicts)
+        self.state.add_message(
+            {"role": "assistant", "content": response.content, "tool_calls": tool_call_dicts}
+        )
 
         # Execute each tool call
         for tool_call in response.tool_calls:
@@ -172,7 +125,7 @@ class Agent:
 
         # Get final response
         final_response = await self._llm_provider.chat(messages)
-        self.state.add_message("assistant", final_response.content)
+        self.state.add_message({"role": "assistant", "content": final_response.content})
         return final_response.content
 
     async def _execute_tool_call(self, tool_call: LLMToolCall) -> None:
@@ -194,7 +147,9 @@ class Agent:
                 result = f"Error executing skill: {e}"
 
         # Save tool response message
-        self.state.add_message("tool", result, tool_call_id=tool_call.id)
+        self.state.add_message(
+            {"role": "tool", "content": result, "tool_call_id": tool_call.id}
+        )
 
     def reset(self) -> None:
         """Reset the conversation history."""

@@ -1,24 +1,13 @@
 """Base LLM provider abstraction."""
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from litellm import acompletion, ModelResponse
+from litellm.types.completion import ChatCompletionMessageParam as Message
+
 from picklebot.config import LLMConfig
-
-
-@dataclass
-class LLMMessage:
-    """
-    A message in the conversation.
-
-    Compatible with litellm's ChatCompletionMessageParam format.
-    """
-
-    role: str  # "system", "user", "assistant", "tool"
-    content: str
-    tool_call_id: Optional[str] = None
-    tool_calls: Optional[list["LLMToolCall"]] = None
 
 
 @dataclass
@@ -53,8 +42,8 @@ class LLMProvider(ABC):
     """
     Abstract base class for LLM providers.
 
-    All LLM providers should inherit from this class and implement
-    the required methods.
+    All providers inherit from this and get the default `chat` implementation
+    via litellm. Subclasses only need to define `provider_config_name`.
     """
 
     provider_config_name: list[str]
@@ -67,15 +56,6 @@ class LLMProvider(ABC):
         api_base: Optional[str] = None,
         **kwargs: Any,
     ):
-        """
-        Initialize the LLM provider.
-
-        Args:
-            model: Model name/identifier
-            api_key: API key for authentication
-            api_base: Base URL for the API
-            **kwargs: Additional provider-specific settings
-        """
         self.model = model
         self.api_key = api_key
         self.api_base = api_base
@@ -85,106 +65,72 @@ class LLMProvider(ABC):
         for c_name in cls.provider_config_name:
             LLMProvider.name2provider[c_name] = cls
         return super().__init_subclass__()
-    
 
     @staticmethod
     def from_config(config: LLMConfig) -> "LLMProvider":
-        """
-        Create an L 
-        """
-
+        """Create a provider from config."""
         provider_name = config.provider.lower()
         if provider_name not in LLMProvider.name2provider:
             raise ValueError(f"Unknown provider: {provider_name}")
 
         provider_class = LLMProvider.name2provider[provider_name]
-
         return provider_class(
             model=config.model,
             api_key=config.api_key,
             api_base=config.api_base,
         )
 
-    @abstractmethod
     async def chat(
         self,
-        messages: list[LLMMessage],
+        messages: list[Message],
         tools: Optional[list[dict[str, Any]]] = None,
         **kwargs: Any,
     ) -> LLMResponse:
         """
         Send a chat request to the LLM.
 
-        Args:
-            messages: Conversation history
-            tools: Optional tool/function schemas for function calling
-            **kwargs: Additional request parameters
-
-        Returns:
-            LLMResponse with content and optional tool calls
+        Default implementation using litellm. Subclasses can override
+        if provider-specific behavior is needed.
         """
-        pass
+        request_kwargs = {
+            "model": self.model,
+            "messages": messages,  # Already in litellm format
+            "api_key": self.api_key,
+        }
 
-    async def chat_stream(
-        self,
-        messages: list[LLMMessage],
-        tools: Optional[list[dict[str, Any]]] = None,
-        **kwargs: Any,
-    ):
-        """
-        Send a streaming chat request to the LLM.
+        if self.api_base:
+            request_kwargs["api_base"] = self.api_base
 
-        Args:
-            messages: Conversation history
-            tools: Optional tool/function schemas for function calling
-            **kwargs: Additional request parameters
+        if tools:
+            request_kwargs["tools"] = tools
 
-        Yields:
-            Chunks of the response as they arrive
-        """
-        raise NotImplementedError(f"{self.provider_name} does not support streaming")
+        request_kwargs.update(kwargs)
 
-    def supports_streaming(self) -> bool:
-        """Check if this provider supports streaming."""
-        return False
+        response = await acompletion(**request_kwargs)
 
-    def supports_tools(self) -> bool:
-        """Check if this provider supports function calling."""
-        return True
+        return self._parse_response(response)
 
-    @property
-    def provider_name(self) -> str:
-        """Return the name of this provider."""
-        return self.provider_config_name[0]
+    def _parse_response(self, response: ModelResponse) -> LLMResponse:
+        """Parse litellm response into LLMResponse."""
+        choice = response["choices"][0]
+        message = choice["message"]
 
-    def _convert_messages_to_dict(
-        self, messages: list[LLMMessage]
-    ) -> list[dict[str, Any]]:
-        """
-        Convert LLMMessage objects to dictionaries for litellm.
+        content = message.get("content", "")
+        tool_calls = None
 
-        Args:
-            messages: List of LLMMessage objects
+        if message.get("tool_calls"):
+            tool_calls = [
+                LLMToolCall(
+                    id=tc["id"],
+                    name=tc["function"]["name"],
+                    arguments=tc["function"]["arguments"],
+                )
+                for tc in message["tool_calls"]
+            ]
 
-        Returns:
-            List of message dictionaries ready for litellm
-        """
-        result = []
-        for msg in messages:
-            msg_dict = {"role": msg.role, "content": msg.content}
-            if msg.tool_call_id is not None:
-                msg_dict["tool_call_id"] = msg.tool_call_id
-            if msg.tool_calls is not None:
-                msg_dict["tool_calls"] = [
-                    {
-                        "id": tc.id,
-                        "type": "function",
-                        "function": {
-                            "name": tc.name,
-                            "arguments": tc.arguments,
-                        },
-                    }
-                    for tc in msg.tool_calls
-                ]
-            result.append(msg_dict)
-        return result
+        return LLMResponse(
+            content=content or "",
+            tool_calls=tool_calls,
+            model=response.get("model"),
+            usage=response.get("usage"),
+        )
