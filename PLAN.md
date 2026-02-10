@@ -1,28 +1,35 @@
-# Pickle-Bot MVP Implementation Plan
+# Pickle-Bot Implementation Plan
 
-## Context
+## Project Status
 
-Pickle-bot is a personal AI assistant project. **MVP scope focuses on:**
-1. **Agent skills support** - Modular, pluggable skill system
-2. **CLI chat interface** - Interactive chat through command line
-3. **LiteLLM integration** - LLM orchestration with Z.ai provider
+**MVP - COMPLETED**
 
-**Deferred to later phases:** Memory, heartbeat, cron, self-improvement, TUI
+The MVP phase is complete with the following features implemented:
+1. ✅ Agent skills support - Modular, pluggable skill system
+2. ✅ CLI chat interface - Interactive chat through command line
+3. ✅ LLM provider abstraction - Multiple providers supported (Z.ai, OpenAI, Anthropic)
+
+**Deferred to later phases:**
+- Memory (SQLite storage, vector embeddings, semantic search)
+- Heartbeat (Health monitoring, keep-alive, alerts)
+- Cron (Job scheduling, built-in maintenance jobs)
+- Self-improvement (Reflection, learning, feedback collection)
+- TUI (Textual-based terminal UI)
 
 ## Architecture Overview
-
-**MVP Architecture** - Simple, focused design:
 
 ```
 ┌─────────────────────────────────────────────┐
 │           CLI (Typer)                       │
-│  - chat command (interactive)               │
-│  - skill commands (list, info, execute)     │
+│  - Global --config option                   │
+│  - chat command                             │
+│  - status command                           │
+│  - skills subcommands (list, info, execute) │
 └──────────────────┬──────────────────────────┘
                    │
 ┌──────────────────▼──────────────────────────┐
 │           Agent (core/agent.py)             │
-│  - LiteLLM integration (Z.ai)               │
+│  - LLM provider abstraction                 │
 │  - Conversation management                  │
 │  - Skill execution coordination             │
 └──────────────────┬──────────────────────────┘
@@ -30,126 +37,157 @@ Pickle-bot is a personal AI assistant project. **MVP scope focuses on:**
         ┌──────────┴──────────┐
         │                     │
 ┌───────▼────────┐    ┌──────▼─────────┐
-│   Skills       │    │  LiteLLM       │
-│   System       │    │  (Z.ai API)    │
+│   Skills       │    │  LLM Provider  │
+│   System       │    │  (Abstract)    │
 │                │    │                │
-│ - BaseSkill    │    │ - Chat API     │
-│ - Registry     │    │ - Tools/FC     │
-│ - Loader       │    │ - Streaming    │
+│ - BaseSkill    │    │ - ZaiProvider  │
+│ - Registry     │    │ - OpenAIProvider│
+│ - Built-in     │    │ - AnthropicProvider│
 └────────────────┘    └────────────────┘
 ```
 
-## Directory Structure (MVP)
+## Directory Structure
 
 ```
 pickle-bot/
-├── main.py                          # CLI entry point (Typer)
-├── pyproject.toml                   # Dependencies
-├── .env                             # API keys (Z.ai)
-├── config/
-│   └── default.yaml                 # LLM config, skills config
-├── picklebot/
-│   ├── __init__.py
-│   ├── core/
-│   │   ├── __init__.py
-│   │   ├── agent.py                 # Main Agent class (LiteLLM wrapper)
-│   │   ├── config.py                # Configuration (pydantic)
-│   │   └── state.py                 # Simple state tracking
-│   ├── skills/
-│   │   ├── __init__.py
-│   │   ├── base.py                  # BaseSkill abstract class
-│   │   ├── registry.py              # Skill registry & loader
-│   │   └── builtin_skills.py        # Built-in skills (echo, time, system)
-│   ├── cli/
-│   │   ├── __init__.py
-│   │   ├── main.py                  # CLI commands (Typer)
-│   │   └── commands.py              # chat, skill list, skill execute
-│   └── utils/
-│       ├── __init__.py
-│       └── logging.py               # Logging setup
-├── skills/                          # User-installed skills
-│   └── .gitkeep
-└── tests/
-    └── test_skills/
+├── main.py                  # CLI entry point
+├── pyproject.toml           # Dependencies
+├── README.md                # Documentation
+├── PLAN.md                  # This file
+├── src/
+│   └── picklebot/
+│       ├── cli/            # CLI interface
+│       │   ├── main.py     # Main CLI with global options
+│       │   ├── skills.py   # Skills subcommand group
+│       │   └── commands.py # Command handlers
+│       ├── core/           # Core agent
+│       │   ├── agent.py    # Agent class
+│       │   ├── config.py   # Config (pydantic models)
+│       │   └── state.py    # Agent state
+│       ├── llm/            # LLM provider abstraction
+│       │   ├── base.py     # BaseLLMProvider
+│       │   ├── factory.py  # Provider factory
+│       │   └── providers.py # Concrete providers
+│       ├── skills/         # Skills system
+│       │   ├── base.py     # BaseSkill interface
+│       │   ├── registry.py # Skill registry
+│       │   └── builtin_skills.py
+│       └── utils/          # Utilities
+│           └── logging.py  # Logging setup
+└── skills/                  # User-installed skills
 ```
 
-## Implementation Steps (MVP)
+## Configuration
 
-### Step 1: Project Setup & Configuration
-**Files:** `pyproject.toml`, `.env`, `config/default.yaml`
+Configuration is stored in `~/.pickle-bot/`:
 
-1. Update `pyproject.toml` with MVP dependencies:
-   - `pydantic>=2.0.0` - Config validation
-   - `pyyaml>=6.0` - YAML config loading
-   - `python-dotenv>=1.0.0` - Environment variables
+```
+~/.pickle-bot/
+├── config.system.yaml    # System defaults
+└── config.user.yaml      # User overrides
+```
 
-2. Create `.env` template for Z.ai API key:
-   ```
-   LITELLM_API_KEY=z_ai_api_key_here
-   LITELLM_MODEL=z_ai_model_name
-   ```
+The configuration system uses:
+- YAML format for readability
+- Pydantic models for validation
+- Deep merge for user overrides over system defaults
+- No environment variables (pure YAML-driven)
 
-3. Create `config/default.yaml`:
-   ```yaml
-   llm:
-     provider: z_ai
-     model: ${LITELLM_MODEL}
-     api_key: ${LITELLM_API_KEY}
-     api_base: https://api.z.ai/v1
+## CLI Commands
 
-   agent:
-     name: "pickle-bot"
-     system_prompt: "You are pickle-bot, a helpful AI assistant."
+```bash
+picklebot [OPTIONS] COMMAND [ARGS]...
 
-   skills:
-     directory: ./skills
-     auto_load: true
-   ```
+Options:
+  --config, -c TEXT    Path to config directory
 
-### Step 2: Core Configuration & State
-**Files:** `picklebot/core/config.py`, `picklebot/core/state.py`
+Commands:
+  chat      Start interactive chat session
+  status    Show agent status
+  skills    Manage and interact with skills
+```
 
-1. **`config.py`**: Create `AgentConfig` using pydantic BaseModel
-   - Load from YAML file
-   - Support environment variable interpolation
-   - Validate required fields
+### Skills Subcommands
 
-2. **`state.py`**: Create simple `AgentState` dataclass
-   - Track conversation history (in-memory for MVP)
-   - Track active skills
-   - No persistence needed yet
+```bash
+picklebot skills list           # List all skills
+picklebot skills info <name>     # Show skill details
+picklebot skills execute <name>  # Execute a skill
+  --args, -a TEXT              # JSON args
+```
 
-### Step 3: Agent Core (LiteLLM Integration)
-**File:** `picklebot/core/agent.py`
+## Completed Features
 
-Create `Agent` class with:
-- `__init__(config: AgentConfig)` - Initialize with config
-- `chat(message: str, stream: bool = True)` - Send message to LLM, return response
-- `get_skills_tool_schema()` - Generate tool schemas for LiteLLM
-- `_build_litellm_config()` - Build LiteLLM config from agent config
+### 1. Configuration System
+- ✅ YAML-based configuration in `~/.pickle-bot/`
+- ✅ System/User config split with deep merge
+- ✅ Pydantic validation
+- ✅ No environment variables
 
-### Step 4: Skills System
-**Files:** `picklebot/skills/base.py`, `picklebot/skills/registry.py`, `picklebot/skills/builtin_skills.py`
+### 2. LLM Provider Abstraction
+- ✅ BaseLLMProvider abstract class
+- ✅ Provider factory with registry
+- ✅ ZaiProvider (for Z.ai/GLM models)
+- ✅ OpenAIProvider (for GPT models)
+- ✅ AnthropicProvider (for Claude models)
+- ✅ Easy to add new providers
 
-1. **`base.py`**: Create `BaseSkill` interface
-2. **`registry.py`**: Create `SkillRegistry`
-3. **`builtin_skills.py`**: Implement built-in skills (echo, time, system)
+### 3. Skills System
+- ✅ BaseSkill abstract class
+- ✅ SkillRegistry with tool schema generation
+- ✅ Built-in skills: echo, get_time, get_system_info
+- ✅ Function calling support
 
-### Step 5: CLI Commands
-**Files:** `main.py`, `picklebot/cli/main.py`, `picklebot/cli/commands.py`
+### 4. CLI Interface
+- ✅ Global --config option
+- ✅ Skills as proper subcommands
+- ✅ Rich terminal output
+- ✅ Config-driven logging
 
-### Step 6: LiteLLM + Skills Integration
-Update agent chat to support function calling
+## Built-in Skills
 
-## Dependencies (MVP)
+| Skill | Description |
+|-------|-------------|
+| echo | Echo back input text (for testing) |
+| get_time | Get current time and date |
+| get_system_info | Get system information (platform, python, hostname) |
+
+## Dependencies
 
 ```toml
 dependencies = [
-  "litellm>=7.5.0",        # LLM orchestration
-  "typer>=0.21.1",         # CLI framework
-  "pydantic>=2.0.0",       # Validation
-  "pyyaml>=6.0",           # Config files
-  "python-dotenv>=1.0.0",  # Environment variables
-  "rich>=13.0.0",          # Terminal formatting
+  "litellm>=1.0.0",     # LLM orchestration
+  "typer>=0.12.0",      # CLI framework
+  "textual>=0.21.0",    # TUI framework (for future use)
+  "pydantic>=2.0.0",    # Validation
+  "pyyaml>=6.0",        # Config files
+  "rich>=13.0.0",       # Terminal formatting
 ]
 ```
+
+## Future Phases
+
+### Phase 2: Memory System
+- SQLite storage for conversation history
+- Vector embeddings for semantic search
+- Memory retrieval and consolidation
+
+### Phase 3: Heartbeat & Monitoring
+- Health monitoring
+- Keep-alive mechanism
+- System metrics collection
+
+### Phase 4: Cron & Scheduling
+- Job scheduler with cron syntax
+- Built-in maintenance jobs
+- Job persistence
+
+### Phase 5: Self-Improvement
+- Reflection engine
+- Learning algorithms
+- Feedback collection
+
+### Phase 6: Terminal UI
+- Textual-based TUI
+- Multiple screens (chat, skills, memory)
+- Custom widgets
