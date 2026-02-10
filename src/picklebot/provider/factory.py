@@ -1,8 +1,6 @@
 """LLM provider factory."""
 
-from typing import Any
-
-from picklebot.core.config import LLMConfig
+from picklebot.config import LLMConfig
 from picklebot.llm.base import BaseLLMProvider
 from picklebot.llm.providers import AnthropicProvider, OpenAIProvider, ZaiProvider
 

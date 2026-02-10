@@ -5,7 +5,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from picklebot.core.agent import Agent
-from picklebot.core.config import Config
+from picklebot.config import Config
 from picklebot.skills.builtin_skills import register_builtin_skills
 from picklebot.skills.registry import SkillRegistry
 

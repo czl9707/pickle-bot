@@ -3,9 +3,9 @@
 import json
 from typing import Any
 
-from picklebot.core.config import Config
+from picklebot.config import Config
 from picklebot.core.state import AgentState, Message
-from picklebot.llm import LLMMessage, LLMToolCall, create_provider
+from picklebot.provider import LLMMessage, LLMToolCall, create_provider
 
 
 class Agent:

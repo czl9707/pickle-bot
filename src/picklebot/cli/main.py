@@ -7,7 +7,7 @@ from rich.console import Console
 
 from picklebot.cli.commands import run_chat
 from picklebot.cli.skills import skills_app
-from picklebot.core.config import Config
+from picklebot.config import Config
 from picklebot.utils.logging import setup_logging
 
 app = typer.Typer(
@@ -16,7 +16,6 @@ app = typer.Typer(
     no_args_is_help=True,
     add_completion=True,
 )
-app.add_typer(skills_app, name="skills", help="Manage and interact with skills")
 
 console = Console()
 
@@ -70,6 +69,7 @@ def chat(
 
     asyncio.run(run_chat(config))
 
+app.add_typer(skills_app, name="skills", help="Manage and interact with skills")
 
 
 if __name__ == "__main__":

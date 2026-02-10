@@ -4,7 +4,7 @@ from typing import Any
 
 from litellm import acompletion
 
-from picklebot.llm.base import BaseLLMProvider, LLMMessage, LLMResponse, LLMToolCall
+from picklebot.provider.base import BaseLLMProvider, LLMMessage, LLMResponse, LLMToolCall
 
 
 class ZaiProvider(BaseLLMProvider):

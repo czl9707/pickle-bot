@@ -3,7 +3,7 @@
 import typer
 from rich.console import Console
 
-from picklebot.core.config import Config
+from picklebot.config import Config
 from picklebot.skills.builtin_skills import register_builtin_skills
 from picklebot.skills.registry import SkillRegistry
 

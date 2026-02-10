@@ -1,7 +1,7 @@
 """Core agent functionality."""
 
 from picklebot.core.agent import Agent
-from picklebot.core.config import (
+from picklebot.config import (
     AgentBehaviorConfig,
     AgentConfigModel,
     Config,
