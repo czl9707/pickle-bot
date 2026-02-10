@@ -1,14 +1,14 @@
-"""Built-in skills for pickle-bot."""
+"""Built-in tools for pickle-bot."""
 
 import platform
 from datetime import datetime
 
-from picklebot.skills.base import BaseSkill, skill
-from picklebot.skills.registry import SkillRegistry
+from picklebot.tools.base import BaseTool
+from picklebot.tools.registry import ToolRegistry
 
 
-class EchoSkill(BaseSkill):
-    """Simple echo skill for testing."""
+class EchoTool(BaseTool):
+    """Simple echo tool for testing."""
 
     name = "echo"
     description = "Echo back the input text"
@@ -24,11 +24,10 @@ class EchoSkill(BaseSkill):
     }
 
     async def execute(self, text: str) -> str:
-        """Echo the input text."""
         return f"Echo: {text}"
 
 
-class TimeSkill(BaseSkill):
+class TimeTool(BaseTool):
     """Get current time and date."""
 
     name = "get_time"
@@ -45,15 +44,10 @@ class TimeSkill(BaseSkill):
     }
 
     async def execute(self, timezone: str | None = None) -> str:
-        """Get current time."""
-        if timezone:
-            # For simplicity, we just return local time
-            # A full implementation would use zoneinfo
-            return f"Current local time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         return f"Current local time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
 
 
-class SystemSkill(BaseSkill):
+class SystemTool(BaseTool):
     """Get system information."""
 
     name = "get_system_info"
@@ -71,7 +65,6 @@ class SystemSkill(BaseSkill):
     }
 
     async def execute(self, info_type: str = "all") -> str:
-        """Get system information."""
         info = []
 
         if info_type in ["all", "platform"]:
@@ -81,19 +74,17 @@ class SystemSkill(BaseSkill):
 
         if info_type in ["all", "python"]:
             import sys
-
             info.append(f"Python: {sys.version}")
 
         if info_type in ["all", "machine"]:
             import socket
-
             info.append(f"Hostname: {socket.gethostname()}")
 
         return "\n".join(info) if info else "No information available"
 
 
-def register_builtin_skills(registry: SkillRegistry) -> None:
-    """Register all built-in skills with the given registry."""
-    registry.register(EchoSkill())
-    registry.register(TimeSkill())
-    registry.register(SystemSkill())
+def register_builtin_tools(registry: ToolRegistry) -> None:
+    """Register all built-in tools with the given registry."""
+    registry.register(EchoTool())
+    registry.register(TimeTool())
+    registry.register(SystemTool())

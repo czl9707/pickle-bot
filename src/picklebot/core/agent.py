@@ -12,7 +12,7 @@ class Agent:
     """
     Main Agent class that handles chat with pluggable LLM providers.
 
-    Supports function calling through the skills system.
+    Supports function calling through the tools system.
     """
 
     def __init__(self, config: Config):
@@ -24,24 +24,24 @@ class Agent:
         """
         self.config = config
         self.state = AgentState()
-        self._skill_registry = None  # Will be set by the CLI or explicitly
+        self._tool_registry = None  # Will be set by the CLI or explicitly
         self._llm_provider = LLMProvider.from_config(config.llm)
 
-    def set_skill_registry(self, registry) -> None:
-        """Set the skill registry for function calling."""
-        self._skill_registry = registry
+    def set_tool_registry(self, registry) -> None:
+        """Set the tool registry for function calling."""
+        self._tool_registry = registry
 
     def get_tool_schemas(self) -> list[dict[str, Any]]:
         """
-        Get tool schemas from the skill registry.
+        Get tool schemas from the tool registry.
 
         Returns:
             List of tool/function schemas
         """
-        if self._skill_registry is None:
+        if self._tool_registry is None:
             return []
 
-        return self._skill_registry.get_tool_schemas()
+        return self._tool_registry.get_tool_schemas()
 
     async def chat(self, message: str) -> str:
         """
@@ -60,7 +60,7 @@ class Agent:
         messages = self._build_messages()
 
         # Get tool schemas
-        tools = self.get_tool_schemas() if self._skill_registry else None
+        tools = self.get_tool_schemas() if self._tool_registry else None
 
         # Call LLM provider
         response = await self._llm_provider.chat(messages, tools)
@@ -135,16 +135,16 @@ class Agent:
         Args:
             tool_call: Tool call from LLM response
         """
-        if self._skill_registry is None:
-            result = "Error: No skill registry available"
+        if self._tool_registry is None:
+            result = "Error: No tool registry available"
         else:
             try:
                 args = json.loads(tool_call.arguments)
-                result = await self._skill_registry.execute_tool(
+                result = await self._tool_registry.execute_tool(
                     tool_call.name, **args
                 )
             except Exception as e:
-                result = f"Error executing skill: {e}"
+                result = f"Error executing tool: {e}"
 
         # Save tool response message
         self.state.add_message(

@@ -6,13 +6,12 @@ import typer
 from rich.console import Console
 
 from picklebot.cli.chat import run_interactive_session
-from picklebot.cli.skills import skills_app
 from picklebot.config import Config
 from picklebot.utils.logging import setup_logging
 
 app = typer.Typer(
     name="picklebot",
-    help="Pickle-Bot: Personal AI Assistant with pluggable skills",
+    help="Pickle-Bot: Personal AI Assistant with pluggable tools",
     no_args_is_help=True,
     add_completion=True,
 )
@@ -49,7 +48,7 @@ def main(
     ),
 ) -> None:
     """
-    Pickle-Bot: Personal AI Assistant with pluggable skills.
+    Pickle-Bot: Personal AI Assistant with pluggable tools.
 
     Configuration is loaded from ~/.pickle-bot/ by default.
     Use --config to specify a custom configuration directory.
@@ -68,8 +67,6 @@ def chat(
     config = ctx.obj.get("config")
 
     asyncio.run(run_interactive_session(config))
-
-app.add_typer(skills_app, name="skills", help="Manage and interact with skills")
 
 
 if __name__ == "__main__":

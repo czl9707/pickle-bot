@@ -7,7 +7,8 @@ from picklebot.config import (
     Config,
     LLMConfig,
     LoggingConfig,
-    SkillsConfig,
+    ToolExecutionConfig,
+    ToolsConfig,
 )
 from picklebot.core.state import AgentState, Message
 
@@ -19,6 +20,7 @@ __all__ = [
     "LLMConfig",
     "AgentConfigModel",
     "AgentBehaviorConfig",
-    "SkillsConfig",
+    "ToolExecutionConfig",
+    "ToolsConfig",
     "LoggingConfig",
 ]

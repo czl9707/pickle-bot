@@ -6,21 +6,21 @@ from rich.text import Text
 
 from picklebot.core.agent import Agent
 from picklebot.config import Config
-from picklebot.skills.builtin_skills import register_builtin_skills
-from picklebot.skills.registry import SkillRegistry
+from picklebot.tools.builtin_tools import register_builtin_tools
+from picklebot.tools.registry import ToolRegistry
 
 console = Console()
 
 
 async def run_interactive_session(config: Config) -> None:
     """Run interactive chat session."""
-    # Set up skill registry
-    registry = SkillRegistry()
-    register_builtin_skills(registry)
+    # Set up tool registry
+    registry = ToolRegistry()
+    register_builtin_tools(registry)
 
     # Create agent
     agent = Agent(config)
-    agent.set_skill_registry(registry)
+    agent.set_tool_registry(registry)
 
     # Welcome message
     console.print(
@@ -54,4 +54,3 @@ async def run_interactive_session(config: Config) -> None:
             break
         except Exception as e:
             console.print(f"[red]Error: {e}[/red]")
-

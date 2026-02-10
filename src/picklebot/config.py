@@ -50,19 +50,19 @@ class AgentConfigModel(BaseModel):
         return v
 
 
-class SkillExecutionConfig(BaseModel):
-    """Skill execution configuration."""
+class ToolExecutionConfig(BaseModel):
+    """Tool execution configuration."""
 
     timeout: int = Field(default=30, gt=0)
     max_concurrent: int = Field(default=5, gt=0)
 
 
-class SkillsConfig(BaseModel):
-    """Skills system configuration."""
+class ToolsConfig(BaseModel):
+    """Tools system configuration."""
 
-    directory: str = "./skills"
+    directory: str = "./tools"
     builtin: list[str] = Field(default_factory=lambda: ["echo", "get_time", "get_system_info"])
-    execution: SkillExecutionConfig = Field(default_factory=SkillExecutionConfig)
+    execution: ToolExecutionConfig = Field(default_factory=ToolExecutionConfig)
 
 
 class LoggingConfig(BaseModel):
@@ -92,7 +92,7 @@ class Config(BaseModel):
 
     llm: LLMConfig
     agent: AgentConfigModel = Field(default_factory=AgentConfigModel)
-    skills: SkillsConfig = Field(default_factory=SkillsConfig)
+    tools: ToolsConfig = Field(default_factory=ToolsConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
     @classmethod
