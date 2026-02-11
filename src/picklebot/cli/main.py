@@ -5,7 +5,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from picklebot.cli.chat import run_interactive_session
+from picklebot.cli.chat import Session
 from picklebot.config import Config
 from picklebot.utils.logging import setup_logging
 
@@ -66,7 +66,8 @@ def chat(
 
     config = ctx.obj.get("config")
 
-    asyncio.run(run_interactive_session(config))
+    session = Session(config)
+    asyncio.run(session.run())
 
 
 if __name__ == "__main__":

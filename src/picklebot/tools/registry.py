@@ -13,7 +13,7 @@ class ToolRegistry:
     for LiteLLM function calling.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize an empty tool registry."""
         self._tools: dict[str, BaseTool] = {}
 

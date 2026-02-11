@@ -6,6 +6,7 @@ from litellm.types.completion import ChatCompletionMessageParam as Message
 from picklebot.config import Config
 from picklebot.core.state import AgentState
 from picklebot.provider import LLMToolCall, LLMProvider
+from picklebot.tools.registry import ToolRegistry
 
 
 class Agent:
@@ -15,21 +16,18 @@ class Agent:
     Supports function calling through the tools system.
     """
 
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, tool_registry: ToolRegistry | None = None):
         """
         Initialize the agent.
 
         Args:
             config: Agent configuration
+            tool_registry: Optional tool registry for function calling
         """
         self.config = config
         self.state = AgentState()
-        self._tool_registry = None  # Will be set by the CLI or explicitly
+        self._tool_registry = tool_registry
         self._llm_provider = LLMProvider.from_config(config.llm)
-
-    def set_tool_registry(self, registry) -> None:
-        """Set the tool registry for function calling."""
-        self._tool_registry = registry
 
     def get_tool_schemas(self) -> list[dict[str, Any]]:
         """
@@ -123,8 +121,11 @@ class Agent:
         # Rebuild messages with tool responses
         messages = self._build_messages()
 
+        # Get tool schemas for context
+        tools = self.get_tool_schemas() if self._tool_registry else None
+
         # Get final response
-        final_response = await self._llm_provider.chat(messages)
+        final_response = await self._llm_provider.chat(messages, tools)
         self.state.add_message({"role": "assistant", "content": final_response.content})
         return final_response.content
 
