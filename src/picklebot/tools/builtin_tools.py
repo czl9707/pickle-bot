@@ -1,90 +1,128 @@
 """Built-in tools for pickle-bot."""
 
-import platform
-from datetime import datetime
+import asyncio
+from pathlib import Path
 
-from picklebot.tools.base import BaseTool
+from picklebot.tools.base import tool
 from picklebot.tools.registry import ToolRegistry
 
 
-class EchoTool(BaseTool):
-    """Simple echo tool for testing."""
+# Filesystem tools
 
-    name = "echo"
-    description = "Echo back the input text"
-    parameters = {
+@tool(
+    name="read",
+    description="Read the contents of a text file",
+    parameters={
         "type": "object",
         "properties": {
-            "text": {
-                "type": "string",
-                "description": "The text to echo back",
-            },
+            "path": {"type": "string", "description": "Path to the file to read"},
         },
-        "required": ["text"],
-    }
+        "required": ["path"],
+    },
+)
+async def read_file(path: str) -> str:
+    """Read and return the contents of a file at the given path."""
+    try:
+        return Path(path).read_text()
+    except FileNotFoundError:
+        return f"Error: File not found: {path}"
+    except PermissionError:
+        return f"Error: Permission denied reading: {path}"
+    except IsADirectoryError:
+        return f"Error: Path is a directory, not a file: {path}"
+    except Exception as e:
+        return f"Error reading file: {e}"
 
-    async def execute(self, text: str) -> str:
-        return f"Echo: {text}"
 
-
-class TimeTool(BaseTool):
-    """Get current time and date."""
-
-    name = "get_time"
-    description = "Get the current time and date"
-    parameters = {
+@tool(
+    name="write",
+    description="Write content to a file",
+    parameters={
         "type": "object",
         "properties": {
-            "timezone": {
-                "type": "string",
-                "description": "Optional timezone (e.g., 'UTC', 'America/New_York')",
-            },
+            "path": {"type": "string", "description": "Path to the file to write"},
+            "content": {"type": "string", "description": "Content to write to the file"},
         },
-        "required": [],
-    }
+        "required": ["path", "content"],
+    },
+)
+async def write_file(path: str, content: str) -> str:
+    """Write content to a file at the given path."""
+    try:
+        Path(path).write_text(content)
+        return f"Successfully wrote to: {path}"
+    except PermissionError:
+        return f"Error: Permission denied writing to: {path}"
+    except IsADirectoryError:
+        return f"Error: Path is a directory, not a file: {path}"
+    except Exception as e:
+        return f"Error writing file: {e}"
 
-    async def execute(self, timezone: str | None = None) -> str:
-        return f"Current local time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
 
-
-class SystemTool(BaseTool):
-    """Get system information."""
-
-    name = "get_system_info"
-    description = "Get information about the system"
-    parameters = {
+@tool(
+    name="edit",
+    description="Edit a file by replacing a string with new content",
+    parameters={
         "type": "object",
         "properties": {
-            "info_type": {
-                "type": "string",
-                "enum": ["all", "platform", "python", "machine"],
-                "description": "Type of system information to retrieve",
-            },
+            "path": {"type": "string", "description": "Path to the file to edit"},
+            "old_text": {"type": "string", "description": "The text to replace"},
+            "new_text": {"type": "string", "description": "The new text to replace with"},
         },
-        "required": [],
-    }
+        "required": ["path", "old_text", "new_text"],
+    },
+)
+async def edit_file(path: str, old_text: str, new_text: str) -> str:
+    """Edit a file by replacing old_text with new_text."""
+    try:
+        content = Path(path).read_text()
+        if old_text not in content:
+            return f"Error: '{old_text}' not found in {path}"
+        new_content = content.replace(old_text, new_text)
+        Path(path).write_text(new_content)
+        return f"Successfully edited {path}"
+    except FileNotFoundError:
+        return f"Error: File not found: {path}"
+    except PermissionError:
+        return f"Error: Permission denied editing: {path}"
+    except Exception as e:
+        return f"Error editing file: {e}"
 
-    async def execute(self, info_type: str = "all") -> str:
-        info = []
 
-        if info_type in ["all", "platform"]:
-            info.append(f"Platform: {platform.platform()}")
-            info.append(f"OS: {platform.system()} {platform.release()}")
-            info.append(f"Architecture: {platform.machine()}")
+# Shell tool
 
-        if info_type in ["all", "python"]:
-            import sys
-            info.append(f"Python: {sys.version}")
-
-        if info_type in ["all", "machine"]:
-            import socket
-            info.append(f"Hostname: {socket.gethostname()}")
-
-        return "\n".join(info) if info else "No information available"
+@tool(
+    name="bash",
+    description="Execute a bash shell command",
+    parameters={
+        "type": "object",
+        "properties": {
+            "command": {"type": "string", "description": "The bash command to execute"},
+        },
+        "required": ["command"],
+    },
+)
+async def bash(command: str) -> str:
+    """Execute a bash command and return the output."""
+    try:
+        process = await asyncio.create_subprocess_shell(
+            command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await process.communicate()
+        output = stdout.decode() if stdout else ""
+        error = stderr.decode() if stderr else ""
+        if output and error:
+            return f"{output}\n{error}"
+        return output or error or "Command completed with no output"
+    except Exception as e:
+        return f"Error executing command: {e}"
 
 
 def register_builtin_tools(registry: ToolRegistry) -> None:
     """Register all built-in tools with the given registry."""
-    registry.register(EchoTool())
-    registry.register(TimeTool())
-    registry.register(SystemTool())
+    registry.register(read_file)
+    registry.register(write_file)
+    registry.register(edit_file)
+    registry.register(bash)

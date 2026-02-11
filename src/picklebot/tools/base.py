@@ -58,4 +58,3 @@ class FunctionTool(BaseTool):
         if asyncio.iscoroutine(result):
             result = await result
         return str(result)
-
