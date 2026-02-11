@@ -29,7 +29,7 @@ class AgentState:
         Returns:
             List of messages in litellm format
         """
-        return self.messages[-max_messages:] if max_messages else self.messages
+        return self.messages[-max_messages:]
 
     def clear_history(self) -> None:
         """Clear the conversation history."""

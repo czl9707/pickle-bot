@@ -23,7 +23,6 @@ class Session:
         self.config = config
         self.console = Console()
 
-        # Set up tool registry
         registry = ToolRegistry()
         register_builtin_tools(registry)
 

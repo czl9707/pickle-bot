@@ -2,9 +2,9 @@
 
 from abc import ABC
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
-from litellm import acompletion, ModelResponse
+from litellm import acompletion, Choices
 from litellm.types.completion import ChatCompletionMessageParam as Message
 
 from picklebot.config import LLMConfig
@@ -22,20 +22,6 @@ class LLMToolCall:
     id: str
     name: str
     arguments: str  # JSON string
-
-
-@dataclass
-class LLMResponse:
-    """
-    Response from an LLM provider.
-
-    Simplified adapter over litellm's ModelResponse.
-    """
-
-    content: str
-    tool_calls: Optional[list[LLMToolCall]] = None
-    model: Optional[str] = None
-    usage: Optional[dict[str, Any]] = None
 
 
 class LLMProvider(ABC):
@@ -85,7 +71,7 @@ class LLMProvider(ABC):
         messages: list[Message],
         tools: Optional[list[dict[str, Any]]] = None,
         **kwargs: Any,
-    ) -> LLMResponse:
+    ) -> tuple[str, list[LLMToolCall]]:
         """
         Send a chat request to the LLM.
 
@@ -94,43 +80,28 @@ class LLMProvider(ABC):
         """
         request_kwargs = {
             "model": self.model,
-            "messages": messages,  # Already in litellm format
+            "messages": messages,
             "api_key": self.api_key,
         }
 
         if self.api_base:
             request_kwargs["api_base"] = self.api_base
-
         if tools:
             request_kwargs["tools"] = tools
-
         request_kwargs.update(kwargs)
 
         response = await acompletion(**request_kwargs)
 
-        return self._parse_response(response)
+        message = cast(Choices, response.choices[0]).message
 
-    def _parse_response(self, response: ModelResponse) -> LLMResponse:
-        """Parse litellm response into LLMResponse."""
-        choice = response["choices"][0]
-        message = choice["message"]
-
-        content = message.get("content", "")
-        tool_calls = None
-
-        if message.get("tool_calls"):
-            tool_calls = [
+        return (
+            message.content or "",
+            [
                 LLMToolCall(
                     id=tc["id"],
                     name=tc["function"]["name"],
                     arguments=tc["function"]["arguments"],
                 )
-                for tc in message["tool_calls"]
+                for tc in (message.tool_calls or [])
             ]
-
-        return LLMResponse(
-            content=content or "",
-            tool_calls=tool_calls,
-            model=response.get("model"),
-            usage=response.get("usage"),
         )

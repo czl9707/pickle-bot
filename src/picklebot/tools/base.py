@@ -1,5 +1,6 @@
 """Base tool interface and decorator."""
 
+import asyncio
 from abc import ABC, abstractmethod
 from typing import Any, Callable
 
@@ -58,5 +59,3 @@ class FunctionTool(BaseTool):
             result = await result
         return str(result)
 
-
-import asyncio

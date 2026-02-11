@@ -1,8 +1,11 @@
 import json
-from typing import Any
+import asyncio
+from typing import Any, Iterable
 
-from litellm.types.completion import ChatCompletionMessageParam as Message
-
+from litellm.types.completion import (
+    ChatCompletionMessageParam as Message, 
+    ChatCompletionMessageToolCallParam
+)
 from picklebot.config import Config
 from picklebot.core.state import AgentState
 from picklebot.provider import LLMToolCall, LLMProvider
@@ -51,25 +54,29 @@ class Agent:
         Returns:
             Assistant's response text
         """
-        # Add user message to history
         self.state.add_message({"role": "user", "content": message})
-
-        # Build messages for LLM
-        messages = self._build_messages()
-
-        # Get tool schemas
         tools = self.get_tool_schemas() if self._tool_registry else None
 
-        # Call LLM provider
-        response = await self._llm_provider.chat(messages, tools)
+        while True:
+            messages = self._build_messages()
+            content, tool_calls = await self._llm_provider.chat(messages, tools)
+            tool_call_dicts: Iterable[ChatCompletionMessageToolCallParam] = [
+                {
+                    "id": tc.id,
+                    "type": "function",
+                    "function": {"name": tc.name, "arguments": tc.arguments},
+                }
+                for tc in tool_calls
+            ]
+            self.state.add_message({"role": "assistant", "content": content, "tool_calls": tool_call_dicts})
+            
+            if not tool_calls:
+                break
 
-        # Handle tool calls
-        if response.tool_calls:
-            return await self._handle_tool_calls(response, messages)
+            await self._handle_tool_calls(tool_calls)
+            continue
 
-        # No tool calls, save and return content
-        self.state.add_message({"role": "assistant", "content": response.content})
-        return response.content
+        return content
 
     def _build_messages(self) -> list[Message]:
         """
@@ -78,19 +85,14 @@ class Agent:
         Returns:
             List of messages compatible with litellm
         """
-        # Start with system prompt
         messages: list[Message] = [
             {"role": "system", "content": self.config.agent.system_prompt}
         ]
-
-        # Add conversation history - already in correct format from state
         messages.extend(self.state.get_history(50))
 
         return messages
 
-    async def _handle_tool_calls(
-        self, response, messages: list[Message]
-    ) -> str:
+    async def _handle_tool_calls(self, tool_calls: list[LLMToolCall]) -> None:
         """
         Handle tool calls from the LLM response.
 
@@ -101,35 +103,17 @@ class Agent:
         Returns:
             Final assistant response text
         """
-        # Save assistant message with tool calls
-        tool_call_dicts = [
-            {
-                "id": tc.id,
-                "type": "function",
-                "function": {"name": tc.name, "arguments": tc.arguments},
-            }
-            for tc in response.tool_calls
-        ]
-        self.state.add_message(
-            {"role": "assistant", "content": response.content, "tool_calls": tool_call_dicts}
+        
+        tool_call_results = await asyncio.gather(
+            *[self._execute_tool_call(tool_call) for tool_call in tool_calls]
         )
 
-        # Execute each tool call
-        for tool_call in response.tool_calls:
-            await self._execute_tool_call(tool_call)
+        for tool_call, result in zip(tool_calls, tool_call_results):
+            self.state.add_message(
+                {"role": "tool", "content": result, "tool_call_id": tool_call.id}
+            )
 
-        # Rebuild messages with tool responses
-        messages = self._build_messages()
-
-        # Get tool schemas for context
-        tools = self.get_tool_schemas() if self._tool_registry else None
-
-        # Get final response
-        final_response = await self._llm_provider.chat(messages, tools)
-        self.state.add_message({"role": "assistant", "content": final_response.content})
-        return final_response.content
-
-    async def _execute_tool_call(self, tool_call: LLMToolCall) -> None:
+    async def _execute_tool_call(self, tool_call: LLMToolCall) -> str:
         """
         Execute a single tool call.
 
@@ -147,11 +131,8 @@ class Agent:
             except Exception as e:
                 result = f"Error executing tool: {e}"
 
-        # Save tool response message
         self.state.add_message(
             {"role": "tool", "content": result, "tool_call_id": tool_call.id}
         )
 
-    def reset(self) -> None:
-        """Reset the conversation history."""
-        self.state.clear_history()
+        return result
