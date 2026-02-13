@@ -10,7 +10,7 @@ from litellm.types.completion import (
 )
 
 from picklebot.core.context import SharedContext
-from picklebot.core.session_new import Session
+from picklebot.core.session import Session
 from picklebot.provider import LLMToolCall, LLMProvider
 from picklebot.tools.registry import ToolRegistry
 from picklebot.utils.config import AgentConfig

@@ -1,62 +1,36 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import cast
-from uuid import uuid4
-
 from litellm.types.completion import (
-    ChatCompletionMessageParam as Message, 
-    ChatCompletionToolMessageParam, 
-    ChatCompletionAssistantMessageParam
+    ChatCompletionMessageParam as Message,
+    ChatCompletionToolMessageParam,
+    ChatCompletionAssistantMessageParam,
 )
-from picklebot.utils.config import AgentConfig
-from .history import HistoryStore, HistoryMessage
+from picklebot.core.history import HistoryStore, HistoryMessage
 
 
 @dataclass
-class AgentSession:
-    """
-    Runtime state for the pickle-bot agent.
-    """
+class Session:
+    """Runtime state for a single conversation."""
 
-    agent_config: AgentConfig
-    history_store: "HistoryStore"
-    session_id: str = field(default_factory=lambda: str(uuid4()))
+    session_id: str
+    agent_id: str
+    history_store: HistoryStore
+
     messages: list[Message] = field(default_factory=list)
     started_at: datetime = field(default_factory=datetime.now)
 
-    async def __aenter__(self):
-        # ensure history_store initialize the session.
-        self.history_store.create_session(self.agent_config.name, self.session_id)
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        pass
-
-    async def add_message(self, message: Message) -> None:
-        """Add a message to the conversation history."""
+    def add_message(self, message: Message) -> None:
+        """Add a message to history (in-memory + persist)."""
         self.messages.append(message)
-        self._save_message_to_history(message)
+        self._persist_message(message)
 
     def get_history(self, max_messages: int = 50) -> list[Message]:
-        """
-        Get conversation history.
-
-        Args:
-            max_messages: Maximum number of messages to return
-
-        Returns:
-            List of messages in litellm format
-        """
+        """Get recent messages for LLM context."""
         return self.messages[-max_messages:]
 
-    def _save_message_to_history(self, message: Message) -> None:
-        """
-        Persist a message to the history backend.
-
-        Args:
-            message: The message to persist (in litellm format)
-        """
-
+    def _persist_message(self, message: Message) -> None:
+        """Save to HistoryStore."""
         tool_calls = None
         if message.get("tool_calls", None):
             message = cast(ChatCompletionAssistantMessageParam, message)
@@ -74,11 +48,10 @@ class AgentSession:
             message = cast(ChatCompletionToolMessageParam, message)
             tool_call_id = message.get("tool_call_id")
 
-
         history_msg = HistoryMessage(
             role=message["role"],  # type: ignore
             content=str(message.get("content", "")),
-            tool_calls = tool_calls,
+            tool_calls=tool_calls,
             tool_call_id=tool_call_id,
         )
         self.history_store.save_message(self.session_id, history_msg)

@@ -1,4 +1,4 @@
-from picklebot.core.session_new import Session
+from picklebot.core.session import Session
 from picklebot.core.history import HistoryStore
 from pathlib import Path
 
