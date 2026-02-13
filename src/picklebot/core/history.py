@@ -132,8 +132,8 @@ class HistoryStore:
 
             # Auto-generate title from first user message
             if sessions[idx].title is None and message.role == "user":
-                title = message.content[:40]
-                if len(message.content) > 40:
+                title = message.content[:50]
+                if len(message.content) > 50:
                     title += "..."
                 sessions[idx].title = title
 

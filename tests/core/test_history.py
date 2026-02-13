@@ -108,11 +108,11 @@ class TestSaveMessage:
         """First user message should auto-generate session title."""
         store.create_session("agent", "session-1")
 
-        msg = HistoryMessage(role="user", content="This is a long question that should be truncated")
+        msg = HistoryMessage(role="user", content="This is a long question that should definitely be truncated now")
         store.save_message("session-1", msg)
 
         sessions = store.list_sessions()
-        assert sessions[0].title == "This is a long question that should be t..."
+        assert sessions[0].title == "This is a long question that should definitely be ..."
 
     def test_handles_tool_calls(self, store):
         """save_message should store tool_calls."""
