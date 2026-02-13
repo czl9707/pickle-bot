@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from litellm.types.completion import (
     ChatCompletionMessageParam as Message,
     ChatCompletionToolMessageParam,
     ChatCompletionAssistantMessageParam,
 )
 from picklebot.core.history import HistoryStore, HistoryMessage
+
+if TYPE_CHECKING:
+    from picklebot.core.agent import Agent
 
 
 @dataclass
@@ -16,6 +21,7 @@ class Session:
     session_id: str
     agent_id: str
     history_store: HistoryStore
+    agent: Agent  # Reference to parent agent for LLM/tools access
 
     messages: list[Message] = field(default_factory=list)
     started_at: datetime = field(default_factory=datetime.now)

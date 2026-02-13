@@ -1,5 +1,4 @@
 from picklebot.core.context import SharedContext
-from picklebot.core.history import HistoryStore
 from picklebot.utils.config import Config
 
 
@@ -17,9 +16,7 @@ llm:
     )
 
     config = Config.load(tmp_path)
-    history_store = HistoryStore.from_config(config)
-
-    context = SharedContext(config=config, history_store=history_store)
+    context = SharedContext(config=config)
 
     assert context.config is config
-    assert context.history_store is history_store
+    assert context.history_store is not None

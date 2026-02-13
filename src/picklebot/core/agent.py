@@ -45,6 +45,7 @@ class Agent:
             session_id=session_id,
             agent_id=self.agent_config.name,
             history_store=self.context.history_store,
+            agent=self,  # Pass self reference
         )
         # Create session in history store
         self.context.history_store.create_session(self.agent_config.name, session_id)

@@ -3,7 +3,6 @@
 from pathlib import Path
 from picklebot.core.agent import Agent
 from picklebot.core.context import SharedContext
-from picklebot.core.history import HistoryStore
 from picklebot.tools.registry import ToolRegistry
 from picklebot.utils.config import Config
 from picklebot.provider import LLMProvider
@@ -26,8 +25,7 @@ llm:
 def test_agent_creation_with_new_structure(tmp_path: Path) -> None:
     """Agent should be created with agent_config, llm, tools, context."""
     config = _create_test_config(tmp_path)
-    history_store = HistoryStore.from_config(config)
-    context = SharedContext(config=config, history_store=history_store)
+    context = SharedContext(config=config)
 
     agent = Agent(
         agent_config=config.agent,
@@ -41,10 +39,9 @@ def test_agent_creation_with_new_structure(tmp_path: Path) -> None:
 
 
 def test_agent_new_session(tmp_path: Path) -> None:
-    """Agent should create new session and register it."""
+    """Agent should create new session with self reference."""
     config = _create_test_config(tmp_path)
-    history_store = HistoryStore.from_config(config)
-    context = SharedContext(config=config, history_store=history_store)
+    context = SharedContext(config=config)
 
     agent = Agent(
         agent_config=config.agent,
@@ -57,4 +54,4 @@ def test_agent_new_session(tmp_path: Path) -> None:
 
     assert session.session_id is not None
     assert session.agent_id == config.agent.name
-    assert session in agent._sessions.values()
+    assert session.agent is agent
