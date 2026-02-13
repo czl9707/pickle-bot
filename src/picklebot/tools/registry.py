@@ -45,3 +45,12 @@ class ToolRegistry:
             raise ValueError(f"Tool not found: {name}")
 
         return await tool.execute(**kwargs)
+
+    @classmethod
+    def with_builtins(cls) -> "ToolRegistry":
+        """Create a ToolRegistry with builtin tools already registered."""
+        from picklebot.tools.builtin_tools import register_builtin_tools
+
+        registry = cls()
+        register_builtin_tools(registry)
+        return registry
