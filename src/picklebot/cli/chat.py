@@ -38,7 +38,7 @@ class ChatLoop:
                 if not user_input.strip():
                     continue
 
-                response = await self.agent.chat(session, user_input, self.frontend)
+                response = await session.chat(user_input, self.frontend)
                 self.frontend.show_agent_response(response)
 
             except KeyboardInterrupt:
