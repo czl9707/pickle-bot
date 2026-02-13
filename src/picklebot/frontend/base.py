@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 import contextlib
 from typing import Iterator
 
+
 class Frontend(ABC):
     """Abstract interface for frontend implementations."""
 

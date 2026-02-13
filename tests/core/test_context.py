@@ -1,4 +1,3 @@
-from pathlib import Path
 from picklebot.core.context import SharedContext
 from picklebot.core.history import HistoryStore
 from picklebot.utils.config import Config

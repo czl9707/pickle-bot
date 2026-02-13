@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from picklebot.core.history import HistoryStore, HistorySession, HistoryMessage
+from picklebot.core.history import HistoryStore, HistoryMessage
 
 
 @pytest.fixture
@@ -108,11 +108,16 @@ class TestSaveMessage:
         """First user message should auto-generate session title."""
         store.create_session("agent", "session-1")
 
-        msg = HistoryMessage(role="user", content="This is a long question that should definitely be truncated now")
+        msg = HistoryMessage(
+            role="user",
+            content="This is a long question that should definitely be truncated now",
+        )
         store.save_message("session-1", msg)
 
         sessions = store.list_sessions()
-        assert sessions[0].title == "This is a long question that should definitely be ..."
+        assert (
+            sessions[0].title == "This is a long question that should definitely be ..."
+        )
 
     def test_handles_tool_calls(self, store):
         """save_message should store tool_calls."""
@@ -121,7 +126,7 @@ class TestSaveMessage:
         msg = HistoryMessage(
             role="assistant",
             content="",
-            tool_calls=[{"id": "call-1", "function": {"name": "test"}}]
+            tool_calls=[{"id": "call-1", "function": {"name": "test"}}],
         )
         store.save_message("session-1", msg)
 
@@ -143,7 +148,9 @@ class TestGetMessages:
         store.create_session("agent", "session-1")
 
         store.save_message("session-1", HistoryMessage(role="user", content="Hello"))
-        store.save_message("session-1", HistoryMessage(role="assistant", content="Hi there"))
+        store.save_message(
+            "session-1", HistoryMessage(role="assistant", content="Hi there")
+        )
 
         messages = store.get_messages("session-1")
         assert len(messages) == 2

@@ -1,6 +1,6 @@
 """CLI command handlers for pickle-bot."""
 
-from picklebot.core import Agent, Session, HistoryStore, SharedContext
+from picklebot.core import Agent, HistoryStore, SharedContext
 from picklebot.provider import LLMProvider
 from picklebot.utils.config import Config
 from picklebot.frontend import ConsoleFrontend
@@ -16,8 +16,7 @@ class ChatLoop:
 
         # Shared layer
         self.context = SharedContext(
-            config=config,
-            history_store=HistoryStore.from_config(config)
+            config=config, history_store=HistoryStore.from_config(config)
         )
 
         # Agent (reusable, created once)
@@ -25,7 +24,7 @@ class ChatLoop:
             agent_config=config.agent,
             llm=LLMProvider.from_config(config.llm),
             tools=ToolRegistry.with_builtins(),
-            context=self.context
+            context=self.context,
         )
 
     async def run(self) -> None:
@@ -48,7 +47,9 @@ class ChatLoop:
                 self.frontend.show_agent_response(response)
 
             except KeyboardInterrupt:
-                self.frontend.show_system_message("\n[yellow]Session interrupted.[/yellow]")
+                self.frontend.show_system_message(
+                    "\n[yellow]Session interrupted.[/yellow]"
+                )
                 break
             except Exception as e:
                 self.frontend.show_system_message(f"[red]Error: {e}[/red]")

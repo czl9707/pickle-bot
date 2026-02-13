@@ -78,7 +78,7 @@ class LLMProvider(ABC):
         Default implementation using litellm. Subclasses can override
         if provider-specific behavior is needed.
         """
-        request_kwargs = {
+        request_kwargs: dict[str, Any] = {
             "model": self.model,
             "messages": messages,
             "api_key": self.api_key,
@@ -103,5 +103,5 @@ class LLMProvider(ABC):
                     arguments=tc["function"]["arguments"],
                 )
                 for tc in (message.tool_calls or [])
-            ]
+            ],
         )

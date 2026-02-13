@@ -9,6 +9,7 @@ from picklebot.tools.registry import ToolRegistry
 
 # Filesystem tools
 
+
 @tool(
     name="read",
     description="Read the contents of a text file",
@@ -41,7 +42,10 @@ async def read_file(path: str) -> str:
         "type": "object",
         "properties": {
             "path": {"type": "string", "description": "Path to the file to write"},
-            "content": {"type": "string", "description": "Content to write to the file"},
+            "content": {
+                "type": "string",
+                "description": "Content to write to the file",
+            },
         },
         "required": ["path", "content"],
     },
@@ -67,7 +71,10 @@ async def write_file(path: str, content: str) -> str:
         "properties": {
             "path": {"type": "string", "description": "Path to the file to edit"},
             "old_text": {"type": "string", "description": "The text to replace"},
-            "new_text": {"type": "string", "description": "The new text to replace with"},
+            "new_text": {
+                "type": "string",
+                "description": "The new text to replace with",
+            },
         },
         "required": ["path", "old_text", "new_text"],
     },
@@ -90,6 +97,7 @@ async def edit_file(path: str, old_text: str, new_text: str) -> str:
 
 
 # Shell tool
+
 
 @tool(
     name="bash",

@@ -61,9 +61,11 @@ class HistoryConfig(BaseModel):
 
     path: str = Field(default=".history")
 
+
 # ============================================================================
 # Main Configuration Class
 # ============================================================================
+
 
 class Config(BaseModel):
     """
@@ -98,9 +100,7 @@ class Config(BaseModel):
             ValidationError: If configuration is invalid
         """
 
-        config_data: dict = {
-            "workspace": workspace_dir
-        }
+        config_data: dict = {"workspace": workspace_dir}
 
         system_config = workspace_dir / "config.system.yaml"
         user_config = workspace_dir / "config.user.yaml"
@@ -134,7 +134,11 @@ class Config(BaseModel):
         result = base.copy()
 
         for key, value in override.items():
-            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            if (
+                key in result
+                and isinstance(result[key], dict)
+                and isinstance(value, dict)
+            ):
                 result[key] = Config._deep_merge(result[key], value)
             else:
                 result[key] = value

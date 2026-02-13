@@ -1,6 +1,5 @@
 """JSONL file-based conversation history backend."""
 
-import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -85,7 +84,9 @@ class HistoryStore:
             for session in sessions:
                 f.write(session.model_dump_json() + "\n")
 
-    def _find_session_index(self, sessions: list[HistorySession], session_id: str) -> int:
+    def _find_session_index(
+        self, sessions: list[HistorySession], session_id: str
+    ) -> int:
         """Find the index of a session in the list."""
         for i, s in enumerate(sessions):
             if s.id == session_id:

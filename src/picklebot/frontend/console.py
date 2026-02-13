@@ -41,7 +41,9 @@ class ConsoleFrontend(Frontend):
 
     def show_agent_response(self, content: str) -> None:
         """Display agent's final response to user."""
-        self.console.print(f"[bold cyan]{self.agentConfig.name}:[/bold cyan] {content}\n")
+        self.console.print(
+            f"[bold cyan]{self.agentConfig.name}:[/bold cyan] {content}\n"
+        )
 
     def show_system_message(self, content: str) -> None:
         """Display system-level message (goodbye, errors, interrupts)."""

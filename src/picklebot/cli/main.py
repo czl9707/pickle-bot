@@ -18,6 +18,7 @@ app = typer.Typer(
 
 console = Console()
 
+
 # Global config option callback
 def load_config_callback(ctx: typer.Context, config: str):
     """Load configuration and store it in the context."""

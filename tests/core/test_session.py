@@ -1,6 +1,5 @@
 from picklebot.core.session import Session
 from picklebot.core.history import HistoryStore
-from pathlib import Path
 
 
 def test_session_creation(tmp_path):

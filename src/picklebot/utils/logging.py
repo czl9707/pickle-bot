@@ -13,13 +13,11 @@ def setup_logging(config: Config) -> None:
         level: Logging level (DEBUG, INFO, WARNING, ERROR)
         log_file: Optional path to log file
     """
-    
+
     format_str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     formatter = logging.Formatter(format_str)
 
-    file_handler = logging.FileHandler(
-        config.workspace.joinpath(config.logging.path)
-    )
+    file_handler = logging.FileHandler(config.workspace.joinpath(config.logging.path))
     file_handler.setFormatter(formatter)
 
     root_logger = logging.getLogger("picklebot")
