@@ -1,9 +1,9 @@
 """CLI command handlers for pickle-bot."""
 
-from picklebot.core.agent import Agent
-from picklebot.core.history import HistoryStore
-from picklebot.config import Config
-from picklebot.frontend.console import ConsoleFrontend
+from picklebot.core import Agent, AgentSession, HistoryStore
+from picklebot.provider import LLMProvider
+from picklebot.utils.config import Config
+from picklebot.frontend import ConsoleFrontend
 
 class ChatLoop:
     """Interactive chat session with the agent."""
@@ -16,40 +16,41 @@ class ChatLoop:
             config: Agent configuration
         """
         self.config = config
-        self.frontend = ConsoleFrontend(config)
-        history = HistoryStore(base_path=config.workspace / config.history.path)
+        self.frontend = ConsoleFrontend(config.agent)
+        self.history_store=HistoryStore.from_config(config)
+        
 
-        self.agent = Agent(
-            config, 
-            frontend=self.frontend, 
-            history=history
-        )
 
     async def run(self) -> None:
         """Run the interactive chat loop."""
-        self.frontend.show_welcome()
 
-        # Initialize session for history persistence
-        await self.agent.initialize_session()
+        async with AgentSession(self.config.agent, self.history_store) as session:
+            self.agent = Agent(
+                config=self.config.agent, 
+                frontend=self.frontend, 
+                session=session,
+                llm_provider=LLMProvider.from_config(self.config.llm)
+            )
+            self.frontend.show_welcome()
 
-        while True:
-            try:
-                user_input = self.frontend.get_user_input()
+            while True:
+                try:
+                    user_input = self.frontend.get_user_input()
 
-                if user_input.lower() in ["quit", "exit", "q"]:
-                    self.frontend.show_system_message("[yellow]Goodbye![/yellow]")
+                    if user_input.lower() in ["quit", "exit", "q"]:
+                        self.frontend.show_system_message("[yellow]Goodbye![/yellow]")
+                        break
+
+                    if not user_input.strip():
+                        continue
+
+                    # Get response from agent
+                    response = await self.agent.chat(user_input)
+
+                    self.frontend.show_agent_response(response)
+
+                except KeyboardInterrupt:
+                    self.frontend.show_system_message("\n[yellow]Session interrupted.[/yellow]")
                     break
-
-                if not user_input.strip():
-                    continue
-
-                # Get response from agent
-                response = await self.agent.chat(user_input)
-
-                self.frontend.show_agent_response(response)
-
-            except KeyboardInterrupt:
-                self.frontend.show_system_message("\n[yellow]Session interrupted.[/yellow]")
-                break
-            except Exception as e:
-                self.frontend.show_system_message(f"[red]Error: {e}[/red]")
+                except Exception as e:
+                    self.frontend.show_system_message(f"[red]Error: {e}[/red]")

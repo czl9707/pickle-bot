@@ -5,8 +5,8 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from picklebot.cli.chat import Session
-from picklebot.config import Config
+from picklebot.cli.chat import ChatLoop
+from picklebot.utils.config import Config
 from picklebot.utils.logging import setup_logging
 
 app = typer.Typer(
@@ -66,7 +66,7 @@ def chat(
 
     config = ctx.obj.get("config")
 
-    session = Session(config)
+    session = ChatLoop(config)
     asyncio.run(session.run())
 
 

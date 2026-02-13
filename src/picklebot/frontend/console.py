@@ -7,28 +7,28 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-from picklebot.config import Config
+from picklebot.utils.config import AgentConfig
 from .base import Frontend
 
 
 class ConsoleFrontend(Frontend):
     """Console-based frontend using Rich for formatting."""
 
-    def __init__(self, config: Config):
+    def __init__(self, config: AgentConfig):
         """
         Initialize console frontend.
 
         Args:
             config: Agent configuration
         """
-        self.config = config
+        self.agentConfig = config
         self.console = Console()
 
     def show_welcome(self) -> None:
         """Display welcome message panel."""
         self.console.print(
             Panel(
-                Text(f"Welcome to {self.config.agent.name}!", style="bold cyan"),
+                Text(f"Welcome to {self.agentConfig.name}!", style="bold cyan"),
                 title="🐈 Pickle",
                 border_style="cyan",
             )
@@ -41,7 +41,7 @@ class ConsoleFrontend(Frontend):
 
     def show_agent_response(self, content: str) -> None:
         """Display agent's final response to user."""
-        self.console.print(f"[bold cyan]{self.config.agent.name}:[/bold cyan] {content}\n")
+        self.console.print(f"[bold cyan]{self.agentConfig.name}:[/bold cyan] {content}\n")
 
     def show_system_message(self, content: str) -> None:
         """Display system-level message (goodbye, errors, interrupts)."""

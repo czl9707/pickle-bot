@@ -4,53 +4,37 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
-from uuid import uuid4
 
 import aiofiles
 from pydantic import BaseModel, Field
+
+from picklebot.utils.config import Config
 
 
 class HistorySession(BaseModel):
     """A conversation session."""
 
-    id: str = Field(default_factory=lambda: str(uuid4()))
+    id: str
     agent_id: str
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     title: str | None = None
     message_count: int = 0
-    metadata: dict = Field(default_factory=dict)
 
 
 class HistoryMessage(BaseModel):
     """A message with full context for history storage."""
 
-    id: str = Field(default_factory=lambda: str(uuid4()))
-    session_id: str
-    agent_id: str
     timestamp: datetime = Field(default_factory=datetime.now)
     role: Literal["user", "assistant", "system", "tool"]
     content: str
-    tool_calls: list | None = None
+    tool_calls: list[dict[str, Any]] | None = None
     tool_call_id: str | None = None
-    metadata: dict = Field(default_factory=dict)
-
-
-class SessionIndex(BaseModel):
-    """Index entry for session listing."""
-
-    id: str
-    agent_id: str
-    created_at: datetime
-    updated_at: datetime
-    title: str | None = None
-    message_count: int = 0
-
 
 class HistoryIndex(BaseModel):
     """Index file structure for fast session listing."""
 
-    sessions: list[SessionIndex] = Field(default_factory=list)
+    sessions: list[HistorySession] = Field(default_factory=list)
     last_updated: datetime = Field(default_factory=datetime.now)
 
 
@@ -66,6 +50,10 @@ class HistoryStore():
     └── index.json
     """
 
+    @staticmethod
+    def from_config(config: Config) -> "HistoryStore":
+        return HistoryStore(config.workspace / config.history.path)
+
     def __init__(self, base_path: Path):
         """
         Initialize the JSON backend.
@@ -78,10 +66,9 @@ class HistoryStore():
         self.index_path = self.base_path / "index.json"
         self._index_cache: HistoryIndex | None = None
 
-    async def _ensure_directories(self) -> None:
-        """Ensure storage directories exist."""
         self.base_path.mkdir(parents=True, exist_ok=True)
         self.sessions_path.mkdir(parents=True, exist_ok=True)
+
 
     async def _read_index(self) -> HistoryIndex:
         """Read the session index from disk."""
@@ -104,7 +91,6 @@ class HistoryStore():
 
     async def _write_index(self, index: HistoryIndex) -> None:
         """Write the session index to disk."""
-        await self._ensure_directories()
         index.last_updated = datetime.now()
 
         async with aiofiles.open(self.index_path, "w") as f:
@@ -132,17 +118,15 @@ class HistoryStore():
 
     async def _write_session_file(self, session_data: dict[str, Any]) -> None:
         """Write a session file to disk."""
-        await self._ensure_directories()
         file_path = self._session_file_path(session_data["id"])
 
         async with aiofiles.open(file_path, "w") as f:
             await f.write(json.dumps(session_data, indent=2, default=str))
 
-    async def create_session(self, agent_id: str, title: str | None = None) -> Session:
+    async def create_session(self, agent_id: str, session_id: str) -> HistorySession:
         """Create a new conversation session."""
-        session = Session(agent_id=agent_id, title=title)
+        session = HistorySession(agent_id=agent_id, id=session_id)
 
-        # Write session file
         session_data: dict[str, Any] = {
             "id": session.id,
             "agent_id": session.agent_id,
@@ -150,14 +134,12 @@ class HistoryStore():
             "updated_at": session.updated_at.isoformat(),
             "title": session.title,
             "message_count": 0,
-            "metadata": session.metadata,
             "messages": [],
         }
         await self._write_session_file(session_data)
 
-        # Update index
         index = await self._read_index()
-        index.sessions.insert(0, SessionIndex(
+        index.sessions.insert(0, HistorySession(
             id=session.id,
             agent_id=session.agent_id,
             created_at=session.created_at,
@@ -169,25 +151,19 @@ class HistoryStore():
 
         return session
 
-    async def save_message(self, message: HistoryMessage) -> None:
+    async def save_message(self, session_id: str, message: HistoryMessage) -> None:
         """Save a message to history."""
-        session_data = await self._read_session_file(message.session_id)
+        session_data = await self._read_session_file(session_id)
 
         if session_data is None:
-            raise ValueError(f"Session not found: {message.session_id}")
+            raise ValueError(f"Session not found: {session_id}")
 
-        # Add message to session
         messages = session_data.get("messages", [])
         messages.append({
-            "id": message.id,
-            "session_id": message.session_id,
-            "agent_id": message.agent_id,
             "timestamp": message.timestamp.isoformat(),
             "role": message.role,
             "content": message.content,
-            "tool_calls": message.tool_calls,
             "tool_call_id": message.tool_call_id,
-            "metadata": message.metadata,
         })
 
         # Update session metadata
@@ -205,116 +181,13 @@ class HistoryStore():
         # Update index
         index = await self._read_index()
         for session_entry in index.sessions:
-            if session_entry.id == message.session_id:
+            if session_entry.id == session_id:
                 session_entry.message_count = len(messages)
                 session_entry.updated_at = datetime.now()
                 if session_data.get("title"):
                     session_entry.title = session_data["title"]
                 break
         await self._write_index(index)
-
-    async def get_session_messages(
-        self,
-        session_id: str,
-        limit: int | None = None
-    ) -> list[HistoryMessage]:
-        """Get all messages for a session."""
-        session_data = await self._read_session_file(session_id)
-
-        if session_data is None:
-            return []
-
-        messages = session_data.get("messages", [])
-
-        # Apply limit (get most recent)
-        if limit is not None:
-            messages = messages[-limit:]
-
-        return [
-            HistoryMessage(
-                id=msg["id"],
-                session_id=msg["session_id"],
-                agent_id=msg["agent_id"],
-                timestamp=datetime.fromisoformat(msg["timestamp"]),
-                role=msg["role"],
-                content=msg["content"],
-                tool_calls=msg.get("tool_calls"),
-                tool_call_id=msg.get("tool_call_id"),
-                metadata=msg.get("metadata", {}),
-            )
-            for msg in messages
-        ]
-
-    async def search_messages(
-        self,
-        query: str,
-        agent_id: str | None = None,
-        limit: int = 50
-    ) -> list[HistoryMessage]:
-        """Search messages by content (simple text matching)."""
-        results: list[HistoryMessage] = []
-        query_lower = query.lower()
-
-        index = await self._read_index()
-
-        # Search through sessions
-        for session_entry in index.sessions:
-            if agent_id and session_entry.agent_id != agent_id:
-                continue
-
-            messages = await self.get_session_messages(session_entry.id)
-
-            for msg in messages:
-                if query_lower in msg.content.lower():
-                    results.append(msg)
-                    if len(results) >= limit:
-                        return results
-
-        return results
-
-    async def list_sessions(
-        self,
-        agent_id: str | None = None,
-        limit: int = 20
-    ) -> list[Session]:
-        """List recent sessions."""
-        index = await self._read_index()
-
-        sessions: list[Session] = []
-        for entry in index.sessions:
-            if agent_id and entry.agent_id != agent_id:
-                continue
-
-            sessions.append(Session(
-                id=entry.id,
-                agent_id=entry.agent_id,
-                created_at=entry.created_at,
-                updated_at=entry.updated_at,
-                title=entry.title,
-                message_count=entry.message_count,
-            ))
-
-            if len(sessions) >= limit:
-                break
-
-        return sessions
-
-    async def get_session(self, session_id: str) -> Session | None:
-        """Get a specific session by ID."""
-        session_data = await self._read_session_file(session_id)
-
-        if session_data is None:
-            return None
-
-        return Session(
-            id=session_data["id"],
-            agent_id=session_data["agent_id"],
-            created_at=datetime.fromisoformat(session_data["created_at"]),
-            updated_at=datetime.fromisoformat(session_data["updated_at"]),
-            title=session_data.get("title"),
-            message_count=session_data.get("message_count", 0),
-            metadata=session_data.get("metadata", {}),
-        )
 
     async def update_session_title(self, session_id: str, title: str) -> None:
         """Update a session's title."""

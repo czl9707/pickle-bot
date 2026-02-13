@@ -2,7 +2,7 @@
 
 import logging
 
-from picklebot.config import Config
+from picklebot.utils.config import Config
 
 
 def setup_logging(config: Config) -> None:

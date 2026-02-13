@@ -1,20 +1,19 @@
 import json
 import asyncio
-from typing import Any, Iterable, TYPE_CHECKING
+from typing import Iterable, TYPE_CHECKING
 
 from litellm.types.completion import (
     ChatCompletionMessageParam as Message,
     ChatCompletionMessageToolCallParam
 )
-from picklebot.config import Config
-from picklebot.core.state import AgentState
+from picklebot.utils.config import AgentConfig
+from picklebot.core.session import AgentSession
 from picklebot.provider import LLMToolCall, LLMProvider
 from picklebot.tools.builtin_tools import register_builtin_tools
 from picklebot.tools.registry import ToolRegistry
 
 if TYPE_CHECKING:
     from picklebot.frontend import Frontend
-    from picklebot.core.history import HistoryStore
 
 class Agent:
     """
@@ -25,9 +24,10 @@ class Agent:
 
     def __init__(
         self,
-        config: Config,
+        config: AgentConfig,
+        session: AgentSession,
         frontend: "Frontend",
-        history: "HistoryStore"
+        llm_provider: LLMProvider,
     ):
         """
         Initialize the agent.
@@ -39,26 +39,11 @@ class Agent:
             history: Optional history backend for persistence
         """
         self.config = config
-        self.state = AgentState(config.agent.name)
-        self._tool_registry = ToolRegistry()
-        register_builtin_tools(self._tool_registry)
-        self._llm_provider = LLMProvider.from_config(config.llm)
-        self._frontend = frontend
-        self._history = history
-
-
-    def get_tool_schemas(self) -> list[dict[str, Any]]:
-        """
-        Get tool schemas from the tool registry.
-
-        Returns:
-            List of tool/function schemas
-        """
-        return self._tool_registry.get_tool_schemas()
-
-    async def initialize_session(self) -> None:
-        """Initialize the session before starting the chat loop."""
-        await self.state.initialize_session()
+        self.session = session
+        self.tool_registry = ToolRegistry()
+        register_builtin_tools(self.tool_registry)
+        self.llm_provider = llm_provider
+        self.frontend = frontend
 
     async def chat(self, message: str) -> str:
         """
@@ -71,18 +56,16 @@ class Agent:
             Assistant's response text
         """
         user_msg: Message = {"role": "user", "content": message}
-        self.state.add_message(user_msg)
-        if self._history:
-            await self.state.save_message_to_history(user_msg)
+        await self.session.add_message(user_msg)
 
-        tools = self.get_tool_schemas()
+        tools = self.tool_registry.get_tool_schemas()
         tool_count = 0  # Reset tool count for new user input
         display_content = "Thinking"
         
         while True:
-            with self._frontend.show_transient(display_content):
+            with self.frontend.show_transient(display_content):
                 messages = self._build_messages()
-                content, tool_calls = await self._llm_provider.chat(messages, tools)
+                content, tool_calls = await self.llm_provider.chat(messages, tools)
                 tool_call_dicts: Iterable[ChatCompletionMessageToolCallParam] = [
                     {
                         "id": tc.id,
@@ -92,8 +75,7 @@ class Agent:
                     for tc in tool_calls
                 ]
                 assistant_msg: Message = {"role": "assistant", "content": content, "tool_calls": tool_call_dicts}
-                self.state.add_message(assistant_msg)
-                await self.state.save_message_to_history(assistant_msg)
+                await self.session.add_message(assistant_msg)
 
                 if not tool_calls:
                     break
@@ -111,13 +93,14 @@ class Agent:
         """
         Build messages for LLM API call.
 
+        
         Returns:
             List of messages compatible with litellm
         """
         messages: list[Message] = [
-            {"role": "system", "content": self.config.agent.system_prompt}
+            {"role": "system", "content": self.config.system_prompt}
         ]
-        messages.extend(self.state.get_history(50))
+        messages.extend(self.session.get_history(50))
 
         return messages
 
@@ -136,8 +119,7 @@ class Agent:
 
         for tool_call, result in zip(tool_calls, tool_call_results):
             tool_msg: Message = {"role": "tool", "content": result, "tool_call_id": tool_call.id}
-            self.state.add_message(tool_msg)
-            await self.state.save_message_to_history(tool_msg)
+            await self.session.add_message(tool_msg)
 
     async def _execute_tool_call(self, tool_call: LLMToolCall, llm_content: str) -> str:
         """
@@ -157,17 +139,15 @@ class Agent:
         if len(tool_display) > 40:
             tool_display = tool_display[:40] + "..."
 
-        with self._frontend.show_transient(tool_display):
+        with self.frontend.show_transient(tool_display):
             try:
-                result = await self._tool_registry.execute_tool(
+                result = await self.tool_registry.execute_tool(
                     tool_call.name, **args
                 )
             except Exception as e:
                 result = f"Error executing tool: {e}"
 
             tool_msg: Message = {"role": "tool", "content": result, "tool_call_id": tool_call.id}
-            self.state.add_message(tool_msg)
-            if self._history:
-                await self.state.save_message_to_history(tool_msg)
+            await self.session.add_message(tool_msg)
 
             return result

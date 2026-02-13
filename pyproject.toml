@@ -22,6 +22,7 @@ picklebot = "picklebot.cli.main:app"
 [dependency-groups]
 dev = [
   "types-pyyaml",
+  "types-aiofiles",
 ]
 
 [build-system]

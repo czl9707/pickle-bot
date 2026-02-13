@@ -35,7 +35,7 @@ class AgentBehaviorConfig(BaseModel):
     max_tokens: int = Field(default=2048, gt=0)
 
 
-class AgentConfigModel(BaseModel):
+class AgentConfig(BaseModel):
     """Agent-specific configuration."""
 
     name: str = Field(default="pickle", min_length=1)
@@ -78,7 +78,7 @@ class Config(BaseModel):
 
     workspace: Path
     llm: LLMConfig
-    agent: AgentConfigModel = Field(default_factory=AgentConfigModel)
+    agent: AgentConfig = Field(default_factory=AgentConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     history: HistoryConfig = Field(default_factory=HistoryConfig)
 

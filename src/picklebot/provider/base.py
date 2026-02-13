@@ -7,7 +7,7 @@ from typing import Any, Optional, cast
 from litellm import acompletion, Choices
 from litellm.types.completion import ChatCompletionMessageParam as Message
 
-from picklebot.config import LLMConfig
+from picklebot.utils.config import LLMConfig
 
 
 @dataclass
