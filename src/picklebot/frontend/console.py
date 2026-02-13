@@ -8,7 +8,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from picklebot.config import Config
-from picklebot.frontend.base import Frontend
+from .base import Frontend
 
 
 class ConsoleFrontend(Frontend):

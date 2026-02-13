@@ -50,30 +50,16 @@ class AgentConfigModel(BaseModel):
         return v
 
 
-class ToolExecutionConfig(BaseModel):
-    """Tool execution configuration."""
-
-    timeout: int = Field(default=30, gt=0)
-    max_concurrent: int = Field(default=5, gt=0)
-
-
-class ToolsConfig(BaseModel):
-    """Tools system configuration."""
-
-    directory: str = "./tools"
-    builtin: list[str] = Field(default_factory=lambda: ["echo", "get_time", "get_system_info"])
-    execution: ToolExecutionConfig = Field(default_factory=ToolExecutionConfig)
-
-
 class LoggingConfig(BaseModel):
     """Logging configuration."""
 
-    level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
-    format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    path: str = "logs/pickle-bot.log"
-    rotation: str = "daily"
-    retention: int = Field(default=30, gt=0)
+    path: str = Field(default=".logs")
 
+
+class HistoryConfig(BaseModel):
+    """History backend configuration."""
+
+    path: str = Field(default=".history")
 
 # ============================================================================
 # Main Configuration Class
@@ -90,18 +76,19 @@ class Config(BaseModel):
     User config takes precedence over system config.
     """
 
+    workspace: Path
     llm: LLMConfig
     agent: AgentConfigModel = Field(default_factory=AgentConfigModel)
-    tools: ToolsConfig = Field(default_factory=ToolsConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    history: HistoryConfig = Field(default_factory=HistoryConfig)
 
     @classmethod
-    def load(cls, config_dir: Path) -> "Config":
+    def load(cls, workspace_dir: Path) -> "Config":
         """
         Load configuration from ~/.pickle-bot/.
 
         Args:
-            config_dir: Path to config directory. Defaults to ~/.pickle-bot/
+            workspace_dir: Path to workspace_dir directory. Defaults to ~/.pickle-bot/
 
         Returns:
             Config instance with all settings loaded and validated
@@ -111,17 +98,12 @@ class Config(BaseModel):
             ValidationError: If configuration is invalid
         """
 
-        if not config_dir.exists():
-            raise FileNotFoundError(
-                f"Config directory not found: {config_dir}\n"
-                f"Please create it with: picklebot init"
-            )
+        config_data: dict = {
+            "workspace": workspace_dir
+        }
 
-        # Load system config first (defaults), then user config (overrides)
-        config_data: dict = {}
-
-        system_config = config_dir / "config.system.yaml"
-        user_config = config_dir / "config.user.yaml"
+        system_config = workspace_dir / "config.system.yaml"
+        user_config = workspace_dir / "config.user.yaml"
 
         if system_config.exists():
             with open(system_config) as f:

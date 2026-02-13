@@ -1,13 +1,11 @@
 """CLI command handlers for pickle-bot."""
 
 from picklebot.core.agent import Agent
+from picklebot.core.history import HistoryStore
 from picklebot.config import Config
 from picklebot.frontend.console import ConsoleFrontend
-from picklebot.tools.builtin_tools import register_builtin_tools
-from picklebot.tools.registry import ToolRegistry
 
-
-class Session:
+class ChatLoop:
     """Interactive chat session with the agent."""
 
     def __init__(self, config: Config):
@@ -19,16 +17,20 @@ class Session:
         """
         self.config = config
         self.frontend = ConsoleFrontend(config)
+        history = HistoryStore(base_path=config.workspace / config.history.path)
 
-        registry = ToolRegistry()
-        register_builtin_tools(registry)
-
-        # Create agent with tool registry and frontend
-        self.agent = Agent(config, tool_registry=registry, frontend=self.frontend)
+        self.agent = Agent(
+            config, 
+            frontend=self.frontend, 
+            history=history
+        )
 
     async def run(self) -> None:
         """Run the interactive chat loop."""
         self.frontend.show_welcome()
+
+        # Initialize session for history persistence
+        await self.agent.initialize_session()
 
         while True:
             try:

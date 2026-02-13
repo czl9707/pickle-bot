@@ -26,7 +26,7 @@ def load_config_callback(ctx: typer.Context, config: str):
         ctx.ensure_object(dict)
         ctx.obj["config"] = cfg
 
-        setup_logging(level=cfg.logging.level)
+        setup_logging(cfg)
 
     except FileNotFoundError as e:
         console.print(f"[red]{e}[/red]")
