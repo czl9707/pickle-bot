@@ -1,7 +1,7 @@
 import json
 import asyncio
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from litellm.types.completion import (
@@ -32,7 +32,6 @@ class Agent:
     llm: LLMProvider
     tools: ToolRegistry
     context: SharedContext
-    _sessions: dict[str, Session] = field(default_factory=dict)
 
     def new_session(self) -> Session:
         """
@@ -49,7 +48,6 @@ class Agent:
         )
         # Create session in history store
         self.context.history_store.create_session(self.agent_config.name, session_id)
-        self._sessions[session_id] = session
         return session
 
     async def chat(self, session: Session, message: str, frontend: "Frontend") -> str:
@@ -76,22 +74,16 @@ class Agent:
                 messages = self._build_messages(session)
                 content, tool_calls = await self.llm.chat(messages, tool_schemas)
 
-                if tool_calls:
-                    tool_call_dicts: list[ChatCompletionMessageToolCallParam] = [
-                        {
-                            "id": tc.id,
-                            "type": "function",
-                            "function": {"name": tc.name, "arguments": tc.arguments},
-                        }
-                        for tc in tool_calls
-                    ]
-                    assistant_msg: Message = {
-                        "role": "assistant",
-                        "content": content,
-                        "tool_calls": tool_call_dicts,
+                tool_call_dicts: list[ChatCompletionMessageToolCallParam] = [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {"name": tc.name, "arguments": tc.arguments},
                     }
-                else:
-                    assistant_msg = {"role": "assistant", "content": content}
+                    for tc in tool_calls
+                ]
+                assistant_msg: Message = {"role": "assistant", "content": content, "tool_calls": tool_call_dicts}
+
 
                 session.add_message(assistant_msg)
 

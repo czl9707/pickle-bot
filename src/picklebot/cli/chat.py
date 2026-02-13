@@ -1,6 +1,6 @@
 """CLI command handlers for pickle-bot."""
 
-from picklebot.core import Agent, HistoryStore, SharedContext
+from picklebot.core import Agent, SharedContext
 from picklebot.provider import LLMProvider
 from picklebot.utils.config import Config
 from picklebot.frontend import ConsoleFrontend
@@ -13,13 +13,8 @@ class ChatLoop:
     def __init__(self, config: Config):
         self.config = config
         self.frontend = ConsoleFrontend(config.agent)
+        self.context = SharedContext(config=config)
 
-        # Shared layer
-        self.context = SharedContext(
-            config=config, history_store=HistoryStore.from_config(config)
-        )
-
-        # Agent (reusable, created once)
         self.agent = Agent(
             agent_config=config.agent,
             llm=LLMProvider.from_config(config.llm),
