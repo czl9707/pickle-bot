@@ -23,6 +23,7 @@ picklebot = "picklebot.cli.main:app"
 dev = [
   "types-pyyaml",
   "types-aiofiles",
+  "pytest>=9.0.2",
 ]
 
 [build-system]
