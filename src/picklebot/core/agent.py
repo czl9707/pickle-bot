@@ -3,11 +3,12 @@ import asyncio
 from typing import Any, Iterable
 
 from litellm.types.completion import (
-    ChatCompletionMessageParam as Message, 
+    ChatCompletionMessageParam as Message,
     ChatCompletionMessageToolCallParam
 )
 from picklebot.config import Config
 from picklebot.core.state import AgentState
+from picklebot.frontend.base import Frontend
 from picklebot.provider import LLMToolCall, LLMProvider
 from picklebot.tools.registry import ToolRegistry
 
@@ -19,18 +20,21 @@ class Agent:
     Supports function calling through the tools system.
     """
 
-    def __init__(self, config: Config, tool_registry: ToolRegistry | None = None):
+    def __init__(self, config: Config, tool_registry: ToolRegistry, frontend: Frontend):
         """
         Initialize the agent.
 
         Args:
             config: Agent configuration
-            tool_registry: Optional tool registry for function calling
+            tool_registry: Tool registry for function calling
+            frontend: Frontend for displaying output
         """
         self.config = config
         self.state = AgentState()
         self._tool_registry = tool_registry
         self._llm_provider = LLMProvider.from_config(config.llm)
+        self._frontend = frontend
+        self._tool_count = 0
 
     def get_tool_schemas(self) -> list[dict[str, Any]]:
         """
@@ -39,9 +43,6 @@ class Agent:
         Returns:
             List of tool/function schemas
         """
-        if self._tool_registry is None:
-            return []
-
         return self._tool_registry.get_tool_schemas()
 
     async def chat(self, message: str) -> str:
@@ -55,26 +56,33 @@ class Agent:
             Assistant's response text
         """
         self.state.add_message({"role": "user", "content": message})
-        tools = self.get_tool_schemas() if self._tool_registry else None
-
+        tools = self.get_tool_schemas()
+        tool_count = 0  # Reset tool count for new user input
+        display_content = "Thinking"
+        
         while True:
-            messages = self._build_messages()
-            content, tool_calls = await self._llm_provider.chat(messages, tools)
-            tool_call_dicts: Iterable[ChatCompletionMessageToolCallParam] = [
-                {
-                    "id": tc.id,
-                    "type": "function",
-                    "function": {"name": tc.name, "arguments": tc.arguments},
-                }
-                for tc in tool_calls
-            ]
-            self.state.add_message({"role": "assistant", "content": content, "tool_calls": tool_call_dicts})
-            
-            if not tool_calls:
-                break
+            with self._frontend.show_transient(display_content):
+                messages = self._build_messages()
+                content, tool_calls = await self._llm_provider.chat(messages, tools)
+                tool_call_dicts: Iterable[ChatCompletionMessageToolCallParam] = [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {"name": tc.name, "arguments": tc.arguments},
+                    }
+                    for tc in tool_calls
+                ]
+                self.state.add_message({"role": "assistant", "content": content, "tool_calls": tool_call_dicts})
+                
+                if not tool_calls:
+                    break
 
-            await self._handle_tool_calls(tool_calls)
-            continue
+                await self._handle_tool_calls(tool_calls, content)
+                tool_count += len(tool_calls)
+
+                display_content = f"{content}\n - Total Tools Used: {tool_count}"
+
+                continue
 
         return content
 
@@ -92,20 +100,17 @@ class Agent:
 
         return messages
 
-    async def _handle_tool_calls(self, tool_calls: list[LLMToolCall]) -> None:
+    async def _handle_tool_calls(self, tool_calls: list[LLMToolCall], llm_content: str) -> None:
         """
         Handle tool calls from the LLM response.
 
         Args:
-            response: LLM response with tool calls
-            messages: Current conversation messages
-
-        Returns:
-            Final assistant response text
+            tool_calls: List of tool calls from LLM response
+            llm_content: LLM's text content alongside tool calls
         """
-        
+
         tool_call_results = await asyncio.gather(
-            *[self._execute_tool_call(tool_call) for tool_call in tool_calls]
+            *[self._execute_tool_call(tool_call, llm_content) for tool_call in tool_calls]
         )
 
         for tool_call, result in zip(tool_calls, tool_call_results):
@@ -113,26 +118,36 @@ class Agent:
                 {"role": "tool", "content": result, "tool_call_id": tool_call.id}
             )
 
-    async def _execute_tool_call(self, tool_call: LLMToolCall) -> str:
+    async def _execute_tool_call(self, tool_call: LLMToolCall, llm_content: str) -> str:
         """
         Execute a single tool call.
 
         Args:
             tool_call: Tool call from LLM response
+            llm_content: LLM's text content alongside tool calls
         """
-        if self._tool_registry is None:
-            result = "Error: No tool registry available"
-        else:
+        self._tool_count += 1
+
+        # Extract key arguments for display
+        try:
+            args = json.loads(tool_call.arguments)
+        except json.JSONDecodeError:
+            args = {}
+
+        tool_display = f"Making Tool Call: {tool_call.name} {tool_call.arguments}"
+        if len(tool_display) > 40:
+            tool_display = tool_display[:40] + "..."
+
+        with self._frontend.show_transient(tool_display):
             try:
-                args = json.loads(tool_call.arguments)
                 result = await self._tool_registry.execute_tool(
                     tool_call.name, **args
                 )
             except Exception as e:
                 result = f"Error executing tool: {e}"
 
-        self.state.add_message(
-            {"role": "tool", "content": result, "tool_call_id": tool_call.id}
-        )
+            self.state.add_message(
+                {"role": "tool", "content": result, "tool_call_id": tool_call.id}
+            )
 
-        return result
+            return result
