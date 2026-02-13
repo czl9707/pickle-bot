@@ -1,53 +1,50 @@
-"""JSON file-based conversation history backend."""
+"""JSONL file-based conversation history backend."""
 
 import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
-import aiofiles
 from pydantic import BaseModel, Field
 
 from picklebot.utils.config import Config
 
 
+def _now_iso() -> str:
+    """Return current datetime as ISO format string."""
+    return datetime.now().isoformat()
+
+
 class HistorySession(BaseModel):
-    """A conversation session."""
+    """Session metadata - stored in index.jsonl."""
 
     id: str
     agent_id: str
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
     title: str | None = None
     message_count: int = 0
+    created_at: str
+    updated_at: str
 
 
 class HistoryMessage(BaseModel):
-    """A message with full context for history storage."""
+    """Single message - stored in session.jsonl."""
 
-    timestamp: datetime = Field(default_factory=datetime.now)
+    timestamp: str = Field(default_factory=_now_iso)
     role: Literal["user", "assistant", "system", "tool"]
     content: str
     tool_calls: list[dict[str, Any]] | None = None
     tool_call_id: str | None = None
 
-class HistoryIndex(BaseModel):
-    """Index file structure for fast session listing."""
 
-    sessions: list[HistorySession] = Field(default_factory=list)
-    last_updated: datetime = Field(default_factory=datetime.now)
-
-
-class HistoryStore():
+class HistoryStore:
     """
-    File-based JSON history storage.
+    JSONL file-based history storage.
 
     Directory structure:
     ~/.pickle-bot/history/
-    ├── sessions/
-    │   ├── session-abc123.json
-    │   └── session-def456.json
-    └── index.json
+    ├── index.jsonl              # Session metadata (append-only)
+    └── sessions/
+        └── session-{id}.jsonl   # Messages (append-only)
     """
 
     @staticmethod
@@ -55,157 +52,125 @@ class HistoryStore():
         return HistoryStore(config.workspace / config.history.path)
 
     def __init__(self, base_path: Path):
-        """
-        Initialize the JSON backend.
-
-        Args:
-            base_path: Base directory for history storage
-        """
         self.base_path = Path(base_path)
         self.sessions_path = self.base_path / "sessions"
-        self.index_path = self.base_path / "index.json"
-        self._index_cache: HistoryIndex | None = None
+        self.index_path = self.base_path / "index.jsonl"
 
         self.base_path.mkdir(parents=True, exist_ok=True)
         self.sessions_path.mkdir(parents=True, exist_ok=True)
 
-
-    async def _read_index(self) -> HistoryIndex:
-        """Read the session index from disk."""
-        if self._index_cache is not None:
-            return self._index_cache
-
-        if not self.index_path.exists():
-            self._index_cache = HistoryIndex()
-            return self._index_cache
-
-        try:
-            async with aiofiles.open(self.index_path, "r") as f:
-                content = await f.read()
-                data = json.loads(content)
-                self._index_cache = HistoryIndex.model_validate(data)
-                return self._index_cache
-        except (json.JSONDecodeError, Exception):
-            self._index_cache = HistoryIndex()
-            return self._index_cache
-
-    async def _write_index(self, index: HistoryIndex) -> None:
-        """Write the session index to disk."""
-        index.last_updated = datetime.now()
-
-        async with aiofiles.open(self.index_path, "w") as f:
-            await f.write(index.model_dump_json(indent=2))
-
-        self._index_cache = index
-
     def _session_file_path(self, session_id: str) -> Path:
         """Get the file path for a session."""
-        return self.sessions_path / f"session-{session_id}.json"
+        return self.sessions_path / f"session-{session_id}.jsonl"
 
-    async def _read_session_file(self, session_id: str) -> dict[str, Any] | None:
-        """Read a session file from disk."""
-        file_path = self._session_file_path(session_id)
+    def _read_index(self) -> list[HistorySession]:
+        """Read all session entries from index.jsonl."""
+        if not self.index_path.exists():
+            return []
 
-        if not file_path.exists():
-            return None
+        sessions = []
+        with open(self.index_path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        sessions.append(HistorySession.model_validate_json(line))
+                    except Exception:
+                        continue
+        return sessions
 
-        try:
-            async with aiofiles.open(file_path, "r") as f:
-                content = await f.read()
-                return json.loads(content)
-        except (json.JSONDecodeError, Exception):
-            return None
+    def _write_index(self, sessions: list[HistorySession]) -> None:
+        """Write all session entries to index.jsonl."""
+        with open(self.index_path, "w") as f:
+            for session in sessions:
+                f.write(session.model_dump_json() + "\n")
 
-    async def _write_session_file(self, session_data: dict[str, Any]) -> None:
-        """Write a session file to disk."""
-        file_path = self._session_file_path(session_data["id"])
+    def _find_session_index(self, sessions: list[HistorySession], session_id: str) -> int:
+        """Find the index of a session in the list."""
+        for i, s in enumerate(sessions):
+            if s.id == session_id:
+                return i
+        return -1
 
-        async with aiofiles.open(file_path, "w") as f:
-            await f.write(json.dumps(session_data, indent=2, default=str))
-
-    async def create_session(self, agent_id: str, session_id: str) -> HistorySession:
+    def create_session(self, agent_id: str, session_id: str) -> dict[str, Any]:
         """Create a new conversation session."""
-        session = HistorySession(agent_id=agent_id, id=session_id)
-
-        session_data: dict[str, Any] = {
-            "id": session.id,
-            "agent_id": session.agent_id,
-            "created_at": session.created_at.isoformat(),
-            "updated_at": session.updated_at.isoformat(),
-            "title": session.title,
-            "message_count": 0,
-            "messages": [],
-        }
-        await self._write_session_file(session_data)
-
-        index = await self._read_index()
-        index.sessions.insert(0, HistorySession(
-            id=session.id,
-            agent_id=session.agent_id,
-            created_at=session.created_at,
-            updated_at=session.updated_at,
-            title=session.title,
+        now = _now_iso()
+        session = HistorySession(
+            id=session_id,
+            agent_id=agent_id,
+            title=None,
             message_count=0,
-        ))
-        await self._write_index(index)
+            created_at=now,
+            updated_at=now,
+        )
 
-        return session
+        # Append to index
+        with open(self.index_path, "a") as f:
+            f.write(session.model_dump_json() + "\n")
 
-    async def save_message(self, session_id: str, message: HistoryMessage) -> None:
+        # Create empty session file
+        self._session_file_path(session_id).touch()
+
+        return session.model_dump()
+
+    def save_message(self, session_id: str, message: HistoryMessage) -> None:
         """Save a message to history."""
-        session_data = await self._read_session_file(session_id)
-
-        if session_data is None:
+        session_file = self._session_file_path(session_id)
+        if not session_file.exists():
             raise ValueError(f"Session not found: {session_id}")
 
-        messages = session_data.get("messages", [])
-        messages.append({
-            "timestamp": message.timestamp.isoformat(),
-            "role": message.role,
-            "content": message.content,
-            "tool_call_id": message.tool_call_id,
-        })
-
-        # Update session metadata
-        session_data["messages"] = messages
-        session_data["message_count"] = len(messages)
-        session_data["updated_at"] = datetime.now().isoformat()
-
-        # Auto-generate title from first user message
-        if session_data.get("title") is None and message.role == "user":
-            title = message.content[:50] + ("..." if len(message.content) > 50 else "")
-            session_data["title"] = title
-
-        await self._write_session_file(session_data)
+        # Append message to session file
+        with open(session_file, "a") as f:
+            f.write(message.model_dump_json() + "\n")
 
         # Update index
-        index = await self._read_index()
-        for session_entry in index.sessions:
-            if session_entry.id == session_id:
-                session_entry.message_count = len(messages)
-                session_entry.updated_at = datetime.now()
-                if session_data.get("title"):
-                    session_entry.title = session_data["title"]
-                break
-        await self._write_index(index)
+        sessions = self._read_index()
+        idx = self._find_session_index(sessions, session_id)
+        if idx >= 0:
+            sessions[idx].message_count += 1
+            sessions[idx].updated_at = _now_iso()
 
-    async def update_session_title(self, session_id: str, title: str) -> None:
+            # Auto-generate title from first user message
+            if sessions[idx].title is None and message.role == "user":
+                title = message.content[:40]
+                if len(message.content) > 40:
+                    title += "..."
+                sessions[idx].title = title
+
+            # Sort by updated_at (most recent first)
+            sessions.sort(key=lambda s: s.updated_at, reverse=True)
+            self._write_index(sessions)
+
+    def update_session_title(self, session_id: str, title: str) -> None:
         """Update a session's title."""
-        session_data = await self._read_session_file(session_id)
-
-        if session_data is None:
+        sessions = self._read_index()
+        idx = self._find_session_index(sessions, session_id)
+        if idx >= 0:
+            sessions[idx].title = title
+            sessions[idx].updated_at = _now_iso()
+            self._write_index(sessions)
+        else:
             raise ValueError(f"Session not found: {session_id}")
 
-        session_data["title"] = title
-        session_data["updated_at"] = datetime.now().isoformat()
+    def list_sessions(self) -> list[HistorySession]:
+        """List all sessions, most recently updated first."""
+        sessions = self._read_index()
+        sessions.sort(key=lambda s: s.updated_at, reverse=True)
+        return sessions
 
-        await self._write_session_file(session_data)
+    def get_messages(self, session_id: str) -> list[HistoryMessage]:
+        """Get all messages for a session."""
+        session_file = self._session_file_path(session_id)
+        if not session_file.exists():
+            return []
 
-        # Update index
-        index = await self._read_index()
-        for session_entry in index.sessions:
-            if session_entry.id == session_id:
-                session_entry.title = title
-                session_entry.updated_at = datetime.now()
-                break
-        await self._write_index(index)
+        messages = []
+        with open(session_file) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        messages.append(HistoryMessage.model_validate_json(line))
+                    except Exception:
+                        continue
+        return messages
