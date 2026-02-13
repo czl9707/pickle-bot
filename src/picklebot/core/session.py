@@ -26,17 +26,16 @@ class AgentSession:
 
     async def __aenter__(self):
         # ensure history_store initialize the session.
-        await self.history_store.create_session(self.agent_config.name, self.session_id)
+        self.history_store.create_session(self.agent_config.name, self.session_id)
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
-        # update session name.
-        self.history_store
+        pass
 
     async def add_message(self, message: Message) -> None:
         """Add a message to the conversation history."""
         self.messages.append(message)
-        await self._save_message_to_history(message)
+        self._save_message_to_history(message)
 
     def get_history(self, max_messages: int = 50) -> list[Message]:
         """
@@ -50,7 +49,7 @@ class AgentSession:
         """
         return self.messages[-max_messages:]
 
-    async def _save_message_to_history(self, message: Message) -> None:
+    def _save_message_to_history(self, message: Message) -> None:
         """
         Persist a message to the history backend.
 
@@ -69,7 +68,7 @@ class AgentSession:
                 }
                 for tc in message.get("tool_calls", [])
             ]
-        
+
         tool_call_id = None
         if message.get("tool_call_id", None):
             message = cast(ChatCompletionToolMessageParam, message)
@@ -82,4 +81,4 @@ class AgentSession:
             tool_calls = tool_calls,
             tool_call_id=tool_call_id,
         )
-        await self.history_store.save_message(history_msg)
+        self.history_store.save_message(self.session_id, history_msg)
