@@ -1,26 +1,21 @@
 # Pickle-Bot
 
-A personal AI assistant with pluggable skills, built with Python.
+A personal AI assistant with pluggable tools, built with Python.
 
 ## Features
 
-- **Pluggable Skills System** - Easily extend functionality with custom skills
+- **Pluggable Tools System** - Function calling with custom tools
 - **LLM Provider Abstraction** - Support for multiple LLM providers (Z.ai, OpenAI, Anthropic)
-- **CLI Interface** - Clean command-line interface with subcommands
+- **CLI Interface** - Clean command-line interface with Rich formatting
 - **YAML Configuration** - Config-driven with system/user config split
+- **Session History** - JSON-based conversation persistence
 
 ## Installation
 
 ```bash
-# Clone the repository
 git clone <repo-url>
 cd pickle-bot
-
-# Install with uv
 uv sync
-
-# Or with pip
-pip install -e .
 ```
 
 ## Configuration
@@ -29,11 +24,12 @@ Configuration is stored in `~/.pickle-bot/`:
 
 ```
 ~/.pickle-bot/
-├── config.system.yaml    # System defaults (shipped with app)
-└── config.user.yaml      # Your overrides (optional)
+├── config.system.yaml    # System defaults
+├── config.user.yaml      # Your overrides (optional)
+└── history/              # Session persistence
+    ├── sessions/
+    └── index.json
 ```
-
-### Example Configuration
 
 **`~/.pickle-bot/config.system.yaml`:**
 ```yaml
@@ -42,24 +38,13 @@ agent:
   system_prompt: "You are pickle-bot, a helpful AI assistant."
   behavior:
     temperature: 0.7
-    max_tokens: 4096
+    max_tokens: 2048
 
-skills:
-  directory: ./skills
-  builtin:
-    - echo
-    - get_time
-    - get_system_info
-  execution:
-    timeout: 30
-    max_concurrent: 5
+history:
+  path: ".history"
 
 logging:
-  level: INFO
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-  path: logs/pickle-bot.log
-  rotation: daily
-  retention: 30
+  path: ".logs"
 ```
 
 **`~/.pickle-bot/config.user.yaml`:**
@@ -74,78 +59,52 @@ llm:
 ## Usage
 
 ```bash
-# Show help
-picklebot --help
-
-# Start interactive chat
-picklebot chat
-
-# Show agent status
-picklebot status
-
-# Use custom config directory
-picklebot --config /path/to/config chat
+picklebot chat              # Start interactive chat
+picklebot --help            # Show help
+picklebot -c /path chat     # Use custom config directory
 ```
 
-### Skills Commands
+## Built-in Tools
 
-```bash
-# List available skills
-picklebot skills list
-
-# Show skill details
-picklebot skills info <skill-name>
-
-# Execute a skill directly
-picklebot skills execute <skill-name> --args '{"param": "value"}'
-```
-
-## Built-in Skills
-
-| Skill | Description |
-|-------|-------------|
-| `echo` | Echo back input text |
-| `get_time` | Get current time and date |
-| `get_system_info` | Get system information |
+| Tool | Description |
+|------|-------------|
+| `read` | Read file contents |
+| `write` | Write content to a file |
+| `edit` | Replace text in a file |
+| `bash` | Execute shell commands |
 
 ## Project Structure
 
 ```
-pickle-bot/
-├── src/
-│   └── picklebot/
-│       ├── cli/            # CLI interface
-│       │   ├── main.py     # Main CLI app
-│       │   ├── skills.py   # Skills subcommands
-│       │   └── commands.py # Command handlers
-│       ├── core/           # Core agent functionality
-│       │   ├── agent.py    # Agent class
-│       │   ├── config.py   # Configuration models
-│       │   └── state.py    # Agent state
-│       ├── llm/            # LLM provider abstraction
-│       │   ├── base.py     # Base provider class
-│       │   ├── factory.py  # Provider factory
-│       │   └── providers.py # Provider implementations
-│       ├── skills/         # Skills system
-│       │   ├── base.py     # BaseSkill interface
-│       │   ├── registry.py # Skill registry
-│       │   └── builtin_skills.py
-│       └── utils/          # Utilities
-├── main.py                 # Entry point
-└── pyproject.toml          # Dependencies
+src/picklebot/
+├── cli/           # CLI interface (Typer)
+│   ├── main.py    # Main CLI app
+│   └── chat.py    # Chat loop handler
+├── core/          # Core functionality
+│   ├── agent.py   # Agent orchestrator
+│   ├── session.py # Runtime session state
+│   └── history.py # JSON persistence
+├── provider/      # LLM abstraction
+│   ├── base.py    # LLMProvider base class
+│   └── providers.py
+├── tools/         # Tool system
+│   ├── base.py    # BaseTool interface
+│   ├── registry.py
+│   └── builtin_tools.py
+├── frontend/      # UI abstraction
+│   ├── base.py    # Frontend interface
+│   └── console.py # Rich console implementation
+└── utils/         # Config, logging
 ```
 
-## Adding Custom Skills
-
-Create a new skill by inheriting from `BaseSkill`:
+## Adding Custom Tools
 
 ```python
-from picklebot.skills.base import BaseSkill, skill
+from picklebot.tools.base import tool
 
-# Option 1: Using decorator
-@skill(
-    name="my_skill",
-    description="Does something cool",
+@tool(
+    name="my_tool",
+    description="Does something",
     parameters={
         "type": "object",
         "properties": {
@@ -154,51 +113,29 @@ from picklebot.skills.base import BaseSkill, skill
         "required": ["input"],
     },
 )
-async def my_skill(input: str) -> str:
+async def my_tool(input: str) -> str:
     return f"Processed: {input}"
-
-# Option 2: Using class
-class MySkill(BaseSkill):
-    name = "my_skill"
-    description = "Does something cool"
-    parameters = {...}
-
-    async def execute(self, **kwargs):
-        return f"Result: {kwargs}"
 ```
 
-Place custom skills in the `skills/` directory.
+Register in `Agent` constructor or via `ToolRegistry.register()`.
 
-## LLM Providers
-
-Pickle-bot supports multiple LLM providers through an abstraction layer:
-
-- **zai** - Z.ai (GLM models)
-- **openai** - OpenAI (GPT models)
-- **anthropic** - Anthropic (Claude models)
-
-To add a new provider, inherit from `LLMProvider` and define `provider_config_name`:
+## Adding LLM Providers
 
 ```python
-from picklebot.provider import LLMProvider
+from picklebot.provider.base import LLMProvider
 
 class MyProvider(LLMProvider):
     provider_config_name = ["myprovider", "my_provider"]
-    # Inherits default chat() implementation using litellm
+    # Inherits default chat() via litellm
 ```
 
 ## Development
 
 ```bash
-# Run tests
-uv run pytest
-
-# Format code
-uv run black .
-uv run ruff check .
-
-# Type check
-uv run mypy .
+uv run pytest        # Run tests
+uv run black .       # Format
+uv run ruff check .  # Lint
+uv run mypy .        # Type check
 ```
 
 ## License
