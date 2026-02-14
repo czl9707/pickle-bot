@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+from litellm.types.completion import ChatCompletionMessageParam as Message
 
 from picklebot.utils.config import Config
 
@@ -33,6 +34,39 @@ class HistoryMessage(BaseModel):
     content: str
     tool_calls: list[dict[str, Any]] | None = None
     tool_call_id: str | None = None
+
+    @classmethod
+    def from_message(cls, message: Message) -> "HistoryMessage":
+        """
+        Create HistoryMessage from litellm Message format.
+
+        Args:
+            message: Message dict from litellm
+
+        Returns:
+            New HistoryMessage instance
+        """
+        # Extract tool_calls from assistant messages
+        tool_calls = None
+        if message.get("tool_calls"):  # type: ignore[typeddict-item]
+            tool_calls = [
+                {
+                    "id": tc.get("id"),
+                    "type": tc.get("type", "function"),
+                    "function": tc.get("function", {}),
+                }
+                for tc in message["tool_calls"]  # type: ignore[typeddict-item]
+            ]
+
+        # Extract tool_call_id from tool messages
+        tool_call_id = message.get("tool_call_id")  # type: ignore[typeddict-item]
+
+        return cls(
+            role=message["role"],  # type: ignore[arg-type]
+            content=str(message.get("content", "")),
+            tool_calls=tool_calls,
+            tool_call_id=tool_call_id,  # type: ignore[arg-type]
+        )
 
 
 class HistoryStore:
