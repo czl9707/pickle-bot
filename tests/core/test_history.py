@@ -65,6 +65,60 @@ class TestFromMessage:
         assert history_msg.tool_calls is None
 
 
+class TestToMessage:
+    """Tests for HistoryMessage.to_message() instance method."""
+
+    def test_to_message_simple_user(self):
+        """Convert simple user message to Message format."""
+        history_msg = HistoryMessage(
+            role="user",
+            content="Hello!"
+        )
+
+        message = history_msg.to_message()
+
+        assert message["role"] == "user"
+        assert message["content"] == "Hello!"
+        assert "tool_calls" not in message
+        assert "tool_call_id" not in message
+
+    def test_to_message_assistant_with_tool_calls(self):
+        """Convert assistant message with tool calls to Message format."""
+        history_msg = HistoryMessage(
+            role="assistant",
+            content="Processing...",
+            tool_calls=[
+                {
+                    "id": "call_xyz789",
+                    "type": "function",
+                    "function": {"name": "calculate", "arguments": '{"x": 1}'}
+                }
+            ]
+        )
+
+        message = history_msg.to_message()
+
+        assert message["role"] == "assistant"
+        assert message["content"] == "Processing..."
+        assert "tool_calls" in message
+        assert len(message["tool_calls"]) == 1
+
+    def test_to_message_tool_response(self):
+        """Convert tool response to Message format."""
+        history_msg = HistoryMessage(
+            role="tool",
+            content="Result: 42",
+            tool_call_id="call_xyz789"
+        )
+
+        message = history_msg.to_message()
+
+        assert message["role"] == "tool"
+        assert message["content"] == "Result: 42"
+        assert "tool_call_id" in message
+        assert message["tool_call_id"] == "call_xyz789"
+
+
 @pytest.fixture
 def temp_history_dir():
     """Create a temporary directory for history storage."""
