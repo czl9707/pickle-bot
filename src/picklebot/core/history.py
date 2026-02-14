@@ -68,6 +68,28 @@ class HistoryMessage(BaseModel):
             tool_call_id=tool_call_id,  # type: ignore[arg-type]
         )
 
+    def to_message(self) -> Message:
+        """
+        Convert HistoryMessage to litellm Message format.
+
+        Returns:
+            Message dict compatible with litellm
+        """
+        base: Message = {
+            "role": self.role,  # type: ignore[typeddict-item]
+            "content": self.content,
+        }
+
+        # Add tool_calls for assistant messages
+        if self.role == "assistant" and self.tool_calls:
+            base["tool_calls"] = self.tool_calls  # type: ignore[misc]
+
+        # Add tool_call_id for tool messages
+        if self.role == "tool" and self.tool_call_id:
+            base["tool_call_id"] = self.tool_call_id  # type: ignore[typeddict-unknown-key]
+
+        return base
+
 
 class HistoryStore:
     """
