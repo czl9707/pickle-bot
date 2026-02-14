@@ -10,7 +10,7 @@ from picklebot.core.context import SharedContext
 from picklebot.provider import LLMProvider
 from picklebot.tools.registry import ToolRegistry
 from picklebot.utils.config import AgentConfig
-from picklebot.core.history import HistoryStore, HistoryMessage
+from picklebot.core.history import HistoryMessage
 
 from litellm.types.completion import (
     ChatCompletionMessageParam as Message,
