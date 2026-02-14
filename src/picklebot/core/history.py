@@ -48,7 +48,7 @@ class HistoryStore:
 
     @staticmethod
     def from_config(config: Config) -> "HistoryStore":
-        return HistoryStore(config.workspace / config.history.path)
+        return HistoryStore(config.history_path)
 
     def __init__(self, base_path: Path):
         self.base_path = Path(base_path)
