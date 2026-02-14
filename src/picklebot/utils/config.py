@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # ============================================================================
@@ -50,18 +50,6 @@ class AgentConfig(BaseModel):
         return v
 
 
-class LoggingConfig(BaseModel):
-    """Logging configuration."""
-
-    path: str = Field(default=".logs")
-
-
-class HistoryConfig(BaseModel):
-    """History backend configuration."""
-
-    path: str = Field(default=".history")
-
-
 # ============================================================================
 # Main Configuration Class
 # ============================================================================
@@ -81,8 +69,18 @@ class Config(BaseModel):
     workspace: Path
     llm: LLMConfig
     agent: AgentConfig = Field(default_factory=AgentConfig)
-    logging: LoggingConfig = Field(default_factory=LoggingConfig)
-    history: HistoryConfig = Field(default_factory=HistoryConfig)
+    logging_path: Path = Field(default=Path(".logs"))
+    history_path: Path = Field(default=Path(".history"))
+
+    @model_validator(mode="after")
+    def resolve_paths(self) -> "Config":
+        """Resolve relative paths to absolute using workspace."""
+        for field_name in ("logging_path", "history_path"):
+            path = getattr(self, field_name)
+            if path.is_absolute():
+                raise ValueError(f"{field_name} must be relative, got: {path}")
+            setattr(self, field_name, self.workspace / path)
+        return self
 
     @classmethod
     def load(cls, workspace_dir: Path) -> "Config":
