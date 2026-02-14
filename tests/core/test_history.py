@@ -49,6 +49,21 @@ class TestFromMessage:
         assert history_msg.tool_calls[0]["id"] == "call_abc123"
         assert history_msg.tool_calls[0]["function"]["name"] == "get_weather"
 
+    def test_from_message_tool_response(self):
+        """Convert tool response message."""
+        message = {
+            "role": "tool",
+            "content": "Temperature: 72°F, Sunny",
+            "tool_call_id": "call_abc123"
+        }
+
+        history_msg = HistoryMessage.from_message(message)
+
+        assert history_msg.role == "tool"
+        assert history_msg.content == "Temperature: 72°F, Sunny"
+        assert history_msg.tool_call_id == "call_abc123"
+        assert history_msg.tool_calls is None
+
 
 @pytest.fixture
 def temp_history_dir():
