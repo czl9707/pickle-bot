@@ -1,4 +1,4 @@
-"""Tests for JSONL-based HistoryStore."""
+"""Tests for message conversion methods."""
 
 import json
 import tempfile
@@ -7,6 +7,21 @@ from pathlib import Path
 import pytest
 
 from picklebot.core.history import HistoryStore, HistoryMessage
+
+
+class TestFromMessage:
+    """Tests for HistoryMessage.from_message() class method."""
+
+    def test_from_message_simple_user(self):
+        """Convert simple user message without optional fields."""
+        message = {"role": "user", "content": "Hello, world!"}
+
+        history_msg = HistoryMessage.from_message(message)
+
+        assert history_msg.role == "user"
+        assert history_msg.content == "Hello, world!"
+        assert history_msg.tool_calls is None
+        assert history_msg.tool_call_id is None
 
 
 @pytest.fixture
