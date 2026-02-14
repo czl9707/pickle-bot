@@ -23,6 +23,32 @@ class TestFromMessage:
         assert history_msg.tool_calls is None
         assert history_msg.tool_call_id is None
 
+    def test_from_message_assistant_with_tool_calls(self):
+        """Convert assistant message with tool calls."""
+        message = {
+            "role": "assistant",
+            "content": "I'll help you with that.",
+            "tool_calls": [
+                {
+                    "id": "call_abc123",
+                    "type": "function",
+                    "function": {
+                        "name": "get_weather",
+                        "arguments": '{"location": "Seattle"}'
+                    }
+                }
+            ]
+        }
+
+        history_msg = HistoryMessage.from_message(message)
+
+        assert history_msg.role == "assistant"
+        assert history_msg.content == "I'll help you with that."
+        assert history_msg.tool_calls is not None
+        assert len(history_msg.tool_calls) == 1
+        assert history_msg.tool_calls[0]["id"] == "call_abc123"
+        assert history_msg.tool_calls[0]["function"]["name"] == "get_weather"
+
 
 @pytest.fixture
 def temp_history_dir():
