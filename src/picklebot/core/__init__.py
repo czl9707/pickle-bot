@@ -1,14 +1,13 @@
 """Core agent functionality."""
 
-from .agent import Agent
+from .agent import Agent, AgentSession
 from .context import SharedContext
 from .history import HistoryMessage, HistorySession, HistoryStore
-from .session import Session
 
 
 __all__ = [
     "Agent",
-    "Session",
+    "AgentSession",
     "HistoryStore",
     "HistoryMessage",
     "HistorySession",
