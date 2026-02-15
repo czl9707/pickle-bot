@@ -71,14 +71,19 @@ class Agent:
         ]
         if not session_query:
             raise ValueError(f"Session not found: {session_id}")
-        
+
         session_info = session_query[0]
+        history_messages = self.context.history_store.get_messages(session_id)
+
+        # Convert HistoryMessage to litellm Message format
+        messages: list[Message] = [msg.to_message() for msg in history_messages]
+
         return AgentSession(
             session_id=session_info.id,
             agent_id=session_info.agent_id,
             context=self.context,
             agent=self,
-            messages=self.context.history_store.get_messages(session_id),
+            messages=messages,
         )
 
 
