@@ -1,7 +1,12 @@
 """Tests for AgentLoader."""
 
+from pathlib import Path
+import tempfile
+
 import pytest
-from picklebot.core.agent_loader import AgentNotFoundError, InvalidAgentError
+
+from picklebot.utils.config import LLMConfig
+from picklebot.core.agent_loader import AgentLoader, AgentNotFoundError, InvalidAgentError
 
 
 class TestExceptions:
@@ -18,3 +23,56 @@ class TestExceptions:
         assert "missing name field" in str(error)
         assert error.agent_id == "pickle"
         assert error.reason == "missing name field"
+
+
+class TestAgentLoaderParsing:
+    @pytest.fixture
+    def shared_llm(self):
+        return LLMConfig(provider="test", model="test-model", api_key="test-key")
+
+    @pytest.fixture
+    def temp_agents_dir(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield Path(tmpdir)
+
+    def test_parse_simple_agent(self, temp_agents_dir, shared_llm):
+        """Parse agent with name and prompt only."""
+        agent_dir = temp_agents_dir / "pickle"
+        agent_dir.mkdir()
+        (agent_dir / "AGENT.md").write_text(
+            "---\n"
+            "name: Pickle\n"
+            "---\n"
+            "You are a helpful assistant."
+        )
+
+        loader = AgentLoader(temp_agents_dir, shared_llm)
+        agent_def = loader.load("pickle")
+
+        assert agent_def.id == "pickle"
+        assert agent_def.name == "Pickle"
+        assert agent_def.system_prompt == "You are a helpful assistant."
+        assert agent_def.llm.provider == "test"
+
+    def test_parse_agent_with_llm_overrides(self, temp_agents_dir, shared_llm):
+        """Parse agent with LLM overrides."""
+        agent_dir = temp_agents_dir / "pickle"
+        agent_dir.mkdir()
+        (agent_dir / "AGENT.md").write_text(
+            "---\n"
+            "name: Pickle\n"
+            "provider: openai\n"
+            "model: gpt-4\n"
+            "temperature: 0.5\n"
+            "max_tokens: 8192\n"
+            "---\n"
+            "You are a helpful assistant."
+        )
+
+        loader = AgentLoader(temp_agents_dir, shared_llm)
+        agent_def = loader.load("pickle")
+
+        assert agent_def.llm.provider == "openai"
+        assert agent_def.llm.model == "gpt-4"
+        assert agent_def.behavior.temperature == 0.5
+        assert agent_def.behavior.max_tokens == 8192
