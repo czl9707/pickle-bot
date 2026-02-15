@@ -28,28 +28,6 @@ class LLMConfig(BaseModel):
         return v
 
 
-class AgentBehaviorConfig(BaseModel):
-    """Agent behavior configuration."""
-
-    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
-    max_tokens: int = Field(default=2048, gt=0)
-
-
-class AgentConfig(BaseModel):
-    """Agent-specific configuration."""
-
-    name: str = Field(default="pickle", min_length=1)
-    system_prompt: str = Field(default="You are a helpful AI assistant.")
-    behavior: AgentBehaviorConfig = Field(default_factory=AgentBehaviorConfig)
-
-    @field_validator("name")
-    @classmethod
-    def name_must_not_be_empty(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("name cannot be empty")
-        return v
-
-
 # ============================================================================
 # Main Configuration Class
 # ============================================================================
@@ -68,14 +46,15 @@ class Config(BaseModel):
 
     workspace: Path
     llm: LLMConfig
-    agent: AgentConfig = Field(default_factory=AgentConfig)
+    default_agent: str
+    agents_path: Path = Field(default=Path("agents"))
     logging_path: Path = Field(default=Path(".logs"))
     history_path: Path = Field(default=Path(".history"))
 
     @model_validator(mode="after")
     def resolve_paths(self) -> "Config":
         """Resolve relative paths to absolute using workspace."""
-        for field_name in ("logging_path", "history_path"):
+        for field_name in ("agents_path", "logging_path", "history_path"):
             path = getattr(self, field_name)
             if path.is_absolute():
                 raise ValueError(f"{field_name} must be relative, got: {path}")

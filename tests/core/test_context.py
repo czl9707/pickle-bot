@@ -12,6 +12,7 @@ llm:
   provider: test
   model: test-model
   api_key: test-key
+default_agent: test-agent
 """
     )
 
