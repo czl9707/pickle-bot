@@ -24,7 +24,7 @@ uv run mypy .           # Type check
 ```
 src/picklebot/
 ├── cli/           # Typer CLI (main.py, chat.py)
-├── core/          # Agent, AgentSession, HistoryStore
+├── core/          # Agent, AgentSession, AgentDef, AgentLoader, HistoryStore
 ├── provider/      # LLM provider abstraction (base.py, providers.py)
 ├── tools/         # Tool system (base.py, registry.py, builtin_tools.py)
 ├── frontend/      # UI abstraction (base.py, console.py)
@@ -33,7 +33,11 @@ src/picklebot/
 
 ### Key Components
 
-**Agent** (`core/agent.py`): Main orchestrator that handles chat loops, tool calls, and LLM interaction. Receives messages, builds context from session history, executes tool calls via ToolRegistry.
+**Agent** (`core/agent.py`): Main orchestrator that handles chat loops, tool calls, and LLM interaction. Receives `AgentDef`, builds context from session history, executes tool calls via ToolRegistry.
+
+**AgentDef** (`core/agent_def.py`): Loaded agent definition containing id, name, system_prompt, llm config, and behavior settings. Created by `AgentLoader` from AGENT.md files.
+
+**AgentLoader** (`core/agent_loader.py`): Parses AGENT.md files with YAML frontmatter, merges agent-specific LLM settings with shared config. Raises `AgentNotFoundError` or `InvalidAgentError` on failures.
 
 **AgentSession** (`core/session.py`): Runtime state for a conversation. Manages in-memory message list and persists to HistoryStore. Async context manager.
 
@@ -48,10 +52,34 @@ src/picklebot/
 ### Configuration
 
 Stored in `~/.pickle-bot/`:
-- `config.system.yaml` - System defaults
-- `config.user.yaml` - User overrides (deep-merged)
+- `config.system.yaml` - System defaults (default_agent, paths)
+- `config.user.yaml` - User overrides (llm settings, deep-merged)
+- `agents/` - Agent definition folders
+  - `agents/[name]/AGENT.md` - Agent config with YAML frontmatter
 
 Pydantic models in `utils/config.py`. Load via `Config.load(workspace_dir)`.
+
+### Agent Definitions
+
+Agents are defined in `~/.pickle-bot/agents/[name]/AGENT.md`:
+
+```markdown
+---
+name: Agent Display Name
+provider: openai        # Optional: override shared LLM
+model: gpt-4            # Optional: override shared LLM
+temperature: 0.7
+max_tokens: 4096
+---
+
+You are a helpful assistant...
+```
+
+Load agents via `AgentLoader`:
+```python
+loader = AgentLoader(config.agents_path, config.llm)
+agent_def = loader.load("agent-name")
+```
 
 ## Patterns
 
