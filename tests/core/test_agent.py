@@ -3,7 +3,7 @@
 from pathlib import Path
 from picklebot.core.agent import Agent
 from picklebot.core.context import SharedContext
-from picklebot.core.agent_def import AgentDef, AgentBehaviorConfig
+from picklebot.core.agent_loader import AgentDef, AgentBehaviorConfig
 from picklebot.tools.registry import ToolRegistry
 from picklebot.utils.config import Config, LLMConfig
 from picklebot.provider import LLMProvider

@@ -32,7 +32,7 @@ class Agent:
     that sessions use for chatting.
     """
 
-    agent_def: AgentDef
+    agent_def: "AgentDef"
     llm: LLMProvider
     tools: ToolRegistry
     context: SharedContext
