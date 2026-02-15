@@ -3,6 +3,7 @@
 from typing import Any
 
 from picklebot.tools.base import BaseTool
+from picklebot.tools.builtin_tools import bash, edit_file, read_file, write_file
 
 
 class ToolRegistry:
@@ -49,8 +50,12 @@ class ToolRegistry:
     @classmethod
     def with_builtins(cls) -> "ToolRegistry":
         """Create a ToolRegistry with builtin tools already registered."""
-        from picklebot.tools.builtin_tools import register_builtin_tools
-
+        
         registry = cls()
-        register_builtin_tools(registry)
+
+        registry.register(read_file)
+        registry.register(write_file)
+        registry.register(edit_file)
+        registry.register(bash)
+        
         return registry

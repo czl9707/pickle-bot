@@ -4,11 +4,8 @@ import asyncio
 from pathlib import Path
 
 from picklebot.tools.base import tool
-from picklebot.tools.registry import ToolRegistry
-
 
 # Filesystem tools
-
 
 @tool(
     name="read",
@@ -127,10 +124,3 @@ async def bash(command: str) -> str:
     except Exception as e:
         return f"Error executing command: {e}"
 
-
-def register_builtin_tools(registry: ToolRegistry) -> None:
-    """Register all built-in tools with the given registry."""
-    registry.register(read_file)
-    registry.register(write_file)
-    registry.register(edit_file)
-    registry.register(bash)
