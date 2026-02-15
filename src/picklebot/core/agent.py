@@ -7,9 +7,9 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from picklebot.core.context import SharedContext
+from picklebot.core.agent_def import AgentDef
 from picklebot.provider import LLMProvider
 from picklebot.tools.registry import ToolRegistry
-from picklebot.utils.config import AgentConfig
 from picklebot.core.history import HistoryMessage
 
 from litellm.types.completion import (
@@ -32,7 +32,7 @@ class Agent:
     that sessions use for chatting.
     """
 
-    agent_config: AgentConfig
+    agent_def: AgentDef
     llm: LLMProvider
     tools: ToolRegistry
     context: SharedContext
@@ -47,12 +47,12 @@ class Agent:
         session_id = str(uuid.uuid4())
         session = AgentSession(
             session_id=session_id,
-            agent_id=self.agent_config.name,
+            agent_id=self.agent_def.id,
             context=self.context,
             agent=self,
         )
 
-        self.context.history_store.create_session(self.agent_config.name, session_id)
+        self.context.history_store.create_session(self.agent_def.id, session_id)
         return session
 
     def resume_session(self, session_id: str) -> "AgentSession":
@@ -173,7 +173,7 @@ class AgentSession:
             List of messages compatible with litellm
         """
         messages: list[Message] = [
-            {"role": "system", "content": self.agent.agent_config.system_prompt}
+            {"role": "system", "content": self.agent.agent_def.system_prompt}
         ]
         messages.extend(self.get_history(50))
 

@@ -2,8 +2,9 @@ from pathlib import Path
 
 from picklebot.core.agent import Agent
 from picklebot.core.context import SharedContext
+from picklebot.core.agent_def import AgentDef, AgentBehaviorConfig
 from picklebot.tools.registry import ToolRegistry
-from picklebot.utils.config import Config
+from picklebot.utils.config import Config, LLMConfig
 from picklebot.provider import LLMProvider
 
 
@@ -16,14 +17,23 @@ llm:
   provider: openai
   model: gpt-4
   api_key: test-key
+default_agent: test-agent
 """
     )
     config = Config.load(tmp_path)
     context = SharedContext(config=config)
 
+    agent_def = AgentDef(
+        id="test-agent",
+        name="Test Agent",
+        system_prompt="You are a test assistant.",
+        llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
+        behavior=AgentBehaviorConfig(),
+    )
+
     return Agent(
-        agent_config=config.agent,
-        llm=LLMProvider.from_config(config.llm),
+        agent_def=agent_def,
+        llm=LLMProvider.from_config(agent_def.llm),
         tools=ToolRegistry.with_builtins(),
         context=context,
     )
@@ -35,7 +45,7 @@ def test_session_creation(tmp_path):
     session = agent.new_session()
 
     assert session.session_id is not None
-    assert session.agent_id == agent.agent_config.name
+    assert session.agent_id == agent.agent_def.id
     assert session.agent is agent
     assert session.messages == []
 
