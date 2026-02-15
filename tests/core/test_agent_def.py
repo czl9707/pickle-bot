@@ -1,7 +1,6 @@
 """Tests for AgentDef model."""
 
-import pytest
-from picklebot.core.agent_def import AgentBehaviorConfig, AgentDef
+from picklebot.core.agent_loader import AgentBehaviorConfig, AgentDef
 from picklebot.utils.config import LLMConfig
 
 

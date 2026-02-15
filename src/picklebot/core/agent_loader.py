@@ -2,11 +2,28 @@
 
 from pathlib import Path
 from typing import Any
+from pydantic import BaseModel, Field
 
 import yaml
 
 from picklebot.utils.config import LLMConfig
-from picklebot.core.agent_def import AgentDef, AgentBehaviorConfig
+
+
+class AgentBehaviorConfig(BaseModel):
+    """Agent behavior settings."""
+
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    max_tokens: int = Field(default=2048, gt=0)
+
+
+class AgentDef(BaseModel):
+    """Loaded agent definition with merged settings."""
+
+    id: str
+    name: str
+    system_prompt: str
+    llm: LLMConfig
+    behavior: AgentBehaviorConfig
 
 
 class AgentError(Exception):
@@ -96,16 +113,12 @@ class AgentLoader:
             Tuple of (frontmatter dict, body string)
         """
         content = path.read_text()
-
-        # Split by --- delimiter and filter empty parts
         parts = [p for p in content.split("---\n") if p.strip()]
 
         if len(parts) < 2:
-            # No frontmatter, treat entire content as body
             return {}, content
 
         frontmatter_text = parts[0]
-        # Join remaining parts in case body contains "---"
         body = "---\n".join(parts[1:])
 
         frontmatter = yaml.safe_load(frontmatter_text) or {}

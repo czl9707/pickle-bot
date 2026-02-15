@@ -1,14 +1,16 @@
 """Console frontend implementation using Rich."""
 
 import contextlib
-from typing import Iterator
+from typing import Iterator, TYPE_CHECKING
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-from picklebot.core.agent_def import AgentDef
 from .base import Frontend
+
+if TYPE_CHECKING:
+    from picklebot.core.agent_loader import AgentDef
 
 
 class ConsoleFrontend(Frontend):

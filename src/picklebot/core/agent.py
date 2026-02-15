@@ -7,7 +7,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from picklebot.core.context import SharedContext
-from picklebot.core.agent_def import AgentDef
 from picklebot.provider import LLMProvider
 from picklebot.tools.registry import ToolRegistry
 from picklebot.core.history import HistoryMessage
@@ -19,6 +18,7 @@ from litellm.types.completion import (
 
 
 if TYPE_CHECKING:
+    from picklebot.core.agent_loader import AgentDef
     from picklebot.frontend import Frontend
     from picklebot.provider import LLMToolCall
 
