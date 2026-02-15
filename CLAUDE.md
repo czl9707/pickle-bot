@@ -37,7 +37,7 @@ src/picklebot/
 
 **AgentSession** (`core/session.py`): Runtime state for a conversation. Manages in-memory message list and persists to HistoryStore. Async context manager.
 
-**HistoryStore** (`core/history.py`): JSON file-based persistence. Directory: `~/.pickle-bot/history/sessions/` with an `index.json` for fast session listing.
+**HistoryStore** (`core/history.py`): JSON file-based persistence. Directory: `~/.pickle-bot/history/sessions/` with an `index.json` for fast session listing. `HistoryMessage` has `from_message()` and `to_message()` methods for litellm Message conversion.
 
 **LLMProvider** (`provider/base.py`): Abstract base using litellm. Subclasses only need to set `provider_config_name` for auto-registration. Built-in: ZaiProvider, OpenAIProvider, AnthropicProvider.
 
@@ -77,4 +77,16 @@ from picklebot.provider.base import LLMProvider
 class MyProvider(LLMProvider):
     provider_config_name = ["myprovider", "my_provider"]
     # Inherits default chat() via litellm
+```
+
+### Message Conversion
+
+`HistoryMessage` has bidirectional conversion with litellm `Message` format:
+
+```python
+# Message → HistoryMessage (for persistence)
+history_msg = HistoryMessage.from_message(message)
+
+# HistoryMessage → Message (for LLM context)
+message = history_msg.to_message()
 ```
