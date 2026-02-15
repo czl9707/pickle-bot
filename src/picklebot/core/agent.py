@@ -4,7 +4,7 @@ import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from picklebot.core.context import SharedContext
 from picklebot.provider import LLMProvider
@@ -14,8 +14,6 @@ from picklebot.core.history import HistoryMessage
 
 from litellm.types.completion import (
     ChatCompletionMessageParam as Message,
-    ChatCompletionToolMessageParam,
-    ChatCompletionAssistantMessageParam,
     ChatCompletionMessageToolCallParam,
 )
 
@@ -107,29 +105,7 @@ class AgentSession:
 
     def _persist_message(self, message: Message) -> None:
         """Save to HistoryStore."""
-        tool_calls = None
-        if message.get("tool_calls", None):
-            message = cast(ChatCompletionAssistantMessageParam, message)
-            tool_calls = [
-                {
-                    "id": tc.get("id"),
-                    "type": tc.get("type", "function"),
-                    "function": tc.get("function", {}),
-                }
-                for tc in message.get("tool_calls", [])
-            ]
-
-        tool_call_id = None
-        if message.get("tool_call_id", None):
-            message = cast(ChatCompletionToolMessageParam, message)
-            tool_call_id = message.get("tool_call_id")
-
-        history_msg = HistoryMessage(
-            role=message["role"],  # type: ignore
-            content=str(message.get("content", "")),
-            tool_calls=tool_calls,
-            tool_call_id=tool_call_id,
-        )
+        history_msg = HistoryMessage.from_message(message)
         self.context.history_store.save_message(self.session_id, history_msg)
 
     async def chat(self, message: str, frontend: "Frontend") -> str:
