@@ -76,3 +76,52 @@ class TestAgentLoaderParsing:
         assert agent_def.llm.model == "gpt-4"
         assert agent_def.behavior.temperature == 0.5
         assert agent_def.behavior.max_tokens == 8192
+
+
+class TestAgentLoaderErrors:
+    @pytest.fixture
+    def shared_llm(self):
+        return LLMConfig(provider="test", model="test-model", api_key="test-key")
+
+    @pytest.fixture
+    def temp_agents_dir(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield Path(tmpdir)
+
+    def test_raises_not_found_when_folder_missing(self, temp_agents_dir, shared_llm):
+        """Raise AgentNotFoundError when folder doesn't exist."""
+        loader = AgentLoader(temp_agents_dir, shared_llm)
+
+        with pytest.raises(AgentNotFoundError) as exc:
+            loader.load("nonexistent")
+
+        assert exc.value.agent_id == "nonexistent"
+
+    def test_raises_not_found_when_file_missing(self, temp_agents_dir, shared_llm):
+        """Raise AgentNotFoundError when AGENT.md doesn't exist."""
+        agent_dir = temp_agents_dir / "pickle"
+        agent_dir.mkdir()
+        # No AGENT.md created
+
+        loader = AgentLoader(temp_agents_dir, shared_llm)
+
+        with pytest.raises(AgentNotFoundError):
+            loader.load("pickle")
+
+    def test_raises_invalid_when_missing_name(self, temp_agents_dir, shared_llm):
+        """Raise InvalidAgentError when name field is missing."""
+        agent_dir = temp_agents_dir / "pickle"
+        agent_dir.mkdir()
+        (agent_dir / "AGENT.md").write_text(
+            "---\n"
+            "temperature: 0.5\n"
+            "---\n"
+            "You are a helpful assistant."
+        )
+
+        loader = AgentLoader(temp_agents_dir, shared_llm)
+
+        with pytest.raises(InvalidAgentError) as exc:
+            loader.load("pickle")
+
+        assert "name" in exc.value.reason
