@@ -22,7 +22,7 @@ llm:
     return Config.load(tmp_path)
 
 
-def test_agent_creation_with_new_structure(tmp_path: Path) -> None:
+def test_agent_creation(tmp_path: Path) -> None:
     """Agent should be created with agent_config, llm, tools, context."""
     config = _create_test_config(tmp_path)
     context = SharedContext(config=config)

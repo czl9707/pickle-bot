@@ -69,8 +69,8 @@ class Config(BaseModel):
     workspace: Path
     llm: LLMConfig
     agent: AgentConfig = Field(default_factory=AgentConfig)
-    logging_path: Path = Field()
-    history_path: Path = Field()
+    logging_path: Path = Field(default=Path(".logs"))
+    history_path: Path = Field(default=Path(".history"))
 
     @model_validator(mode="after")
     def resolve_paths(self) -> "Config":
