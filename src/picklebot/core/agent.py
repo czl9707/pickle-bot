@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from picklebot.frontend import Frontend
     from picklebot.provider import LLMToolCall
 
+
 @dataclass
 class Agent:
     """
@@ -65,8 +66,8 @@ class Agent:
             A Session instance with self as the agent reference.
         """
         session_query = [
-            session for session in
-            self.context.history_store.list_sessions()
+            session
+            for session in self.context.history_store.list_sessions()
             if session.id == session_id
         ]
         if not session_query:
@@ -144,7 +145,11 @@ class AgentSession:
                     }
                     for tc in tool_calls
                 ]
-                assistant_msg: Message = {"role": "assistant", "content": content, "tool_calls": tool_call_dicts}
+                assistant_msg: Message = {
+                    "role": "assistant",
+                    "content": content,
+                    "tool_calls": tool_call_dicts,
+                }
 
                 self.add_message(assistant_msg)
 
