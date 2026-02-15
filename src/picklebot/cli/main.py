@@ -1,6 +1,7 @@
 """CLI interface for pickle-bot using Typer."""
 
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from rich.console import Console
@@ -61,13 +62,21 @@ def main(
 @app.command()
 def chat(
     ctx: typer.Context,
+    agent: Annotated[
+        str | None,
+        typer.Option(
+            "--agent",
+            "-a",
+            help="Agent ID to use (overrides default_agent from config)",
+        ),
+    ] = None,
 ) -> None:
     """Start interactive chat session."""
     import asyncio
 
     config = ctx.obj.get("config")
 
-    session = ChatLoop(config)
+    session = ChatLoop(config, agent_id=agent)
     asyncio.run(session.run())
 
 
