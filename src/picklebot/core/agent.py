@@ -23,7 +23,6 @@ if TYPE_CHECKING:
     from picklebot.provider import LLMToolCall
 
 
-@dataclass
 class Agent:
     """
     A configured agent that creates and manages conversation sessions.
@@ -32,10 +31,13 @@ class Agent:
     that sessions use for chatting.
     """
 
-    agent_def: "AgentDef"
-    llm: LLMProvider
-    tools: ToolRegistry
-    context: SharedContext
+    def __init__(self, agent_def: "AgentDef", context: SharedContext) -> None:
+        self.agent_def = agent_def
+        self.context = context
+        # tools currently is initialized within Agent class. 
+        # This is intentional, in case agent will have its own tool regitry config later.
+        self.tools = ToolRegistry.with_builtins()
+        self.llm = LLMProvider.from_config(agent_def.llm)
 
     def new_session(self) -> "AgentSession":
         """

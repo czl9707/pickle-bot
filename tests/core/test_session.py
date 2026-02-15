@@ -3,9 +3,7 @@ from pathlib import Path
 from picklebot.core.agent import Agent
 from picklebot.core.context import SharedContext
 from picklebot.core.agent_loader import AgentDef, AgentBehaviorConfig
-from picklebot.tools.registry import ToolRegistry
 from picklebot.utils.config import Config, LLMConfig
-from picklebot.provider import LLMProvider
 
 
 def _create_test_agent(tmp_path: Path) -> Agent:
@@ -31,12 +29,7 @@ default_agent: test-agent
         behavior=AgentBehaviorConfig(),
     )
 
-    return Agent(
-        agent_def=agent_def,
-        llm=LLMProvider.from_config(agent_def.llm),
-        tools=ToolRegistry.with_builtins(),
-        context=context,
-    )
+    return Agent(agent_def=agent_def, context=context)
 
 
 def test_session_creation(tmp_path):

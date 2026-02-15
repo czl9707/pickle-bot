@@ -4,9 +4,7 @@ from pathlib import Path
 from picklebot.core.agent import Agent
 from picklebot.core.context import SharedContext
 from picklebot.core.agent_loader import AgentDef, AgentBehaviorConfig
-from picklebot.tools.registry import ToolRegistry
 from picklebot.utils.config import Config, LLMConfig
-from picklebot.provider import LLMProvider
 
 
 def _create_test_config(tmp_path: Path) -> Config:
@@ -41,12 +39,7 @@ def test_agent_creation_with_new_structure(tmp_path: Path) -> None:
     context = SharedContext(config=config)
     agent_def = _create_test_agent_def()
 
-    agent = Agent(
-        agent_def=agent_def,
-        llm=LLMProvider.from_config(agent_def.llm),
-        tools=ToolRegistry.with_builtins(),
-        context=context,
-    )
+    agent = Agent(agent_def=agent_def, context=context)
 
     assert agent.agent_def is agent_def
     assert agent.context is context
@@ -58,12 +51,7 @@ def test_agent_new_session(tmp_path: Path) -> None:
     context = SharedContext(config=config)
     agent_def = _create_test_agent_def()
 
-    agent = Agent(
-        agent_def=agent_def,
-        llm=LLMProvider.from_config(agent_def.llm),
-        tools=ToolRegistry.with_builtins(),
-        context=context,
-    )
+    agent = Agent(agent_def=agent_def, context=context)
 
     session = agent.new_session()
 
