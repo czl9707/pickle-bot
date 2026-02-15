@@ -21,10 +21,10 @@ console = Console()
 
 
 # Global config option callback
-def load_config_callback(ctx: typer.Context, config: str):
+def load_config_callback(ctx: typer.Context, workspace: str):
     """Load configuration and store it in the context."""
     try:
-        cfg = Config.load(Path(config))
+        cfg = Config.load(Path(workspace))
         ctx.ensure_object(dict)
         ctx.obj["config"] = cfg
 
@@ -41,11 +41,11 @@ def load_config_callback(ctx: typer.Context, config: str):
 @app.callback()
 def main(
     ctx: typer.Context,
-    config: str = typer.Option(
+    workspace: str = typer.Option(
         Path.home() / ".pickle-bot",
-        "--config",
-        "-c",
-        help="Path to configuration directory",
+        "--workspace",
+        "-w",
+        help="Path to workspace directory",
         callback=load_config_callback,
     ),
 ) -> None:
@@ -53,7 +53,7 @@ def main(
     Pickle-Bot: Personal AI Assistant with pluggable tools.
 
     Configuration is loaded from ~/.pickle-bot/ by default.
-    Use --config to specify a custom configuration directory.
+    Use --workspace to specify a custom workspace directory.
     """
     # Config is loaded via callback, nothing to do here
     pass

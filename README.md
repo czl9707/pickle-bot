@@ -84,6 +84,7 @@ System prompt goes here...
 picklebot chat              # Start interactive chat (uses default_agent)
 picklebot chat --agent name # Use specific agent
 picklebot chat -a name      # Shorthand
+picklebot -w /path chat     # Use custom workspace directory
 picklebot --help            # Show help
 ```
 
