@@ -77,6 +77,27 @@ class TestAgentLoaderParsing:
         assert agent_def.behavior.temperature == 0.5
         assert agent_def.behavior.max_tokens == 8192
 
+    def test_parse_agent_with_delimiter_in_body(self, temp_agents_dir, shared_llm):
+        """Parse agent when body contains --- delimiter."""
+        agent_dir = temp_agents_dir / "pickle"
+        agent_dir.mkdir()
+        (agent_dir / "AGENT.md").write_text(
+            "---\n"
+            "name: Pickle\n"
+            "---\n"
+            "Here is a separator:\n"
+            "---\n"
+            "And more content."
+        )
+
+        loader = AgentLoader(temp_agents_dir, shared_llm)
+        agent_def = loader.load("pickle")
+
+        assert agent_def.name == "Pickle"
+        assert "Here is a separator:" in agent_def.system_prompt
+        assert "---" in agent_def.system_prompt
+        assert "And more content." in agent_def.system_prompt
+
 
 class TestAgentLoaderErrors:
     @pytest.fixture

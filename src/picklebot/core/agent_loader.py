@@ -97,22 +97,16 @@ class AgentLoader:
         """
         content = path.read_text()
 
-        if not content.startswith("---"):
+        # Split by --- delimiter and filter empty parts
+        parts = [p for p in content.split("---\n") if p.strip()]
+
+        if len(parts) < 2:
+            # No frontmatter, treat entire content as body
             return {}, content
 
-        # Find closing ---
-        lines = content.split("\n")
-        end_index = None
-        for i, line in enumerate(lines[1:], start=1):
-            if line.strip() == "---":
-                end_index = i
-                break
-
-        if end_index is None:
-            return {}, content
-
-        frontmatter_text = "\n".join(lines[1:end_index])
-        body = "\n".join(lines[end_index + 1 :])
+        frontmatter_text = parts[0]
+        # Join remaining parts in case body contains "---"
+        body = "---\n".join(parts[1:])
 
         frontmatter = yaml.safe_load(frontmatter_text) or {}
         return frontmatter, body
