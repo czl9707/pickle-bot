@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 import yaml
 
-from picklebot.utils.config import LLMConfig
+from picklebot.utils.config import Config, LLMConfig
 
 
 class AgentBehaviorConfig(BaseModel):
@@ -26,13 +26,7 @@ class AgentDef(BaseModel):
     behavior: AgentBehaviorConfig
 
 
-class AgentError(Exception):
-    """Base error for agent loading."""
-
-    pass
-
-
-class AgentNotFoundError(AgentError):
+class AgentNotFoundError(Exception):
     """Agent folder or AGENT.md doesn't exist."""
 
     def __init__(self, agent_id: str):
@@ -40,7 +34,7 @@ class AgentNotFoundError(AgentError):
         self.agent_id = agent_id
 
 
-class InvalidAgentError(AgentError):
+class InvalidAgentError(Exception):
     """Agent file is malformed."""
 
     def __init__(self, agent_id: str, reason: str):
@@ -52,15 +46,19 @@ class InvalidAgentError(AgentError):
 class AgentLoader:
     """Loads agent definitions from AGENT.md files."""
 
-    def __init__(self, agents_dir: Path, shared_llm: LLMConfig):
+    @staticmethod
+    def from_config(config: Config) -> "AgentLoader":
+        return AgentLoader(config.agents_path, config.llm)
+
+    def __init__(self, agents_path: Path, shared_llm: LLMConfig):
         """
         Initialize AgentLoader.
 
         Args:
-            agents_dir: Directory containing agent folders
+            agents_path: Directory containing agent folders
             shared_llm: Shared LLM config to fall back to
         """
-        self.agents_dir = agents_dir
+        self.agents_path = agents_path
         self.shared_llm = shared_llm
 
     def load(self, agent_id: str) -> AgentDef:
@@ -77,7 +75,7 @@ class AgentLoader:
             AgentNotFoundError: Agent folder or file doesn't exist
             InvalidAgentError: Agent file is malformed
         """
-        agent_file = self.agents_dir / agent_id / "AGENT.md"
+        agent_file = self.agents_path / agent_id / "AGENT.md"
         if not agent_file.exists():
             raise AgentNotFoundError(agent_id)
 

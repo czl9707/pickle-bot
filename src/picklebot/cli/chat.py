@@ -1,7 +1,6 @@
 """CLI command handlers for pickle-bot."""
 
 from picklebot.core import Agent, SharedContext
-from picklebot.core.agent_loader import AgentLoader
 from picklebot.provider import LLMProvider
 from picklebot.utils.config import Config
 from picklebot.frontend import ConsoleFrontend
@@ -15,12 +14,10 @@ class ChatLoop:
         self.config = config
         self.agent_id = agent_id or config.default_agent
 
-        # Load agent definition
-        loader = AgentLoader(config.agents_path, config.llm)
-        self.agent_def = loader.load(self.agent_id)
+        self.context = SharedContext(config=config)
+        self.agent_def = self.context.agent_loader.load(self.agent_id)
 
         self.frontend = ConsoleFrontend(self.agent_def)
-        self.context = SharedContext(config=config)
 
         self.agent = Agent(
             agent_def=self.agent_def,
