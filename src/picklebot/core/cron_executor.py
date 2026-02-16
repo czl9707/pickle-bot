@@ -7,7 +7,7 @@ from datetime import datetime
 from croniter import croniter
 
 from picklebot.core.context import SharedContext
-from picklebot.core.cron_loader import CronDef, CronMetadata
+from picklebot.core.cron_loader import CronDef
 from picklebot.core.agent import Agent
 from picklebot.frontend.base import SilentFrontend
 
@@ -15,15 +15,15 @@ logger = logging.getLogger(__name__)
 
 
 def find_due_jobs(
-    jobs: list[CronMetadata], now: datetime | None = None
-) -> list[CronMetadata]:
+    jobs: list[CronDef], now: datetime | None = None
+) -> list[CronDef]:
     """
     Find all jobs that are due to run.
 
     A job is due if the current minute matches its cron schedule.
 
     Args:
-        jobs: List of cron metadata to check
+        jobs: List of cron definitions to check
         now: Current time (defaults to datetime.now())
 
     Returns:
@@ -82,10 +82,7 @@ class CronExecutor:
         jobs = self.context.cron_loader.discover_crons()
         due_jobs = find_due_jobs(jobs)
 
-        tasks = [
-            self._run_job(self.context.cron_loader.load(job.id))
-            for job in due_jobs
-        ]
+        tasks = [self._run_job(job) for job in due_jobs]
 
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)

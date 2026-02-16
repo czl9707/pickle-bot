@@ -62,13 +62,18 @@ class TestCronLoader:
         (temp_crons_dir / "no-file").mkdir()
 
         loader = CronLoader(temp_crons_dir)
-        metas = loader.discover_crons()
+        defs = loader.discover_crons()
 
-        assert len(metas) == 2
-        ids = [m.id for m in metas]
+        assert len(defs) == 2
+        ids = [d.id for d in defs]
         assert "job-a" in ids
         assert "job-b" in ids
         assert "no-file" not in ids
+
+        # Check that prompt field is populated
+        for d in defs:
+            assert d.prompt.startswith("Do ")
+            assert d.id in d.prompt
 
     def test_raises_not_found(self, temp_crons_dir):
         """Raise CronNotFoundError when cron doesn't exist."""

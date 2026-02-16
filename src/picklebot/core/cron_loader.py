@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from datetime import datetime
 
 from croniter import croniter
@@ -23,15 +23,6 @@ logger = logging.getLogger(__name__)
 # Backward-compatible error aliases
 CronNotFoundError = DefNotFoundError
 InvalidCronError = InvalidDefError
-
-
-class CronMetadata(BaseModel):
-    """Lightweight cron info for discovery."""
-
-    id: str
-    name: str
-    agent: str
-    schedule: str
 
 
 class CronDef(BaseModel):
@@ -84,22 +75,22 @@ class CronLoader:
         """
         self.crons_path = crons_path
 
-    def discover_crons(self) -> list[CronMetadata]:
+    def discover_crons(self) -> list[CronDef]:
         """
-        Scan crons directory, return lightweight metadata for all valid jobs.
+        Scan crons directory, return definitions for all valid jobs.
 
         Returns:
-            List of CronMetadata for valid cron jobs.
+            List of CronDef for valid cron jobs.
         """
         return discover_definitions(
-            self.crons_path, "CRON.md", self._parse_cron_metadata, logger
+            self.crons_path, "CRON.md", self._parse_cron_def, logger
         )
 
-    def _parse_cron_metadata(
-        self, def_id: str, frontmatter: dict, body: str
-    ) -> CronMetadata | None:
+    def _parse_cron_def(
+        self, def_id: str, frontmatter: dict[str, Any], body: str
+    ) -> CronDef | None:
         """
-        Parse cron file and return metadata only.
+        Parse cron definition from frontmatter (callback for discover_definitions).
 
         Args:
             def_id: Cron ID (folder name)
@@ -107,17 +98,25 @@ class CronLoader:
             body: Markdown body content
 
         Returns:
-            CronMetadata instance or None on validation failure
+            CronDef instance or None on validation failure
         """
         for field in ["name", "agent", "schedule"]:
             if field not in frontmatter:
-                raise ValueError(f"missing required field: {field}")
+                logger.warning(f"Missing required field '{field}' in cron {def_id}")
+                return None
 
-        return CronMetadata(
+        try:
+            CronDef.validate_schedule(frontmatter["schedule"])
+        except ValueError as e:
+            logger.warning(f"Invalid schedule in cron {def_id}: {e}")
+            return None
+
+        return CronDef(
             id=def_id,
             name=frontmatter["name"],
             agent=frontmatter["agent"],
             schedule=frontmatter["schedule"],
+            prompt=body.strip(),
         )
 
     def load(self, cron_id: str) -> CronDef:

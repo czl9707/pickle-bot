@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from picklebot.core.skill_loader import SkillLoader, SkillNotFoundError
+from picklebot.core.skill_loader import SkillDef, SkillLoader, SkillNotFoundError
 
 
 class TestSkillLoaderDiscovery:
@@ -28,7 +28,7 @@ class TestSkillLoaderDiscovery:
         assert result == []
 
     def test_discover_skills_valid_skill(self):
-        """Test discover_skills finds and parses valid skill."""
+        """Test discover_skills finds and parses valid skill with content."""
         with TemporaryDirectory() as tmpdir:
             skills_path = Path(tmpdir)
 
@@ -55,6 +55,10 @@ This is the skill content.
             assert result[0].id == "test-skill"
             assert result[0].name == "Test Skill"
             assert result[0].description == "A test skill"
+            # Content should now be included in discover_skills result
+            assert result[0].content == "# Test Skill Content\n\nThis is the skill content."
+            # Verify it's a SkillDef instance
+            assert isinstance(result[0], SkillDef)
 
     def test_discover_skills_skips_invalid_skill(self, caplog):
         """Test discover_skills skips skills with invalid SKILL.md."""

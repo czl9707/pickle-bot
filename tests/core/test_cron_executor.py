@@ -1,14 +1,9 @@
 """Tests for CronExecutor."""
 
-from datetime import datetime, timedelta
-from pathlib import Path
-import tempfile
+from datetime import datetime
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-
-from picklebot.core.cron_executor import CronExecutor, find_due_jobs
-from picklebot.core.cron_loader import CronMetadata
+from picklebot.core.cron_executor import find_due_jobs
+from picklebot.core.cron_loader import CronDef
 
 
 class TestFindDueJobs:
@@ -26,18 +21,20 @@ class TestFindDueJobs:
 
         # Create jobs with different schedules
         # Job that runs every 5 minutes (due at minute 10)
-        due_job = CronMetadata(
+        due_job = CronDef(
             id="due-job",
             name="Due Job",
             agent="pickle",
             schedule="*/5 * * * *",
+            prompt="Test prompt",
         )
         # Job that runs at midnight (not due at 10:10)
-        not_due_job = CronMetadata(
+        not_due_job = CronDef(
             id="not-due",
             name="Not Due",
             agent="pickle",
             schedule="0 0 * * *",
+            prompt="Test prompt",
         )
 
         jobs = [due_job, not_due_job]
@@ -55,11 +52,12 @@ class TestFindDueJobs:
 
         # Create a job that only runs at a very specific time
         # (minute 59 of hour 23 on day 31 of December)
-        job = CronMetadata(
+        job = CronDef(
             id="rare-job",
             name="Rare Job",
             agent="pickle",
             schedule="59 23 31 12 *",
+            prompt="Test prompt",
         )
 
         result = find_due_jobs([job], now)
