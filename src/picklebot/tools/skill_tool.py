@@ -33,11 +33,11 @@ def create_skill_tool(skill_metadata: list[SkillMetadata], skill_loader: SkillLo
                 "skill_name": {
                     "type": "string",
                     "enum": skill_enum,
-                    "description": "The name of the skill to load"
+                    "description": "The name of the skill to load",
                 }
             },
-            "required": ["skill_name"]
-        }
+            "required": ["skill_name"],
+        },
     )
     async def skill_tool(skill_name: str) -> str:
         """Load and return skill content.
@@ -51,7 +51,7 @@ def create_skill_tool(skill_metadata: list[SkillMetadata], skill_loader: SkillLo
         try:
             skill_def = skill_loader.load_skill(skill_name)
             return skill_def.content
-        except Exception as e:
+        except Exception:
             return f"Error: Skill '{skill_name}' not found. It may have been removed or is unavailable."
 
     return skill_tool

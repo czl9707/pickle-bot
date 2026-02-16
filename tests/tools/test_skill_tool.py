@@ -15,16 +15,14 @@ class TestCreateSkillTool:
         # Setup
         metadata = [
             SkillMetadata(
-                id="test-skill",
-                name="Test Skill",
-                description="A test skill"
+                id="test-skill", name="Test Skill", description="A test skill"
             )
         ]
         loader = SkillLoader(tmp_path)
         tool_func = create_skill_tool(metadata, loader)
 
         # Should be a FunctionTool with execute method
-        assert hasattr(tool_func, 'execute')
+        assert hasattr(tool_func, "execute")
         assert callable(tool_func.execute)
 
     def test_skill_tool_has_correct_schema(self, tmp_path):
@@ -34,13 +32,9 @@ class TestCreateSkillTool:
             SkillMetadata(
                 id="code-review",
                 name="Code Review",
-                description="Review code for best practices"
+                description="Review code for best practices",
             ),
-            SkillMetadata(
-                id="commit",
-                name="Commit",
-                description="Create git commits"
-            )
+            SkillMetadata(id="commit", name="Commit", description="Create git commits"),
         ]
         loader = SkillLoader(tmp_path)
         tool_func = create_skill_tool(metadata, loader)
@@ -58,7 +52,10 @@ class TestCreateSkillTool:
         assert params["type"] == "object"
         assert "skill_name" in params["properties"]
         assert params["properties"]["skill_name"]["type"] == "string"
-        assert set(params["properties"]["skill_name"]["enum"]) == {"code-review", "commit"}
+        assert set(params["properties"]["skill_name"]["enum"]) == {
+            "code-review",
+            "commit",
+        }
         assert params["required"] == ["skill_name"]
 
     @pytest.mark.anyio
@@ -68,7 +65,8 @@ class TestCreateSkillTool:
         skill_dir = tmp_path / "test-skill"
         skill_dir.mkdir()
         skill_file = skill_dir / "SKILL.md"
-        skill_file.write_text("""---
+        skill_file.write_text(
+            """---
 name: Test Skill
 description: A test skill
 ---
@@ -76,13 +74,12 @@ description: A test skill
 # Test Skill
 
 This is the skill content.
-""")
+"""
+        )
 
         metadata = [
             SkillMetadata(
-                id="test-skill",
-                name="Test Skill",
-                description="A test skill"
+                id="test-skill", name="Test Skill", description="A test skill"
             )
         ]
         loader = SkillLoader(tmp_path)
@@ -103,7 +100,7 @@ This is the skill content.
             SkillMetadata(
                 id="existing-skill",
                 name="Existing Skill",
-                description="An existing skill"
+                description="An existing skill",
             )
         ]
         loader = SkillLoader(tmp_path)
