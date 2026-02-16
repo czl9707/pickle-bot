@@ -90,6 +90,17 @@ class TestPathResolution:
         assert config.logging_path == Path("/workspace/.logs")
         assert config.history_path == Path("/workspace/.history")
         assert config.agents_path == Path("/workspace/agents")
+        assert config.skills_path == Path("/workspace/skills")
+
+    def test_resolves_relative_skills_path(self, minimal_llm_config):
+        """Relative skills_path should be resolved to absolute."""
+        config = Config(
+            workspace=Path("/workspace"),
+            llm=minimal_llm_config,
+            default_agent="pickle",
+            skills_path=Path("custom/skills"),
+        )
+        assert config.skills_path == Path("/workspace/custom/skills")
 
 
 class TestRejectsAbsolutePaths:
@@ -115,23 +126,13 @@ class TestRejectsAbsolutePaths:
             )
         assert "history_path must be relative" in str(exc.value)
 
-
-class TestSkillsPath:
-    def test_config_has_skills_path_default(self, minimal_llm_config):
-        """Test Config has skills_path with default value."""
-        config = Config(
-            workspace=Path("/workspace"),
-            llm=minimal_llm_config,
-            default_agent="pickle",
-        )
-        assert config.skills_path == Path("/workspace/skills")
-
-    def test_config_accepts_custom_skills_path(self, minimal_llm_config):
-        """Test Config can accept custom skills_path."""
-        config = Config(
-            workspace=Path("/workspace"),
-            llm=minimal_llm_config,
-            default_agent="pickle",
-            skills_path=Path("custom/skills"),
-        )
-        assert config.skills_path == Path("/workspace/custom/skills")
+    def test_rejects_absolute_skills_path(self, minimal_llm_config):
+        """Absolute skills_path should raise ValidationError."""
+        with pytest.raises(ValidationError) as exc:
+            Config(
+                workspace=Path("/workspace"),
+                llm=minimal_llm_config,
+                default_agent="pickle",
+                skills_path=Path("/var/skills"),
+            )
+        assert "skills_path must be relative" in str(exc.value)
