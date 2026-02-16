@@ -6,7 +6,8 @@ from typing import Optional
 
 import yaml
 
-from picklebot.core.skill_def import SkillMetadata
+from picklebot.core.exceptions import SkillNotFoundError
+from picklebot.core.skill_def import SkillDef, SkillMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -71,3 +72,53 @@ class SkillLoader:
         except Exception as e:
             logger.warning(f"Failed to parse skill {skill_file}: {e}")
             return None
+
+    def load_skill(self, skill_id: str) -> SkillDef:
+        """Load full skill definition by ID.
+
+        Args:
+            skill_id: The skill directory name
+
+        Returns:
+            SkillDef with full content
+
+        Raises:
+            SkillNotFoundError: If skill doesn't exist or is invalid
+        """
+        skill_dir = self.skills_path / skill_id
+        if not skill_dir.exists() or not skill_dir.is_dir():
+            raise SkillNotFoundError(f"Skill '{skill_id}' not found")
+
+        skill_file = skill_dir / "SKILL.md"
+        if not skill_file.exists():
+            raise SkillNotFoundError(f"Skill '{skill_id}' has no SKILL.md")
+
+        try:
+            content = skill_file.read_text()
+
+            # Split frontmatter and body
+            if not content.startswith("---"):
+                raise SkillNotFoundError(f"Skill '{skill_id}' has invalid format")
+
+            parts = content.split("---", 2)
+            if len(parts) < 3:
+                raise SkillNotFoundError(f"Skill '{skill_id}' has invalid format")
+
+            frontmatter_str = parts[1].strip()
+            frontmatter = yaml.safe_load(frontmatter_str)
+            body = parts[2].strip()
+
+            # Validate required fields
+            if "name" not in frontmatter or "description" not in frontmatter:
+                raise SkillNotFoundError(f"Skill '{skill_id}' missing required fields")
+
+            return SkillDef(
+                id=skill_id,
+                name=frontmatter["name"],
+                description=frontmatter["description"],
+                content=body
+            )
+        except SkillNotFoundError:
+            raise
+        except Exception as e:
+            raise SkillNotFoundError(f"Failed to load skill '{skill_id}': {e}")

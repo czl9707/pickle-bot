@@ -4,7 +4,10 @@ import logging
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
 from picklebot.core.skill_loader import SkillLoader
+from picklebot.core.exceptions import SkillNotFoundError
 
 
 class TestSkillLoaderDiscovery:
@@ -85,3 +88,40 @@ This is the skill content.
             result = loader.discover_skills()
 
             assert result == []
+
+
+class TestSkillLoaderLoad:
+    """Tests for SkillLoader.load_skill() method."""
+
+    def test_load_skill_returns_full_content(self, tmp_path):
+        """Test load_skill returns SkillDef with full content."""
+        skill_dir = tmp_path / "test-skill"
+        skill_dir.mkdir()
+        skill_file = skill_dir / "SKILL.md"
+        skill_content = """---
+name: Test Skill
+description: A test skill
+---
+
+# Test Skill
+
+This is the skill content.
+More content here.
+"""
+        skill_file.write_text(skill_content)
+
+        loader = SkillLoader(tmp_path)
+        skill_def = loader.load_skill("test-skill")
+
+        assert skill_def.id == "test-skill"
+        assert skill_def.name == "Test Skill"
+        assert skill_def.description == "A test skill"
+        assert "# Test Skill" in skill_def.content
+        assert "This is the skill content." in skill_def.content
+
+    def test_load_skill_raises_not_found(self, tmp_path):
+        """Test load_skill raises SkillNotFoundError for missing skill."""
+        loader = SkillLoader(tmp_path)
+
+        with pytest.raises(SkillNotFoundError):
+            loader.load_skill("nonexistent-skill")
