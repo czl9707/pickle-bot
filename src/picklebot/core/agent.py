@@ -57,9 +57,7 @@ class Agent:
     def _register_subagent_tool(self) -> None:
         """Register the subagent dispatch tool if agents are available."""
         subagent_tool = create_subagent_dispatch_tool(
-            self.context.agent_loader,
-            self.agent_def.id,
-            self.context
+            self.context.agent_loader, self.agent_def.id, self.context
         )
         if subagent_tool:
             self.tools.register(subagent_tool)

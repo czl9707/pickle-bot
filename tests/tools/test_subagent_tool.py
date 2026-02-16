@@ -7,7 +7,6 @@ from unittest.mock import ANY, AsyncMock, patch
 import pytest
 
 from picklebot.core.context import SharedContext
-from picklebot.frontend.base import SilentFrontend
 from picklebot.tools.subagent_tool import create_subagent_dispatch_tool
 from picklebot.utils.config import Config
 
@@ -176,7 +175,7 @@ You are the target agent.
             mock_session.chat = AsyncMock(return_value="Done")
 
             # Execute with context
-            result = await tool_func.execute(
+            await tool_func.execute(
                 agent_id="target-agent",
                 task="Review this",
                 context="The code is in src/main.py",
