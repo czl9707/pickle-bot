@@ -73,7 +73,7 @@ class AgentLoader:
 
         try:
             content = agent_file.read_text()
-            frontmatter, body = parse_frontmatter(content)
+            frontmatter, body = parse_frontmatter(content, lambda d: d)
         except Exception as e:
             raise InvalidDefError("agent", agent_id, str(e))
 

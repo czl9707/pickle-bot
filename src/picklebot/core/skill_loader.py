@@ -97,7 +97,7 @@ class SkillLoader:
             raise DefNotFoundError("skill", skill_id)
 
         content = skill_file.read_text()
-        frontmatter, body = parse_frontmatter(content)
+        frontmatter, body = parse_frontmatter(content, lambda d: d)
 
         # Check if frontmatter was parsed
         if not frontmatter:

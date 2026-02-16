@@ -140,7 +140,7 @@ class CronLoader:
 
         try:
             content = cron_file.read_text()
-            frontmatter, body = parse_frontmatter(content)
+            frontmatter, body = parse_frontmatter(content, lambda d: d)
         except Exception as e:
             raise InvalidDefError("cron", cron_id, str(e))
 

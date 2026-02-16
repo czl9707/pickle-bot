@@ -28,43 +28,37 @@ class InvalidDefError(Exception):
         self.reason = reason
 
 
-def parse_frontmatter(content: str) -> tuple[dict[str, Any], str]:
+def parse_frontmatter[T](
+    content: str,
+    parse_fn: Callable[[dict[str, Any]], T],
+) -> tuple[T, str]:
     """
-    Parse YAML frontmatter + markdown body.
+    Parse YAML frontmatter + markdown body with type conversion.
 
     Args:
         content: Raw file content
+        parse_fn: Callback to convert raw dict to typed object.
+                  Use `lambda d: d` for raw dict access.
 
     Returns:
-        Tuple of (frontmatter dict, body string)
+        Tuple of (typed frontmatter, body string)
+
+    Raises:
+        Whatever parse_fn raises (e.g., ValidationError)
     """
-    # Check if content starts with frontmatter delimiter
+    # Find frontmatter delimiters
     if not content.startswith("---\n"):
-        return {}, content
+        return parse_fn({}), content
 
-    # Split on the first two occurrences of "---\n"
-    # We need to find the closing delimiter
-    delimiter = "---\n"
-    first_delim = len(delimiter)
+    end_delimiter = content.find("\n---\n", 4)
+    if end_delimiter == -1:
+        return parse_fn({}), content
 
-    # Find the second delimiter
-    second_delim_pos = content.find(delimiter, first_delim)
+    frontmatter_text = content[4:end_delimiter]
+    body = content[end_delimiter + 5:]
 
-    if second_delim_pos == -1:
-        # No closing delimiter found
-        return {}, content
-
-    # Extract frontmatter (between first and second delimiter)
-    frontmatter_text = content[first_delim:second_delim_pos]
-
-    # Extract body (after second delimiter)
-    body_start = second_delim_pos + len(delimiter)
-    body = content[body_start:]
-
-    # Parse YAML
-    frontmatter = yaml.safe_load(frontmatter_text) or {}
-
-    return frontmatter, body
+    raw_dict = yaml.safe_load(frontmatter_text) or {}
+    return parse_fn(raw_dict), body
 
 
 def discover_definitions(
@@ -101,7 +95,7 @@ def discover_definitions(
 
         try:
             content = def_file.read_text()
-            frontmatter, body = parse_frontmatter(content)
+            frontmatter, body = parse_frontmatter(content, lambda d: d)
             metadata = parse_metadata(def_dir.name, frontmatter, body)
             if metadata is not None:
                 results.append(metadata)
