@@ -7,20 +7,20 @@ import tempfile
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from picklebot.core.cron_executor import CronExecutor, find_due_job
+from picklebot.core.cron_executor import CronExecutor, find_due_jobs
 from picklebot.core.cron_loader import CronMetadata
 
 
-class TestFindDueJob:
-    """Test the find_due_job helper."""
+class TestFindDueJobs:
+    """Test the find_due_jobs helper."""
 
-    def test_returns_none_when_no_jobs(self):
-        """Return None when job list is empty."""
-        result = find_due_job([])
-        assert result is None
+    def test_returns_empty_list_when_no_jobs(self):
+        """Return empty list when job list is empty."""
+        result = find_due_jobs([])
+        assert result == []
 
-    def test_returns_first_due_job(self):
-        """Return the first job that's due."""
+    def test_returns_all_due_jobs(self):
+        """Return all jobs that are due."""
         # Use a specific time where we know */5 should be due (minute 10)
         now = datetime(2026, 2, 15, 10, 10, 0)  # 10:10:00 - divisible by 5
 
@@ -41,14 +41,14 @@ class TestFindDueJob:
         )
 
         jobs = [due_job, not_due_job]
-        result = find_due_job(jobs, now)
+        result = find_due_jobs(jobs, now)
 
-        # The */5 job should be due
-        assert result is not None
-        assert result.id == "due-job"
+        # Only the */5 job should be due
+        assert len(result) == 1
+        assert result[0].id == "due-job"
 
-    def test_returns_none_when_no_jobs_due(self):
-        """Return None when no jobs are due."""
+    def test_returns_empty_list_when_no_jobs_due(self):
+        """Return empty list when no jobs are due."""
         # Use a time that definitely won't match the rare schedule
         # (minute 10 of hour 10 on day 15 of February)
         now = datetime(2026, 2, 15, 10, 10, 0)
@@ -62,6 +62,6 @@ class TestFindDueJob:
             schedule="59 23 31 12 *",
         )
 
-        result = find_due_job([job], now)
+        result = find_due_jobs([job], now)
         # This job should not be due at 10:10 on Feb 15
-        assert result is None
+        assert result == []
