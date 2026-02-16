@@ -7,6 +7,7 @@ from typing import Any, Callable, TypeVar
 import yaml
 
 T = TypeVar("T")
+logger = logging.getLogger(__name__)
 
 
 class DefNotFoundError(Exception):
@@ -68,7 +69,6 @@ def discover_definitions(
     path: Path,
     filename: str,
     parse_fn: Callable[[str, dict[str, Any], str], T | None],
-    logger: logging.Logger,
 ) -> list[T]:
     """
     Scan directory for definition files.

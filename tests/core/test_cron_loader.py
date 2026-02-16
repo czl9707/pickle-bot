@@ -5,11 +5,7 @@ import tempfile
 
 import pytest
 
-from picklebot.core.cron_loader import (
-    CronLoader,
-    CronNotFoundError,
-    InvalidCronError,
-)
+from picklebot.core.cron_loader import CronLoader
 from picklebot.utils.def_loader import DefNotFoundError, InvalidDefError
 
 
@@ -74,10 +70,3 @@ class TestCronLoader:
         for d in defs:
             assert d.prompt.startswith("Do ")
             assert d.id in d.prompt
-
-    def test_error_aliases(self):
-        """Verify error aliases are correct."""
-        # CronNotFoundError is an alias for DefNotFoundError
-        assert CronNotFoundError is DefNotFoundError
-        # InvalidCronError is an alias for InvalidDefError
-        assert InvalidCronError is InvalidDefError

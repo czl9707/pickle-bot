@@ -1,6 +1,5 @@
 """Agent definition loader."""
 
-import logging
 from pathlib import Path
 from typing import Any
 
@@ -13,8 +12,6 @@ from picklebot.utils.def_loader import (
     discover_definitions,
     parse_definition,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class AgentBehaviorConfig(BaseModel):
@@ -89,7 +86,7 @@ class AgentLoader:
             List of AgentDef objects for all valid agents
         """
         return discover_definitions(
-            self.agents_path, "AGENT.md", self._parse_agent_def, logger
+            self.agents_path, "AGENT.md", self._parse_agent_def
         )
 
     def _parse_agent_def(

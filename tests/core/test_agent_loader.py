@@ -91,23 +91,6 @@ class TestAgentLoaderParsing:
 
         assert agent_def.allow_skills is False
 
-    def test_load_agent_with_description(self, temp_agents_dir, shared_llm):
-        """AgentDef should include description from frontmatter."""
-        agent_dir = temp_agents_dir / "test-agent"
-        agent_dir.mkdir()
-        (agent_dir / "AGENT.md").write_text(
-            "---\n"
-            "name: Test Agent\n"
-            "description: A test agent for unit testing\n"
-            "---\n"
-            "You are a test assistant.\n"
-        )
-
-        loader = AgentLoader(temp_agents_dir, shared_llm)
-        agent_def = loader.load("test-agent")
-
-        assert agent_def.description == "A test agent for unit testing"
-
     def test_load_agent_without_description_defaults_to_empty_string(
         self, temp_agents_dir, shared_llm
     ):

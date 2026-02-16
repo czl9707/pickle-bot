@@ -20,11 +20,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Backward-compatible error aliases
-CronNotFoundError = DefNotFoundError
-InvalidCronError = InvalidDefError
-
-
 class CronDef(BaseModel):
     """Loaded cron job definition."""
 
@@ -83,7 +78,7 @@ class CronLoader:
             List of CronDef for valid cron jobs.
         """
         return discover_definitions(
-            self.crons_path, "CRON.md", self._parse_cron_def, logger
+            self.crons_path, "CRON.md", self._parse_cron_def
         )
 
     def _parse_cron_def(
@@ -123,8 +118,8 @@ class CronLoader:
             CronDef with full definition
 
         Raises:
-            CronNotFoundError: Cron folder or file doesn't exist
-            InvalidCronError: Cron file is malformed
+            DefNotFoundError: Cron folder or file doesn't exist
+            InvalidDefError: Cron file is malformed
         """
         cron_file = self.crons_path / cron_id / "CRON.md"
         if not cron_file.exists():

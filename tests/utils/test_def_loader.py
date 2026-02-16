@@ -143,7 +143,7 @@ class TestDiscoverDefinitions:
     def logger(self):
         return logging.getLogger("test")
 
-    def test_discovers_valid_definitions(self, temp_dir, logger):
+    def test_discovers_valid_definitions(self, temp_dir):
         """Discover definitions from valid files."""
         # Create skill1/SKILL.md
         skill1 = temp_dir / "skill1"
@@ -158,13 +158,13 @@ class TestDiscoverDefinitions:
         def parse_skill(def_id, fm, body):
             return {"id": def_id, "name": fm.get("name")}
 
-        results = discover_definitions(temp_dir, "SKILL.md", parse_skill, logger)
+        results = discover_definitions(temp_dir, "SKILL.md", parse_skill)
 
         assert len(results) == 2
         names = {r["name"] for r in results}
         assert names == {"Skill One", "Skill Two"}
 
-    def test_skips_directories_without_definition_file(self, temp_dir, logger):
+    def test_skips_directories_without_definition_file(self, temp_dir):
         """Skip directories that don't have the definition file."""
         # Valid definition
         skill1 = temp_dir / "skill1"
@@ -178,12 +178,12 @@ class TestDiscoverDefinitions:
         def parse_skill(def_id, fm, body):
             return {"id": def_id, "name": fm.get("name")}
 
-        results = discover_definitions(temp_dir, "SKILL.md", parse_skill, logger)
+        results = discover_definitions(temp_dir, "SKILL.md", parse_skill)
 
         assert len(results) == 1
         assert results[0]["id"] == "skill1"
 
-    def test_skips_invalid_definitions_via_callback_returning_none(self, temp_dir, logger):
+    def test_skips_invalid_definitions_via_callback_returning_none(self, temp_dir):
         """Skip definitions when parse callback returns None."""
         # Valid definition
         skill1 = temp_dir / "skill1"
@@ -200,23 +200,23 @@ class TestDiscoverDefinitions:
                 return None
             return {"id": def_id, "name": fm["name"]}
 
-        results = discover_definitions(temp_dir, "SKILL.md", parse_skill, logger)
+        results = discover_definitions(temp_dir, "SKILL.md", parse_skill)
 
         assert len(results) == 1
         assert results[0]["id"] == "skill1"
 
-    def test_returns_empty_list_for_nonexistent_path(self, temp_dir, logger):
+    def test_returns_empty_list_for_nonexistent_path(self, temp_dir):
         """Return empty list when path doesn't exist."""
         nonexistent = temp_dir / "nonexistent"
 
         def parse(def_id, fm, body):
             return {"id": def_id}
 
-        results = discover_definitions(nonexistent, "SKILL.md", parse, logger)
+        results = discover_definitions(nonexistent, "SKILL.md", parse)
 
         assert results == []
 
-    def test_ignores_files_in_root_directory(self, temp_dir, logger):
+    def test_ignores_files_in_root_directory(self, temp_dir):
         """Only process subdirectories, not files in root."""
         # File in root (should be ignored)
         (temp_dir / "SKILL.md").write_text("---\nname: Root\n---\nContent")
@@ -229,7 +229,7 @@ class TestDiscoverDefinitions:
         def parse_skill(def_id, fm, body):
             return {"id": def_id, "name": fm.get("name")}
 
-        results = discover_definitions(temp_dir, "SKILL.md", parse_skill, logger)
+        results = discover_definitions(temp_dir, "SKILL.md", parse_skill)
 
         assert len(results) == 1
         assert results[0]["id"] == "skill1"

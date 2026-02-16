@@ -42,7 +42,7 @@ class SkillLoader:
     def discover_skills(self) -> list[SkillDef]:
         """Scan skills directory and return list of valid SkillDef."""
         return discover_definitions(
-            self.skills_path, "SKILL.md", self._parse_skill_def, logger
+            self.skills_path, "SKILL.md", self._parse_skill_def
         )
 
     def _parse_skill_def(
