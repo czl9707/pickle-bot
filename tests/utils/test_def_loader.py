@@ -1,8 +1,10 @@
 """Tests for definition loader utilities."""
 
-import pytest
-
-from picklebot.utils.def_loader import parse_frontmatter
+from picklebot.utils.def_loader import (
+    DefNotFoundError,
+    InvalidDefError,
+    parse_frontmatter,
+)
 
 
 class TestParseFrontmatter:
@@ -53,3 +55,30 @@ class TestParseFrontmatter:
 
         assert frontmatter == {"name": "Test"}
         assert body == ""
+
+
+class TestDefNotFoundError:
+    def test_error_message_format(self):
+        """Error message uses capitalized kind."""
+        error = DefNotFoundError("agent", "my-agent")
+
+        assert str(error) == "Agent not found: my-agent"
+        assert error.kind == "agent"
+        assert error.def_id == "my-agent"
+
+    def test_error_message_with_cron_kind(self):
+        """Error message works with cron kind."""
+        error = DefNotFoundError("cron", "daily-task")
+
+        assert str(error) == "Cron not found: daily-task"
+
+
+class TestInvalidDefError:
+    def test_error_message_format(self):
+        """Error message includes reason."""
+        error = InvalidDefError("skill", "my-skill", "missing required field: name")
+
+        assert str(error) == "Invalid skill 'my-skill': missing required field: name"
+        assert error.kind == "skill"
+        assert error.def_id == "my-skill"
+        assert error.reason == "missing required field: name"

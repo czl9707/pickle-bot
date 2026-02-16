@@ -5,6 +5,25 @@ from typing import Any
 import yaml
 
 
+class DefNotFoundError(Exception):
+    """Definition folder or file doesn't exist."""
+
+    def __init__(self, kind: str, def_id: str):
+        super().__init__(f"{kind.capitalize()} not found: {def_id}")
+        self.kind = kind
+        self.def_id = def_id
+
+
+class InvalidDefError(Exception):
+    """Definition file is malformed."""
+
+    def __init__(self, kind: str, def_id: str, reason: str):
+        super().__init__(f"Invalid {kind} '{def_id}': {reason}")
+        self.kind = kind
+        self.def_id = def_id
+        self.reason = reason
+
+
 def parse_frontmatter(content: str) -> tuple[dict[str, Any], str]:
     """
     Parse YAML frontmatter + markdown body.
