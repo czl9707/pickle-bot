@@ -10,6 +10,7 @@ from picklebot.core.cron_loader import (
     CronNotFoundError,
     InvalidCronError,
 )
+from picklebot.utils.def_loader import DefNotFoundError, InvalidDefError
 
 
 class TestCronLoader:
@@ -76,7 +77,9 @@ class TestCronLoader:
         with pytest.raises(CronNotFoundError) as exc:
             loader.load("nonexistent")
 
-        assert exc.value.cron_id == "nonexistent"
+        # CronNotFoundError is an alias for DefNotFoundError
+        assert exc.value.def_id == "nonexistent"
+        assert exc.value.kind == "cron"
 
     def test_raises_invalid_missing_name(self, temp_crons_dir):
         """Raise InvalidCronError when name is missing."""
@@ -95,4 +98,14 @@ class TestCronLoader:
         with pytest.raises(InvalidCronError) as exc:
             loader.load("bad-cron")
 
+        # InvalidCronError is an alias for InvalidDefError
         assert "name" in exc.value.reason
+        assert exc.value.def_id == "bad-cron"
+        assert exc.value.kind == "cron"
+
+    def test_error_aliases(self):
+        """Verify error aliases are correct."""
+        # CronNotFoundError is an alias for DefNotFoundError
+        assert CronNotFoundError is DefNotFoundError
+        # InvalidCronError is an alias for InvalidDefError
+        assert InvalidCronError is InvalidDefError

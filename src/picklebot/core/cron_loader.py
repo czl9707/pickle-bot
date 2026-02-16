@@ -2,17 +2,27 @@
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from datetime import datetime
 
-import yaml
 from croniter import croniter
 from pydantic import BaseModel, field_validator
+
+from picklebot.utils.def_loader import (
+    DefNotFoundError,
+    InvalidDefError,
+    discover_definitions,
+    parse_frontmatter,
+)
 
 if TYPE_CHECKING:
     from picklebot.utils.config import Config
 
 logger = logging.getLogger(__name__)
+
+# Backward-compatible error aliases
+CronNotFoundError = DefNotFoundError
+InvalidCronError = InvalidDefError
 
 
 class CronMetadata(BaseModel):
@@ -57,23 +67,6 @@ class CronDef(BaseModel):
         return v
 
 
-class CronNotFoundError(Exception):
-    """Cron folder or CRON.md doesn't exist."""
-
-    def __init__(self, cron_id: str):
-        super().__init__(f"Cron job not found: {cron_id}")
-        self.cron_id = cron_id
-
-
-class InvalidCronError(Exception):
-    """Cron file is malformed."""
-
-    def __init__(self, cron_id: str, reason: str):
-        super().__init__(f"Invalid cron job '{cron_id}': {reason}")
-        self.cron_id = cron_id
-        self.reason = reason
-
-
 class CronLoader:
     """Loads cron job definitions from CRON.md files."""
 
@@ -98,28 +91,34 @@ class CronLoader:
         Returns:
             List of CronMetadata for valid cron jobs.
         """
-        if not self.crons_path.exists():
-            logger.warning(f"Crons directory not found: {self.crons_path}")
-            return []
+        return discover_definitions(
+            self.crons_path, "CRON.md", self._parse_cron_metadata, logger
+        )
 
-        crons = []
-        for cron_dir in self.crons_path.iterdir():
-            if not cron_dir.is_dir():
-                continue
+    def _parse_cron_metadata(
+        self, def_id: str, frontmatter: dict, body: str
+    ) -> CronMetadata | None:
+        """
+        Parse cron file and return metadata only.
 
-            cron_file = cron_dir / "CRON.md"
-            if not cron_file.exists():
-                logger.warning(f"No CRON.md found in {cron_dir.name}")
-                continue
+        Args:
+            def_id: Cron ID (folder name)
+            frontmatter: Parsed frontmatter dict
+            body: Markdown body content
 
-            try:
-                metadata = self._parse_cron_metadata(cron_file)
-                crons.append(metadata)
-            except Exception as e:
-                logger.warning(f"Invalid cron {cron_dir.name}: {e}")
-                continue
+        Returns:
+            CronMetadata instance or None on validation failure
+        """
+        for field in ["name", "agent", "schedule"]:
+            if field not in frontmatter:
+                raise ValueError(f"missing required field: {field}")
 
-        return crons
+        return CronMetadata(
+            id=def_id,
+            name=frontmatter["name"],
+            agent=frontmatter["agent"],
+            schedule=frontmatter["schedule"],
+        )
 
     def load(self, cron_id: str) -> CronDef:
         """
@@ -137,23 +136,24 @@ class CronLoader:
         """
         cron_file = self.crons_path / cron_id / "CRON.md"
         if not cron_file.exists():
-            raise CronNotFoundError(cron_id)
+            raise DefNotFoundError("cron", cron_id)
 
         try:
-            frontmatter, body = self._parse_cron_file(cron_file)
+            content = cron_file.read_text()
+            frontmatter, body = parse_frontmatter(content)
         except Exception as e:
-            raise InvalidCronError(cron_id, str(e))
+            raise InvalidDefError("cron", cron_id, str(e))
 
         # Validate required fields
         for field in ["name", "agent", "schedule"]:
             if field not in frontmatter:
-                raise InvalidCronError(cron_id, f"missing required field: {field}")
+                raise InvalidDefError("cron", cron_id, f"missing required field: {field}")
 
         # Validate schedule via the field validator
         try:
             CronDef.validate_schedule(frontmatter["schedule"])
         except ValueError as e:
-            raise InvalidCronError(cron_id, str(e))
+            raise InvalidDefError("cron", cron_id, str(e))
 
         return CronDef(
             id=cron_id,
@@ -161,49 +161,4 @@ class CronLoader:
             agent=frontmatter["agent"],
             schedule=frontmatter["schedule"],
             prompt=body.strip(),
-        )
-
-    def _parse_cron_file(self, path: Path) -> tuple[dict[str, Any], str]:
-        """
-        Parse YAML frontmatter + markdown body.
-
-        Args:
-            path: Path to CRON.md file
-
-        Returns:
-            Tuple of (frontmatter dict, body string)
-        """
-        content = path.read_text()
-        parts = [p for p in content.split("---\n") if p.strip()]
-
-        if len(parts) < 2:
-            return {}, content
-
-        frontmatter_text = parts[0]
-        body = "---\n".join(parts[1:])
-
-        frontmatter = yaml.safe_load(frontmatter_text) or {}
-        return frontmatter, body
-
-    def _parse_cron_metadata(self, path: Path) -> CronMetadata:
-        """
-        Parse cron file and return metadata only.
-
-        Args:
-            path: Path to CRON.md file
-
-        Returns:
-            CronMetadata instance
-        """
-        frontmatter, _ = self._parse_cron_file(path)
-
-        for field in ["name", "agent", "schedule"]:
-            if field not in frontmatter:
-                raise ValueError(f"missing required field: {field}")
-
-        return CronMetadata(
-            id=path.parent.name,
-            name=frontmatter["name"],
-            agent=frontmatter["agent"],
-            schedule=frontmatter["schedule"],
         )
