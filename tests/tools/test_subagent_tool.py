@@ -1,12 +1,15 @@
 """Tests for subagent dispatch tool factory."""
 
-import pytest
+import json
 from pathlib import Path
+from unittest.mock import ANY, AsyncMock, patch
 
-from picklebot.core.agent_loader import AgentLoader
+import pytest
+
 from picklebot.core.context import SharedContext
+from picklebot.frontend.base import SilentFrontend
 from picklebot.tools.subagent_tool import create_subagent_dispatch_tool
-from picklebot.utils.config import Config, LLMConfig
+from picklebot.utils.config import Config
 
 
 class TestCreateSubagentDispatchTool:
@@ -97,6 +100,95 @@ You are {name}.
         assert "agent-a" in enum_ids
         assert "agent-c" in enum_ids
         assert "agent-b" not in enum_ids  # Excluded!
+
+    @pytest.mark.anyio
+    async def test_tool_dispatches_to_subagent(self, tmp_path: Path):
+        """Subagent dispatch tool should create session and return result + session_id."""
+        config = self._create_test_config(tmp_path)
+
+        # Create target agent
+        agent_dir = config.agents_path / "target-agent"
+        agent_dir.mkdir(parents=True)
+        agent_file = agent_dir / "AGENT.md"
+        agent_file.write_text("""---
+name: Target Agent
+description: A target for dispatch testing
+---
+
+You are the target agent.
+""")
+
+        context = SharedContext(config=config)
+        loader = context.agent_loader
+
+        tool_func = create_subagent_dispatch_tool(loader, "caller", context)
+        assert tool_func is not None
+
+        # Simpler approach: mock Agent and Session
+        mock_response = "Task completed successfully"
+
+        with patch("picklebot.tools.subagent_tool.Agent") as mock_agent_class:
+            mock_agent = mock_agent_class.return_value
+            mock_session = mock_agent.new_session.return_value
+            mock_session.session_id = "test-session-123"
+            mock_session.chat = AsyncMock(return_value=mock_response)
+
+            # Execute
+            result = await tool_func.execute(
+                agent_id="target-agent", task="Do something"
+            )
+
+            # Verify
+            parsed = json.loads(result)
+            assert parsed["result"] == "Task completed successfully"
+            assert parsed["session_id"] == "test-session-123"
+
+            # Verify session.chat was called with correct message
+            mock_session.chat.assert_called_once_with("Do something", ANY)
+
+    @pytest.mark.anyio
+    async def test_tool_includes_context_in_message(self, tmp_path: Path):
+        """Subagent dispatch tool should include context in user message."""
+        config = self._create_test_config(tmp_path)
+
+        # Create target agent
+        agent_dir = config.agents_path / "target-agent"
+        agent_dir.mkdir(parents=True)
+        agent_file = agent_dir / "AGENT.md"
+        agent_file.write_text("""---
+name: Target Agent
+description: A target for dispatch testing
+---
+
+You are the target agent.
+""")
+
+        context = SharedContext(config=config)
+        loader = context.agent_loader
+
+        tool_func = create_subagent_dispatch_tool(loader, "caller", context)
+        assert tool_func is not None
+
+        with patch("picklebot.tools.subagent_tool.Agent") as mock_agent_class:
+            mock_agent = mock_agent_class.return_value
+            mock_session = mock_agent.new_session.return_value
+            mock_session.session_id = "test-session-456"
+            mock_session.chat = AsyncMock(return_value="Done")
+
+            # Execute with context
+            result = await tool_func.execute(
+                agent_id="target-agent",
+                task="Review this",
+                context="The code is in src/main.py",
+            )
+
+            # Verify context was included
+            mock_session.chat.assert_called_once()
+            call_args = mock_session.chat.call_args
+            message = call_args[0][0]
+            assert "Review this" in message
+            assert "Context:" in message
+            assert "The code is in src/main.py" in message
 
     def _create_test_config(self, tmp_path: Path) -> Config:
         """Create a minimal test config."""
