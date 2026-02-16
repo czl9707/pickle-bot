@@ -30,11 +30,6 @@ class AgentDef(BaseModel):
     allow_skills: bool = False
 
 
-# Keep old error names as aliases for backwards compatibility
-AgentNotFoundError = DefNotFoundError
-InvalidAgentError = InvalidDefError
-
-
 class AgentLoader:
     """Loads agent definitions from AGENT.md files."""
 
@@ -73,19 +68,25 @@ class AgentLoader:
 
         try:
             content = agent_file.read_text()
-            frontmatter, body = parse_frontmatter(
-                content, agent_id, lambda def_id, fm, body: fm
-            )
+            agent_def, _ = parse_frontmatter(content, agent_id, self._parse_agent_def)
+        except InvalidDefError:
+            raise
         except Exception as e:
             raise InvalidDefError("agent", agent_id, str(e))
 
+        return agent_def
+
+    def _parse_agent_def(
+        self, def_id: str, frontmatter: dict[str, Any], body: str
+    ) -> AgentDef:
+        """Parse agent definition from frontmatter (callback for parse_frontmatter)."""
         if "name" not in frontmatter:
-            raise InvalidDefError("agent", agent_id, "missing required field: name")
+            raise InvalidDefError("agent", def_id, "missing required field: name")
 
         merged_llm = self._merge_llm_config(frontmatter)
 
         return AgentDef(
-            id=agent_id,
+            id=def_id,
             name=frontmatter["name"],
             system_prompt=body.strip(),
             llm=merged_llm,

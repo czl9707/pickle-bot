@@ -139,25 +139,29 @@ class CronLoader:
 
         try:
             content = cron_file.read_text()
-            frontmatter, body = parse_frontmatter(
-                content, cron_id, lambda def_id, fm, body: fm
-            )
+            cron_def, _ = parse_frontmatter(content, cron_id, self._parse_cron_def_strict)
+        except InvalidDefError:
+            raise
         except Exception as e:
             raise InvalidDefError("cron", cron_id, str(e))
 
-        # Validate required fields
+        return cron_def
+
+    def _parse_cron_def_strict(
+        self, def_id: str, frontmatter: dict[str, Any], body: str
+    ) -> CronDef:
+        """Parse cron definition with strict validation (raises on error)."""
         for field in ["name", "agent", "schedule"]:
             if field not in frontmatter:
-                raise InvalidDefError("cron", cron_id, f"missing required field: {field}")
+                raise InvalidDefError("cron", def_id, f"missing required field: {field}")
 
-        # Validate schedule via the field validator
         try:
             CronDef.validate_schedule(frontmatter["schedule"])
         except ValueError as e:
-            raise InvalidDefError("cron", cron_id, str(e))
+            raise InvalidDefError("cron", def_id, str(e))
 
         return CronDef(
-            id=cron_id,
+            id=def_id,
             name=frontmatter["name"],
             agent=frontmatter["agent"],
             schedule=frontmatter["schedule"],

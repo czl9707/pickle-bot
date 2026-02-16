@@ -98,12 +98,9 @@ def discover_definitions(
 
         try:
             content = def_file.read_text()
-            frontmatter, body = parse_frontmatter(
-                content, def_dir.name, lambda def_id, fm, body: fm
-            )
-            metadata = parse_metadata(def_dir.name, frontmatter, body)
-            if metadata is not None:
-                results.append(metadata)
+            result, _ = parse_frontmatter(content, def_dir.name, parse_metadata)
+            if result is not None:
+                results.append(result)
         except Exception as e:
             logger.warning(f"Failed to parse {def_dir.name}: {e}")
             continue

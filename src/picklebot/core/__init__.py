@@ -3,8 +3,6 @@
 from .agent import Agent, AgentSession
 from .agent_loader import (
     AgentLoader,
-    AgentNotFoundError,
-    InvalidAgentError,
     AgentBehaviorConfig,
     AgentDef,
 )
@@ -17,8 +15,6 @@ __all__ = [
     "AgentDef",
     "AgentBehaviorConfig",
     "AgentLoader",
-    "AgentNotFoundError",
-    "InvalidAgentError",
     "SharedContext",
     "HistoryStore",
     "HistoryMessage",
