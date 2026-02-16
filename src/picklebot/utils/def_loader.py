@@ -1,8 +1,12 @@
 """Shared utilities for loading definition files (agents, skills, crons)."""
 
-from typing import Any
+import logging
+from pathlib import Path
+from typing import Any, Callable, TypeVar
 
 import yaml
+
+T = TypeVar("T")
 
 
 class DefNotFoundError(Exception):
@@ -61,3 +65,48 @@ def parse_frontmatter(content: str) -> tuple[dict[str, Any], str]:
     frontmatter = yaml.safe_load(frontmatter_text) or {}
 
     return frontmatter, body
+
+
+def discover_definitions(
+    path: Path,
+    filename: str,
+    parse_metadata: Callable[[str, dict[str, Any], str], T | None],
+    logger: logging.Logger,
+) -> list[T]:
+    """
+    Scan directory for definition files.
+
+    Args:
+        path: Directory containing definition folders
+        filename: File to look for (e.g., "AGENT.md", "SKILL.md")
+        parse_metadata: Callback(def_id, frontmatter, body) -> Metadata or None
+        logger: For warnings on missing/invalid files
+
+    Returns:
+        List of metadata objects from successful parses
+    """
+    if not path.exists():
+        logger.warning(f"Definitions directory not found: {path}")
+        return []
+
+    results = []
+    for def_dir in path.iterdir():
+        if not def_dir.is_dir():
+            continue
+
+        def_file = def_dir / filename
+        if not def_file.exists():
+            logger.warning(f"No {filename} found in {def_dir.name}")
+            continue
+
+        try:
+            content = def_file.read_text()
+            frontmatter, body = parse_frontmatter(content)
+            metadata = parse_metadata(def_dir.name, frontmatter, body)
+            if metadata is not None:
+                results.append(metadata)
+        except Exception as e:
+            logger.warning(f"Failed to parse {def_dir.name}: {e}")
+            continue
+
+    return results

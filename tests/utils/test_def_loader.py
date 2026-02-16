@@ -1,8 +1,15 @@
 """Tests for definition loader utilities."""
 
+import logging
+import tempfile
+from pathlib import Path
+
+import pytest
+
 from picklebot.utils.def_loader import (
     DefNotFoundError,
     InvalidDefError,
+    discover_definitions,
     parse_frontmatter,
 )
 
@@ -82,3 +89,105 @@ class TestInvalidDefError:
         assert error.kind == "skill"
         assert error.def_id == "my-skill"
         assert error.reason == "missing required field: name"
+
+
+class TestDiscoverDefinitions:
+    @pytest.fixture
+    def temp_dir(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield Path(tmpdir)
+
+    @pytest.fixture
+    def logger(self):
+        return logging.getLogger("test")
+
+    def test_discovers_valid_definitions(self, temp_dir, logger):
+        """Discover definitions from valid files."""
+        # Create skill1/SKILL.md
+        skill1 = temp_dir / "skill1"
+        skill1.mkdir()
+        (skill1 / "SKILL.md").write_text("---\nname: Skill One\n---\nContent 1")
+
+        # Create skill2/SKILL.md
+        skill2 = temp_dir / "skill2"
+        skill2.mkdir()
+        (skill2 / "SKILL.md").write_text("---\nname: Skill Two\n---\nContent 2")
+
+        def parse_skill(def_id, fm, body):
+            return {"id": def_id, "name": fm.get("name")}
+
+        results = discover_definitions(temp_dir, "SKILL.md", parse_skill, logger)
+
+        assert len(results) == 2
+        names = {r["name"] for r in results}
+        assert names == {"Skill One", "Skill Two"}
+
+    def test_skips_directories_without_definition_file(self, temp_dir, logger):
+        """Skip directories that don't have the definition file."""
+        # Valid definition
+        skill1 = temp_dir / "skill1"
+        skill1.mkdir()
+        (skill1 / "SKILL.md").write_text("---\nname: Skill One\n---\nContent")
+
+        # Directory without SKILL.md
+        empty_dir = temp_dir / "empty"
+        empty_dir.mkdir()
+
+        def parse_skill(def_id, fm, body):
+            return {"id": def_id, "name": fm.get("name")}
+
+        results = discover_definitions(temp_dir, "SKILL.md", parse_skill, logger)
+
+        assert len(results) == 1
+        assert results[0]["id"] == "skill1"
+
+    def test_skips_invalid_definitions_via_callback_returning_none(self, temp_dir, logger):
+        """Skip definitions when parse callback returns None."""
+        # Valid definition
+        skill1 = temp_dir / "skill1"
+        skill1.mkdir()
+        (skill1 / "SKILL.md").write_text("---\nname: Skill One\n---\nContent")
+
+        # Invalid definition (missing name)
+        skill2 = temp_dir / "skill2"
+        skill2.mkdir()
+        (skill2 / "SKILL.md").write_text("---\n---\nContent")
+
+        def parse_skill(def_id, fm, body):
+            if "name" not in fm:
+                return None
+            return {"id": def_id, "name": fm["name"]}
+
+        results = discover_definitions(temp_dir, "SKILL.md", parse_skill, logger)
+
+        assert len(results) == 1
+        assert results[0]["id"] == "skill1"
+
+    def test_returns_empty_list_for_nonexistent_path(self, temp_dir, logger):
+        """Return empty list when path doesn't exist."""
+        nonexistent = temp_dir / "nonexistent"
+
+        def parse(def_id, fm, body):
+            return {"id": def_id}
+
+        results = discover_definitions(nonexistent, "SKILL.md", parse, logger)
+
+        assert results == []
+
+    def test_ignores_files_in_root_directory(self, temp_dir, logger):
+        """Only process subdirectories, not files in root."""
+        # File in root (should be ignored)
+        (temp_dir / "SKILL.md").write_text("---\nname: Root\n---\nContent")
+
+        # Valid definition in subdirectory
+        skill1 = temp_dir / "skill1"
+        skill1.mkdir()
+        (skill1 / "SKILL.md").write_text("---\nname: Skill One\n---\nContent")
+
+        def parse_skill(def_id, fm, body):
+            return {"id": def_id, "name": fm.get("name")}
+
+        results = discover_definitions(temp_dir, "SKILL.md", parse_skill, logger)
+
+        assert len(results) == 1
+        assert results[0]["id"] == "skill1"
