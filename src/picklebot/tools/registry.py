@@ -50,12 +50,12 @@ class ToolRegistry:
     @classmethod
     def with_builtins(cls) -> "ToolRegistry":
         """Create a ToolRegistry with builtin tools already registered."""
-        
+
         registry = cls()
 
         registry.register(read_file)
         registry.register(write_file)
         registry.register(edit_file)
         registry.register(bash)
-        
+
         return registry

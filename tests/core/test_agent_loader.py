@@ -6,7 +6,11 @@ import tempfile
 import pytest
 
 from picklebot.utils.config import LLMConfig
-from picklebot.core.agent_loader import AgentLoader, AgentNotFoundError, InvalidAgentError
+from picklebot.core.agent_loader import (
+    AgentLoader,
+    AgentNotFoundError,
+    InvalidAgentError,
+)
 
 
 class TestAgentLoaderParsing:
@@ -24,10 +28,7 @@ class TestAgentLoaderParsing:
         agent_dir = temp_agents_dir / "pickle"
         agent_dir.mkdir()
         (agent_dir / "AGENT.md").write_text(
-            "---\n"
-            "name: Pickle\n"
-            "---\n"
-            "You are a helpful assistant."
+            "---\n" "name: Pickle\n" "---\n" "You are a helpful assistant."
         )
 
         loader = AgentLoader(temp_agents_dir, shared_llm)
@@ -163,10 +164,7 @@ class TestAgentLoaderErrors:
         agent_dir = temp_agents_dir / "pickle"
         agent_dir.mkdir()
         (agent_dir / "AGENT.md").write_text(
-            "---\n"
-            "temperature: 0.5\n"
-            "---\n"
-            "You are a helpful assistant."
+            "---\n" "temperature: 0.5\n" "---\n" "You are a helpful assistant."
         )
 
         loader = AgentLoader(temp_agents_dir, shared_llm)

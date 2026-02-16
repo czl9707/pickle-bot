@@ -7,6 +7,7 @@ from picklebot.tools.base import tool
 
 # Filesystem tools
 
+
 @tool(
     name="read",
     description="Read the contents of a text file",
@@ -123,4 +124,3 @@ async def bash(command: str) -> str:
         return output or error or "Command completed with no output"
     except Exception as e:
         return f"Error executing command: {e}"
-

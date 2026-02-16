@@ -34,10 +34,10 @@ class TestFromMessage:
                     "type": "function",
                     "function": {
                         "name": "get_weather",
-                        "arguments": '{"location": "Seattle"}'
-                    }
+                        "arguments": '{"location": "Seattle"}',
+                    },
                 }
-            ]
+            ],
         }
 
         history_msg = HistoryMessage.from_message(message)
@@ -54,7 +54,7 @@ class TestFromMessage:
         message = {
             "role": "tool",
             "content": "Temperature: 72°F, Sunny",
-            "tool_call_id": "call_abc123"
+            "tool_call_id": "call_abc123",
         }
 
         history_msg = HistoryMessage.from_message(message)
@@ -70,10 +70,7 @@ class TestToMessage:
 
     def test_to_message_simple_user(self):
         """Convert simple user message to Message format."""
-        history_msg = HistoryMessage(
-            role="user",
-            content="Hello!"
-        )
+        history_msg = HistoryMessage(role="user", content="Hello!")
 
         message = history_msg.to_message()
 
@@ -91,9 +88,9 @@ class TestToMessage:
                 {
                     "id": "call_xyz789",
                     "type": "function",
-                    "function": {"name": "calculate", "arguments": '{"x": 1}'}
+                    "function": {"name": "calculate", "arguments": '{"x": 1}'},
                 }
-            ]
+            ],
         )
 
         message = history_msg.to_message()
@@ -106,9 +103,7 @@ class TestToMessage:
     def test_to_message_tool_response(self):
         """Convert tool response to Message format."""
         history_msg = HistoryMessage(
-            role="tool",
-            content="Result: 42",
-            tool_call_id="call_xyz789"
+            role="tool", content="Result: 42", tool_call_id="call_xyz789"
         )
 
         message = history_msg.to_message()
@@ -142,9 +137,9 @@ class TestRoundTripConversion:
                 {
                     "id": "call_123",
                     "type": "function",
-                    "function": {"name": "test", "arguments": "{}"}
+                    "function": {"name": "test", "arguments": "{}"},
                 }
-            ]
+            ],
         }
 
         history_msg = HistoryMessage.from_message(original)
@@ -159,7 +154,7 @@ class TestRoundTripConversion:
         original = {
             "role": "tool",
             "content": "Tool output",
-            "tool_call_id": "call_456"
+            "tool_call_id": "call_456",
         }
 
         history_msg = HistoryMessage.from_message(original)

@@ -1,4 +1,5 @@
 """Tests for custom exceptions."""
+
 import pytest
 from picklebot.core.exceptions import SkillNotFoundError
 

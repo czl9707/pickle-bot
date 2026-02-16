@@ -1,9 +1,11 @@
 """Skill definition models."""
+
 from pydantic import BaseModel, ConfigDict
 
 
 class SkillMetadata(BaseModel):
     """Lightweight skill info for discovery."""
+
     model_config = ConfigDict(extra="forbid")
 
     id: str
@@ -13,6 +15,7 @@ class SkillMetadata(BaseModel):
 
 class SkillDef(BaseModel):
     """Loaded skill definition."""
+
     model_config = ConfigDict(extra="forbid")
 
     id: str

@@ -116,7 +116,7 @@ class SkillLoader:
                 id=skill_id,
                 name=frontmatter["name"],
                 description=frontmatter["description"],
-                content=body
+                content=body,
             )
         except SkillNotFoundError:
             raise
