@@ -1,13 +1,8 @@
 """Tests for CronExecutor."""
 
-from datetime import datetime, timedelta
-from pathlib import Path
-import tempfile
+from datetime import datetime
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-
-from picklebot.core.cron_executor import CronExecutor, find_due_job
+from picklebot.core.cron_executor import find_due_job
 from picklebot.core.cron_loader import CronMetadata
 
 
