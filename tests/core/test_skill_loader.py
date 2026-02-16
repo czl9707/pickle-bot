@@ -72,7 +72,8 @@ This is the skill content.
                 result = loader.discover_skills()
 
             assert result == []
-            assert "No frontmatter" in caplog.text
+            # Skipped due to missing required fields (no frontmatter = no name/description)
+            assert "Missing required fields" in caplog.text
 
     def test_discover_skills_skips_non_directories(self):
         """Test discover_skills skips non-directory files in skills path."""
