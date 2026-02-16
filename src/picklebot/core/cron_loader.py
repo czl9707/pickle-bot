@@ -36,36 +36,20 @@ class CronDef(BaseModel):
         if not croniter.is_valid(v):
             raise ValueError(f"Invalid cron expression: {v}")
 
-        # Check minimum 5-minute granularity
-        # Parse the minute field (first field)
-        minute_field = v.split()[0]
+        # Check minimum 5-minute granularity using croniter
+        # Get the first two run times and check the gap
+        from datetime import datetime
 
-        # Allow: */5, */10, */15, etc. (divisible by 5)
-        # Allow: 0, 5, 10, 15, etc. (specific minutes divisible by 5)
-        # Allow: * only if other fields make it run at most every 5 minutes
-        # For simplicity, we check if minute value is divisible by 5 or is */N where N >= 5
+        base = datetime(2024, 1, 1, 0, 0)  # Arbitrary base time
+        cron = croniter(v, base)
+        first_run = cron.get_next(datetime)
+        second_run = cron.get_next(datetime)
+        gap_minutes = (second_run - first_run).total_seconds() / 60
 
-        if minute_field == "*":
-            # Every minute - not allowed
+        if gap_minutes < 5:
             raise ValueError(
-                f"Schedule must have minimum 5-minute granularity. Got: {v}"
+                f"Schedule must have minimum 5-minute granularity. Got: {v} (runs every {gap_minutes:.0f} min)"
             )
-        elif minute_field.startswith("*/"):
-            try:
-                interval = int(minute_field[2:])
-                if interval < 5:
-                    raise ValueError(
-                        f"Schedule must have minimum 5-minute granularity. Got: {v}"
-                    )
-            except ValueError:
-                raise  # Re-raise ValueError for invalid interval format
-        elif minute_field.isdigit():
-            # Single minute value - this runs every hour at that minute, which is fine
-            pass
-        elif "," in minute_field:
-            # Multiple values - check all are >= 5 minutes apart
-            # For simplicity, just ensure we're not running more often than every 5 min
-            pass
 
         return v
 
