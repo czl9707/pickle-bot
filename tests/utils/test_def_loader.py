@@ -10,16 +10,16 @@ from picklebot.utils.def_loader import (
     DefNotFoundError,
     InvalidDefError,
     discover_definitions,
-    parse_frontmatter,
+    parse_definition,
 )
 
 
-class TestParseFrontmatter:
+class TestParseDefinition:
     def test_parse_basic_frontmatter(self):
         """Parse simple YAML frontmatter and body."""
         content = "---\nname: Test\n---\nBody content here."
-        frontmatter, body = parse_frontmatter(
-            content, "test-id", lambda def_id, fm, body: fm
+        frontmatter, body = parse_definition(
+            content, "test-id", lambda def_id, fm, body: (fm, body)
         )
 
         assert frontmatter == {"name": "Test"}
@@ -28,8 +28,8 @@ class TestParseFrontmatter:
     def test_parse_with_multiple_fields(self):
         """Parse frontmatter with multiple YAML fields."""
         content = "---\nname: Test\nversion: 1.0\nenabled: true\n---\nBody"
-        frontmatter, body = parse_frontmatter(
-            content, "test-id", lambda def_id, fm, body: fm
+        frontmatter, body = parse_definition(
+            content, "test-id", lambda def_id, fm, body: (fm, body)
         )
 
         assert frontmatter == {"name": "Test", "version": 1.0, "enabled": True}
@@ -38,8 +38,8 @@ class TestParseFrontmatter:
     def test_parse_preserves_delimiter_in_body(self):
         """Preserve --- delimiters that appear in body."""
         content = "---\nname: Test\n---\nHere is --- a separator\n---\nmore content"
-        frontmatter, body = parse_frontmatter(
-            content, "test-id", lambda def_id, fm, body: fm
+        frontmatter, body = parse_definition(
+            content, "test-id", lambda def_id, fm, body: (fm, body)
         )
 
         assert frontmatter == {"name": "Test"}
@@ -48,8 +48,8 @@ class TestParseFrontmatter:
     def test_parse_empty_frontmatter(self):
         """Handle empty frontmatter with proper delimiters."""
         content = "---\n\n---\nBody content"
-        frontmatter, body = parse_frontmatter(
-            content, "test-id", lambda def_id, fm, body: fm
+        frontmatter, body = parse_definition(
+            content, "test-id", lambda def_id, fm, body: (fm, body)
         )
 
         assert frontmatter == {}
@@ -58,8 +58,8 @@ class TestParseFrontmatter:
     def test_parse_no_frontmatter_returns_empty_dict(self):
         """Return empty dict and full content when no frontmatter."""
         content = "Just body content\nno frontmatter"
-        frontmatter, body = parse_frontmatter(
-            content, "test-id", lambda def_id, fm, body: fm
+        frontmatter, body = parse_definition(
+            content, "test-id", lambda def_id, fm, body: (fm, body)
         )
 
         assert frontmatter == {}
@@ -68,8 +68,8 @@ class TestParseFrontmatter:
     def test_parse_empty_body(self):
         """Handle empty body after frontmatter."""
         content = "---\nname: Test\n---\n"
-        frontmatter, body = parse_frontmatter(
-            content, "test-id", lambda def_id, fm, body: fm
+        frontmatter, body = parse_definition(
+            content, "test-id", lambda def_id, fm, body: (fm, body)
         )
 
         assert frontmatter == {"name": "Test"}
@@ -83,10 +83,27 @@ class TestParseFrontmatter:
         def capture_id(def_id, fm, body):
             nonlocal received_id
             received_id = def_id
-            return fm
+            return (fm, body)
 
-        parse_frontmatter(content, "my-custom-id", capture_id)
+        parse_definition(content, "my-custom-id", capture_id)
         assert received_id == "my-custom-id"
+
+    def test_returns_typed_object(self):
+        """Callback can return any typed object."""
+        content = "---\nname: Test\nvalue: 42\n---\nBody"
+
+        class Result:
+            def __init__(self, def_id, fm, body):
+                self.id = def_id
+                self.name = fm.get("name")
+                self.value = fm.get("value")
+                self.content = body
+
+        result = parse_definition(content, "test-id", Result)
+        assert result.id == "test-id"
+        assert result.name == "Test"
+        assert result.value == 42
+        assert result.content == "Body"
 
 
 class TestDefNotFoundError:

@@ -12,7 +12,7 @@ from picklebot.utils.def_loader import (
     DefNotFoundError,
     InvalidDefError,
     discover_definitions,
-    parse_frontmatter,
+    parse_definition,
 )
 
 if TYPE_CHECKING:
@@ -139,7 +139,7 @@ class CronLoader:
 
         try:
             content = cron_file.read_text()
-            cron_def, _ = parse_frontmatter(content, cron_id, self._parse_cron_def_strict)
+            cron_def = parse_definition(content, cron_id, self._parse_cron_def_strict)
         except InvalidDefError:
             raise
         except Exception as e:

@@ -8,7 +8,7 @@ from picklebot.utils.config import Config, LLMConfig
 from picklebot.utils.def_loader import (
     DefNotFoundError,
     InvalidDefError,
-    parse_frontmatter,
+    parse_definition,
 )
 
 
@@ -68,7 +68,7 @@ class AgentLoader:
 
         try:
             content = agent_file.read_text()
-            agent_def, _ = parse_frontmatter(content, agent_id, self._parse_agent_def)
+            agent_def = parse_definition(content, agent_id, self._parse_agent_def)
         except InvalidDefError:
             raise
         except Exception as e:
@@ -79,7 +79,7 @@ class AgentLoader:
     def _parse_agent_def(
         self, def_id: str, frontmatter: dict[str, Any], body: str
     ) -> AgentDef:
-        """Parse agent definition from frontmatter (callback for parse_frontmatter)."""
+        """Parse agent definition from frontmatter (callback for parse_definition)."""
         if "name" not in frontmatter:
             raise InvalidDefError("agent", def_id, "missing required field: name")
 

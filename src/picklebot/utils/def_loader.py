@@ -28,11 +28,11 @@ class InvalidDefError(Exception):
         self.reason = reason
 
 
-def parse_frontmatter[T](
+def parse_definition[T](
     content: str,
     def_id: str,
     parse_fn: Callable[[str, dict[str, Any], str], T],
-) -> tuple[T, str]:
+) -> T:
     """
     Parse YAML frontmatter + markdown body with type conversion.
 
@@ -42,7 +42,7 @@ def parse_frontmatter[T](
         parse_fn: Callback(def_id, frontmatter, body) -> typed object
 
     Returns:
-        Tuple of (typed frontmatter, body string)
+        The typed object returned by parse_fn
 
     Raises:
         Whatever parse_fn raises (e.g., ValidationError)
@@ -50,24 +50,24 @@ def parse_frontmatter[T](
     # Find frontmatter delimiters
     if not content.startswith("---\n"):
         body = content
-        return parse_fn(def_id, {}, body), body
+        return parse_fn(def_id, {}, body)
 
     end_delimiter = content.find("\n---\n", 4)
     if end_delimiter == -1:
         body = content
-        return parse_fn(def_id, {}, body), body
+        return parse_fn(def_id, {}, body)
 
     frontmatter_text = content[4:end_delimiter]
     body = content[end_delimiter + 5:]
 
     raw_dict = yaml.safe_load(frontmatter_text) or {}
-    return parse_fn(def_id, raw_dict, body), body
+    return parse_fn(def_id, raw_dict, body)
 
 
 def discover_definitions(
     path: Path,
     filename: str,
-    parse_metadata: Callable[[str, dict[str, Any], str], T | None],
+    parse_fn: Callable[[str, dict[str, Any], str], T | None],
     logger: logging.Logger,
 ) -> list[T]:
     """
@@ -76,7 +76,7 @@ def discover_definitions(
     Args:
         path: Directory containing definition folders
         filename: File to look for (e.g., "AGENT.md", "SKILL.md")
-        parse_metadata: Callback(def_id, frontmatter, body) -> Metadata or None
+        parse_fn: Callback(def_id, frontmatter, body) -> Metadata or None
         logger: For warnings on missing/invalid files
 
     Returns:
@@ -98,7 +98,7 @@ def discover_definitions(
 
         try:
             content = def_file.read_text()
-            result, _ = parse_frontmatter(content, def_dir.name, parse_metadata)
+            result = parse_definition(content, def_dir.name, parse_fn)
             if result is not None:
                 results.append(result)
         except Exception as e:
