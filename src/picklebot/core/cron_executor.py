@@ -7,9 +7,8 @@ from datetime import datetime
 from croniter import croniter
 
 from picklebot.core.context import SharedContext
-from picklebot.core.cron_loader import CronDef, CronLoader, CronMetadata
+from picklebot.core.cron_loader import CronDef, CronMetadata
 from picklebot.core.agent import Agent
-from picklebot.core.agent_loader import AgentLoader
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +58,6 @@ class CronExecutor:
             context: Shared application context
         """
         self.context = context
-        self.cron_loader = CronLoader(context.config.crons_path)
-        self.agent_loader = AgentLoader.from_config(context.config)
 
     async def run(self) -> None:
         """
@@ -80,13 +77,13 @@ class CronExecutor:
 
     async def _tick(self) -> None:
         """Check schedules and run due jobs."""
-        jobs = self.cron_loader.discover_crons()
+        jobs = self.context.cron_loader.discover_crons()
         due_job_meta = find_due_job(jobs)
 
         if due_job_meta:
             logger.info(f"Running cron job: {due_job_meta.id}")
             try:
-                cron_def = self.cron_loader.load(due_job_meta.id)
+                cron_def = self.context.cron_loader.load(due_job_meta.id)
                 await self._run_job(cron_def)
             except Exception as e:
                 logger.error(f"Cron job {due_job_meta.id} failed: {e}")
@@ -99,7 +96,7 @@ class CronExecutor:
             cron_def: Full cron job definition
         """
         try:
-            agent_def = self.agent_loader.load(cron_def.agent)
+            agent_def = self.context.agent_loader.load(cron_def.agent)
             agent = Agent(agent_def, self.context)
 
             # Create a new session for this job
