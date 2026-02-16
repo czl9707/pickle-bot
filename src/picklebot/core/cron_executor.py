@@ -14,11 +14,11 @@ from picklebot.frontend.base import SilentFrontend
 logger = logging.getLogger(__name__)
 
 
-def find_due_job(
+def find_due_jobs(
     jobs: list[CronMetadata], now: datetime | None = None
-) -> CronMetadata | None:
+) -> list[CronMetadata]:
     """
-    Find the first job that's due to run.
+    Find all jobs that are due to run.
 
     A job is due if the current minute matches its cron schedule.
 
@@ -27,25 +27,26 @@ def find_due_job(
         now: Current time (defaults to datetime.now())
 
     Returns:
-        First due job, or None if none are due
+        List of due jobs (may be empty)
     """
     if not jobs:
-        return None
+        return []
 
     now = now or datetime.now()
     # Round down to the minute for comparison
     now_minute = now.replace(second=0, microsecond=0)
 
+    due_jobs = []
     for job in jobs:
         try:
             # Use croniter.match() to check if current time matches schedule
             if croniter.match(job.schedule, now_minute):
-                return job
+                due_jobs.append(job)
         except Exception as e:
             logger.warning(f"Error checking schedule for {job.id}: {e}")
             continue
 
-    return None
+    return due_jobs
 
 
 class CronExecutor:
@@ -77,17 +78,17 @@ class CronExecutor:
             await asyncio.sleep(60)
 
     async def _tick(self) -> None:
-        """Check schedules and run due jobs."""
+        """Check schedules and run all due jobs concurrently."""
         jobs = self.context.cron_loader.discover_crons()
-        due_job_meta = find_due_job(jobs)
+        due_jobs = find_due_jobs(jobs)
 
-        if due_job_meta:
-            logger.info(f"Running cron job: {due_job_meta.id}")
-            try:
-                cron_def = self.context.cron_loader.load(due_job_meta.id)
-                await self._run_job(cron_def)
-            except Exception as e:
-                logger.error(f"Cron job {due_job_meta.id} failed: {e}")
+        tasks = [
+            self._run_job(self.context.cron_loader.load(job.id))
+            for job in due_jobs
+        ]
+
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _run_job(self, cron_def: CronDef) -> None:
         """
