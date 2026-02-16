@@ -27,6 +27,7 @@ def _create_test_agent_def() -> AgentDef:
     return AgentDef(
         id="test-agent",
         name="Test Agent",
+        description="A test agent for unit testing",
         system_prompt="You are a test assistant.",
         llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
         behavior=AgentBehaviorConfig(),
@@ -140,3 +141,48 @@ Test skill content.
     tool_names = [schema["function"]["name"] for schema in tool_schemas]
 
     assert "skill" not in tool_names
+
+
+def test_agent_registers_subagent_dispatch_tool(tmp_path: Path) -> None:
+    """Agent should always register subagent_dispatch tool when other agents exist."""
+    config = _create_test_config(tmp_path)
+
+    # Create another agent (so dispatch tool has something to dispatch to)
+    other_agent_dir = config.agents_path / "other-agent"
+    other_agent_dir.mkdir(parents=True)
+    other_agent_file = other_agent_dir / "AGENT.md"
+    other_agent_file.write_text("""---
+name: Other Agent
+description: Another agent for testing
+---
+
+You are another agent.
+""")
+
+    agent_def = _create_test_agent_def()
+    agent_def.description = "Test agent"  # Add description
+    context = SharedContext(config=config)
+    agent = Agent(agent_def=agent_def, context=context)
+
+    # Check that subagent_dispatch tool is registered
+    tool_schemas = agent.tools.get_tool_schemas()
+    tool_names = [schema["function"]["name"] for schema in tool_schemas]
+
+    assert "subagent_dispatch" in tool_names
+
+
+def test_agent_skips_subagent_dispatch_when_no_other_agents(tmp_path: Path) -> None:
+    """Agent should NOT register subagent_dispatch tool when no other agents exist."""
+    config = _create_test_config(tmp_path)
+    # Don't create any other agents
+
+    agent_def = _create_test_agent_def()
+    agent_def.description = "Test agent"
+    context = SharedContext(config=config)
+    agent = Agent(agent_def=agent_def, context=context)
+
+    # Check that subagent_dispatch tool is NOT registered
+    tool_schemas = agent.tools.get_tool_schemas()
+    tool_names = [schema["function"]["name"] for schema in tool_schemas]
+
+    assert "subagent_dispatch" not in tool_names

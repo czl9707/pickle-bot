@@ -10,6 +10,7 @@ from picklebot.core.context import SharedContext
 from picklebot.provider import LLMProvider
 from picklebot.tools.registry import ToolRegistry
 from picklebot.tools.skill_tool import create_skill_tool
+from picklebot.tools.subagent_tool import create_subagent_dispatch_tool
 from picklebot.core.history import HistoryMessage
 
 from litellm.types.completion import (
@@ -44,11 +45,24 @@ class Agent:
         if agent_def.allow_skills:
             self._register_skill_tool()
 
+        # Add subagent dispatch tool
+        self._register_subagent_tool()
+
     def _register_skill_tool(self) -> None:
         """Register the skill tool if skills are available."""
         skill_tool = create_skill_tool(self.context.skill_loader)
         if skill_tool:
             self.tools.register(skill_tool)
+
+    def _register_subagent_tool(self) -> None:
+        """Register the subagent dispatch tool if agents are available."""
+        subagent_tool = create_subagent_dispatch_tool(
+            self.context.agent_loader,
+            self.agent_def.id,
+            self.context
+        )
+        if subagent_tool:
+            self.tools.register(subagent_tool)
 
     def new_session(self) -> "AgentSession":
         """

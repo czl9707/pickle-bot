@@ -127,7 +127,7 @@ You are the target agent.
         # Simpler approach: mock Agent and Session
         mock_response = "Task completed successfully"
 
-        with patch("picklebot.tools.subagent_tool.Agent") as mock_agent_class:
+        with patch("picklebot.core.agent.Agent") as mock_agent_class:
             mock_agent = mock_agent_class.return_value
             mock_session = mock_agent.new_session.return_value
             mock_session.session_id = "test-session-123"
@@ -169,7 +169,7 @@ You are the target agent.
         tool_func = create_subagent_dispatch_tool(loader, "caller", context)
         assert tool_func is not None
 
-        with patch("picklebot.tools.subagent_tool.Agent") as mock_agent_class:
+        with patch("picklebot.core.agent.Agent") as mock_agent_class:
             mock_agent = mock_agent_class.return_value
             mock_session = mock_agent.new_session.return_value
             mock_session.session_id = "test-session-456"

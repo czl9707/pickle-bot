@@ -3,12 +3,12 @@
 import json
 from typing import TYPE_CHECKING, Callable
 
-from picklebot.core.agent import Agent
 from picklebot.frontend.base import SilentFrontend
 from picklebot.tools.base import tool
 from picklebot.utils.def_loader import DefNotFoundError
 
 if TYPE_CHECKING:
+    from picklebot.core.agent import Agent
     from picklebot.core.agent_loader import AgentLoader
     from picklebot.core.context import SharedContext
 
@@ -72,6 +72,9 @@ def create_subagent_dispatch_tool(
     )
     async def subagent_dispatch(agent_id: str, task: str, context: str = "") -> str:
         """Dispatch task to subagent, return result + session_id."""
+        # Import here to avoid circular dependency
+        from picklebot.core.agent import Agent
+
         # Load target agent definition
         try:
             target_def = agent_loader.load(agent_id)
