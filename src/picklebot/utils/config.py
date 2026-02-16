@@ -50,11 +50,12 @@ class Config(BaseModel):
     agents_path: Path = Field(default=Path("agents"))
     logging_path: Path = Field(default=Path(".logs"))
     history_path: Path = Field(default=Path(".history"))
+    crons_path: Path = Field(default=Path("crons"))
 
     @model_validator(mode="after")
     def resolve_paths(self) -> "Config":
         """Resolve relative paths to absolute using workspace."""
-        for field_name in ("agents_path", "logging_path", "history_path"):
+        for field_name in ("agents_path", "logging_path", "history_path", "crons_path"):
             path = getattr(self, field_name)
             if path.is_absolute():
                 raise ValueError(f"{field_name} must be relative, got: {path}")
