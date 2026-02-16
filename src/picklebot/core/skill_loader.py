@@ -6,10 +6,14 @@ from typing import Optional
 
 import yaml
 
-from picklebot.core.exceptions import SkillNotFoundError
 from picklebot.core.skill_def import SkillDef, SkillMetadata
 
 logger = logging.getLogger(__name__)
+
+class SkillNotFoundError(Exception):
+    """Raised when a skill is not found."""
+
+    pass
 
 
 class SkillLoader:

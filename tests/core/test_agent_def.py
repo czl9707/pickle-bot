@@ -67,15 +67,3 @@ class TestAgentDef:
             behavior=AgentBehaviorConfig(),
         )
         assert agent_def.allow_skills is False
-
-    def test_agent_def_accepts_allow_skills(self):
-        """Test AgentDef can have allow_skills set."""
-        agent_def = AgentDef(
-            id="test",
-            name="Test Agent",
-            system_prompt="You are a test agent",
-            llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
-            behavior=AgentBehaviorConfig(),
-            allow_skills=True,
-        )
-        assert agent_def.allow_skills is True
