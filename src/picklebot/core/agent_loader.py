@@ -25,6 +25,7 @@ class AgentDef(BaseModel):
 
     id: str
     name: str
+    description: str = ""  # Brief description for dispatch tool
     system_prompt: str
     llm: LLMConfig
     behavior: AgentBehaviorConfig
@@ -87,6 +88,7 @@ class AgentLoader:
             return AgentDef(
                 id=def_id,
                 name=frontmatter.get("name"),
+                description=frontmatter.get("description", ""),
                 system_prompt=body.strip(),
                 llm=merged_llm,
                 behavior=AgentBehaviorConfig(
