@@ -80,6 +80,16 @@ class TestPathResolution:
         )
         assert config.history_path == Path("/workspace/.history")
 
+    def test_resolves_relative_crons_path(self, minimal_llm_config):
+        """Relative crons_path should be resolved to absolute."""
+        config = Config(
+            workspace=Path("/workspace"),
+            llm=minimal_llm_config,
+            default_agent="pickle",
+            crons_path=Path("crons"),
+        )
+        assert config.crons_path == Path("/workspace/crons")
+
     def test_uses_default_paths(self, minimal_llm_config):
         """Default paths should be resolved against workspace."""
         config = Config(
@@ -91,6 +101,7 @@ class TestPathResolution:
         assert config.history_path == Path("/workspace/.history")
         assert config.agents_path == Path("/workspace/agents")
         assert config.skills_path == Path("/workspace/skills")
+        assert config.crons_path == Path("/workspace/crons")
 
     def test_resolves_relative_skills_path(self, minimal_llm_config):
         """Relative skills_path should be resolved to absolute."""
@@ -136,3 +147,14 @@ class TestRejectsAbsolutePaths:
                 skills_path=Path("/var/skills"),
             )
         assert "skills_path must be relative" in str(exc.value)
+
+    def test_rejects_absolute_crons_path(self, minimal_llm_config):
+        """Absolute crons_path should raise ValidationError."""
+        with pytest.raises(ValidationError) as exc:
+            Config(
+                workspace=Path("/workspace"),
+                llm=minimal_llm_config,
+                default_agent="pickle",
+                crons_path=Path("/var/crons"),
+            )
+        assert "crons_path must be relative" in str(exc.value)

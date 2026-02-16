@@ -7,6 +7,7 @@ import typer
 from rich.console import Console
 
 from picklebot.cli.chat import ChatLoop
+from picklebot.cli.server import server_command
 from picklebot.utils.config import Config
 from picklebot.utils.logging import setup_logging
 
@@ -78,6 +79,14 @@ def chat(
 
     session = ChatLoop(config, agent_id=agent)
     asyncio.run(session.run())
+
+
+@app.command("server")
+def server(
+    ctx: typer.Context,
+) -> None:
+    """Start the 24/7 server for cron job execution."""
+    server_command(ctx)
 
 
 if __name__ == "__main__":

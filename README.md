@@ -30,6 +30,9 @@ Configuration is stored in `~/.pickle-bot/`:
 ├── agents/               # Agent definitions
 │   └── pickle/
 │       └── AGENT.md
+├── crons/                # Cron job definitions
+│   └── inbox-check/
+│       └── CRON.md
 └── history/              # Session persistence
     ├── sessions/
     └── index.json
@@ -87,6 +90,32 @@ picklebot chat -a name      # Shorthand
 picklebot -w /path chat     # Use custom workspace directory
 picklebot --help            # Show help
 ```
+
+### Server Mode
+
+Run pickle-bot as a 24/7 server for scheduled cron jobs:
+
+```bash
+picklebot server            # Start server with default workspace
+picklebot server -w /path   # Use custom workspace
+```
+
+The server reads cron jobs from `~/.pickle-bot/crons/[job-id]/CRON.md`:
+
+```markdown
+---
+name: Inbox Check
+agent: pickle
+schedule: "*/15 * * * *"
+---
+
+Check my inbox and summarize unread messages.
+```
+
+**Cron job requirements:**
+- Minimum granularity: 5 minutes
+- Fresh session per run (no memory between runs)
+- Sequential execution (one job at a time)
 
 ## Built-in Tools
 
