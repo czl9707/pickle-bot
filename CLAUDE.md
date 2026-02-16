@@ -26,7 +26,7 @@ src/picklebot/
 ├── cli/           # Typer CLI (main.py, chat.py, server.py)
 ├── core/          # Agent, AgentSession, AgentDef, loaders, executor
 ├── provider/      # LLM provider abstraction (base.py, providers.py)
-├── tools/         # Tool system (base.py, registry.py, builtin_tools.py, skill_tool.py)
+├── tools/         # Tool system (base.py, registry.py, builtin_tools.py, skill_tool.py, subagent_tool.py)
 ├── frontend/      # UI abstraction (base.py, console.py)
 └── utils/         # Config, logging, def_loader
 ```
@@ -35,9 +35,9 @@ src/picklebot/
 
 **Agent** (`core/agent.py`): Main orchestrator that handles chat loops, tool calls, and LLM interaction. Receives `AgentDef`, builds context from session history, executes tool calls via ToolRegistry.
 
-**AgentDef** (`core/agent_def.py`): Loaded agent definition containing id, name, system_prompt, llm config, and `allow_skills` flag. Created by `AgentLoader` from AGENT.md files.
+**AgentDef** (`core/agent_def.py`): Loaded agent definition containing id, name, description, system_prompt, llm config, and `allow_skills` flag. Created by `AgentLoader` from AGENT.md files.
 
-**AgentLoader** (`core/agent_loader.py`): Parses AGENT.md files with YAML frontmatter using `def_loader` utilities. Raises `DefNotFoundError` or `InvalidDefError` on failures.
+**AgentLoader** (`core/agent_loader.py`): Parses AGENT.md files with YAML frontmatter using `def_loader` utilities. Has `load(agent_id)` and `discover_agents()` methods. Raises `DefNotFoundError` or `InvalidDefError` on failures.
 
 **AgentSession** (`core/session.py`): Runtime state for a conversation. Manages in-memory message list and persists to HistoryStore. Async context manager.
 
@@ -92,6 +92,7 @@ Agents are defined in `~/.pickle-bot/agents/[name]/AGENT.md`:
 ```markdown
 ---
 name: Agent Display Name
+description: Brief description shown in subagent_dispatch tool
 provider: openai        # Optional: override shared LLM
 model: gpt-4            # Optional: override shared LLM
 temperature: 0.7
@@ -140,6 +141,27 @@ Check my inbox and summarize unread messages.
 ```
 
 Start the server with `picklebot server`. Jobs run sequentially with fresh sessions (no memory between runs).
+
+### Subagent Dispatch System
+
+Agents can delegate specialized work to other agents through the `subagent_dispatch` tool. The tool is automatically registered when other dispatchable agents exist.
+
+**How it works:**
+1. `create_subagent_dispatch_tool()` factory builds a tool with dynamic enum of dispatchable agents
+2. Calling agent is excluded from the enum (prevents recursive dispatch)
+3. Dispatch creates a new session that persists to history
+4. Returns JSON with `result` and `session_id` fields
+
+**Tool schema:**
+```python
+subagent_dispatch(
+    agent_id: str,      # ID of target agent (enum of available agents)
+    task: str,          # Task for the subagent to perform
+    context: str = ""   # Optional context information
+) -> str  # JSON: {"result": "...", "session_id": "..."}
+```
+
+Implementation in `tools/subagent_tool.py`. Uses `SilentFrontend` for subagent execution.
 
 ## Patterns
 

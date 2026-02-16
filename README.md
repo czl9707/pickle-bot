@@ -5,6 +5,7 @@ A personal AI assistant with pluggable tools, built with Python.
 ## Features
 
 - **Multi-Agent Support** - Define multiple agents with different prompts and settings
+- **Subagent Dispatch** - Delegate specialized work to other agents through tool calls
 - **Skill System** - On-demand capability loading for specialized tasks
 - **Pluggable Tools System** - Function calling with custom tools
 - **Cron Jobs** - Scheduled agent invocations via server mode
@@ -104,6 +105,7 @@ Agents are defined in `AGENT.md` files with YAML frontmatter:
 ```markdown
 ---
 name: Agent Name              # Required
+description: Brief desc       # Required: shown in subagent_dispatch tool
 provider: openai              # Optional: override shared LLM provider
 model: gpt-4                  # Optional: override shared model
 temperature: 0.7              # Optional: sampling temperature
@@ -113,6 +115,17 @@ allow_skills: true            # Optional: enable skill tool
 
 System prompt goes here...
 ```
+
+### Subagent Dispatch
+
+Agents can delegate work to other agents via the `subagent_dispatch` tool. When multiple agents exist, an agent can dispatch a task to another specialized agent:
+
+```
+Agent A calls: subagent_dispatch(agent_id="reviewer", task="Review this code", context="...")
+Returns: {"result": "...", "session_id": "uuid"}
+```
+
+Each dispatch creates a separate session that persists to history. The calling agent is automatically excluded from the dispatchable agents list (prevents infinite loops).
 
 ### Skill Definition
 
@@ -154,6 +167,7 @@ Check my inbox and summarize unread messages.
 | `edit` | Replace text in a file |
 | `bash` | Execute shell commands |
 | `skill` | Load and invoke a specialized skill (when enabled) |
+| `subagent_dispatch` | Delegate work to another agent (when other agents exist) |
 
 ## Project Structure
 
@@ -180,7 +194,8 @@ src/picklebot/
 │   ├── base.py    # BaseTool interface
 │   ├── registry.py
 │   ├── builtin_tools.py
-│   └── skill_tool.py
+│   ├── skill_tool.py
+│   └── subagent_tool.py
 ├── frontend/      # UI abstraction
 │   ├── base.py    # Frontend interface
 │   └── console.py # Rich console implementation
