@@ -58,3 +58,85 @@ def test_agent_new_session(tmp_path: Path) -> None:
     assert session.session_id is not None
     assert session.agent_id == agent_def.id
     assert session.agent is agent
+
+
+def test_agent_registers_skill_tool_when_allowed(tmp_path: Path) -> None:
+    """Agent should register skill tool when allow_skills is True and skills exist."""
+    # Create test config with skills directory
+    config = _create_test_config(tmp_path)
+    skills_path = tmp_path / "skills"
+    skills_path.mkdir()
+    config.skills_path = skills_path
+
+    # Create a test skill
+    test_skill_dir = skills_path / "test-skill"
+    test_skill_dir.mkdir()
+    skill_file = test_skill_dir / "SKILL.md"
+    skill_file.write_text(
+        """---
+name: Test Skill
+description: A test skill
+---
+
+Test skill content.
+"""
+    )
+
+    # Create agent with allow_skills=True
+    agent_def = AgentDef(
+        id="test-agent",
+        name="Test Agent",
+        system_prompt="You are a test assistant.",
+        llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
+        behavior=AgentBehaviorConfig(),
+        allow_skills=True,
+    )
+    context = SharedContext(config=config)
+    agent = Agent(agent_def=agent_def, context=context)
+
+    # Check that skill tool is registered
+    tool_schemas = agent.tools.get_tool_schemas()
+    tool_names = [schema["function"]["name"] for schema in tool_schemas]
+
+    assert "skill" in tool_names
+
+
+def test_agent_skips_skill_tool_when_not_allowed(tmp_path: Path) -> None:
+    """Agent should NOT register skill tool when allow_skills is False."""
+    # Create test config with skills directory
+    config = _create_test_config(tmp_path)
+    skills_path = tmp_path / "skills"
+    skills_path.mkdir()
+    config.skills_path = skills_path
+
+    # Create a test skill (but it shouldn't be loaded)
+    test_skill_dir = skills_path / "test-skill"
+    test_skill_dir.mkdir()
+    skill_file = test_skill_dir / "SKILL.md"
+    skill_file.write_text(
+        """---
+name: Test Skill
+description: A test skill
+---
+
+Test skill content.
+"""
+    )
+
+    # Create agent with allow_skills=False (default)
+    agent_def = AgentDef(
+        id="test-agent",
+        name="Test Agent",
+        system_prompt="You are a test assistant.",
+        llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
+        behavior=AgentBehaviorConfig(),
+        allow_skills=False,
+    )
+    context = SharedContext(config=config)
+    agent = Agent(agent_def=agent_def, context=context)
+
+    # Check that skill tool is NOT registered
+    tool_schemas = agent.tools.get_tool_schemas()
+    tool_names = [schema["function"]["name"] for schema in tool_schemas]
+
+    assert "skill" not in tool_names

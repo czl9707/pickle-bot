@@ -6,7 +6,11 @@ import tempfile
 import pytest
 
 from picklebot.utils.config import LLMConfig
-from picklebot.core.agent_loader import AgentLoader, AgentNotFoundError, InvalidAgentError
+from picklebot.core.agent_loader import (
+    AgentLoader,
+    AgentNotFoundError,
+    InvalidAgentError,
+)
 
 
 class TestAgentLoaderParsing:
@@ -24,10 +28,7 @@ class TestAgentLoaderParsing:
         agent_dir = temp_agents_dir / "pickle"
         agent_dir.mkdir()
         (agent_dir / "AGENT.md").write_text(
-            "---\n"
-            "name: Pickle\n"
-            "---\n"
-            "You are a helpful assistant."
+            "---\n" "name: Pickle\n" "---\n" "You are a helpful assistant."
         )
 
         loader = AgentLoader(temp_agents_dir, shared_llm)
@@ -82,6 +83,38 @@ class TestAgentLoaderParsing:
         assert "---" in agent_def.system_prompt
         assert "And more content." in agent_def.system_prompt
 
+    def test_parse_agent_with_allow_skills(self, temp_agents_dir, shared_llm):
+        """Test AgentLoader parses allow_skills from frontmatter."""
+        agent_dir = temp_agents_dir / "test-agent"
+        agent_dir.mkdir()
+        (agent_dir / "AGENT.md").write_text(
+            "---\n"
+            "name: Test Agent\n"
+            "allow_skills: true\n"
+            "---\n"
+            "System prompt here.\n"
+        )
+
+        loader = AgentLoader(temp_agents_dir, shared_llm)
+        agent_def = loader.load("test-agent")
+
+        assert agent_def.allow_skills is True
+
+    def test_parse_agent_without_allow_skills_defaults_false(
+        self, temp_agents_dir, shared_llm
+    ):
+        """Test AgentLoader defaults allow_skills to False."""
+        agent_dir = temp_agents_dir / "test-agent"
+        agent_dir.mkdir()
+        (agent_dir / "AGENT.md").write_text(
+            "---\n" "name: Test Agent\n" "---\n" "System prompt here.\n"
+        )
+
+        loader = AgentLoader(temp_agents_dir, shared_llm)
+        agent_def = loader.load("test-agent")
+
+        assert agent_def.allow_skills is False
+
 
 class TestAgentLoaderErrors:
     @pytest.fixture
@@ -118,10 +151,7 @@ class TestAgentLoaderErrors:
         agent_dir = temp_agents_dir / "pickle"
         agent_dir.mkdir()
         (agent_dir / "AGENT.md").write_text(
-            "---\n"
-            "temperature: 0.5\n"
-            "---\n"
-            "You are a helpful assistant."
+            "---\n" "temperature: 0.5\n" "---\n" "You are a helpful assistant."
         )
 
         loader = AgentLoader(temp_agents_dir, shared_llm)

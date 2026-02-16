@@ -48,13 +48,19 @@ class Config(BaseModel):
     llm: LLMConfig
     default_agent: str
     agents_path: Path = Field(default=Path("agents"))
+    skills_path: Path = Field(default=Path("skills"))
     logging_path: Path = Field(default=Path(".logs"))
     history_path: Path = Field(default=Path(".history"))
 
     @model_validator(mode="after")
     def resolve_paths(self) -> "Config":
         """Resolve relative paths to absolute using workspace."""
-        for field_name in ("agents_path", "logging_path", "history_path"):
+        for field_name in (
+            "agents_path",
+            "skills_path",
+            "logging_path",
+            "history_path",
+        ):
             path = getattr(self, field_name)
             if path.is_absolute():
                 raise ValueError(f"{field_name} must be relative, got: {path}")

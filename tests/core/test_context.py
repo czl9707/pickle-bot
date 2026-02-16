@@ -22,4 +22,3 @@ default_agent: test-agent
     assert context.config is config
     assert context.history_store is not None
     assert context.agent_loader is not None
-

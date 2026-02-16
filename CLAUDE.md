@@ -81,6 +81,40 @@ loader = AgentLoader(config.agents_path, config.llm)
 agent_def = loader.load("agent-name")
 ```
 
+### Skill System
+
+Skills are user-defined capabilities that can be loaded on-demand by the LLM. Skills are defined in `~/.pickle-bot/skills/[name]/SKILL.md` files with YAML frontmatter.
+
+**Skill Definition Format:**
+
+```markdown
+---
+name: Skill Display Name
+description: Brief description for LLM to decide whether to load
+---
+
+# Skill Name
+
+Instructions for the skill...
+```
+
+**Enabling Skills:**
+
+Add `allow_skills: true` to your agent's AGENT.md:
+
+```markdown
+---
+name: My Agent
+allow_skills: true
+---
+
+You are a helpful assistant...
+```
+
+**Available Skills:**
+
+When skills are enabled, the LLM has access to a "skill" tool that presents all available skills and can load their content on demand.
+
 ## Patterns
 
 ### Adding a Tool

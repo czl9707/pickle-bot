@@ -24,6 +24,7 @@ class AgentDef(BaseModel):
     system_prompt: str
     llm: LLMConfig
     behavior: AgentBehaviorConfig
+    allow_skills: bool = False
 
 
 class AgentNotFoundError(Exception):
@@ -98,6 +99,7 @@ class AgentLoader:
                 temperature=frontmatter.get("temperature", 0.7),
                 max_tokens=frontmatter.get("max_tokens", 2048),
             ),
+            allow_skills=frontmatter.get("allow_skills", False),
         )
 
     def _parse_agent_file(self, path: Path) -> tuple[dict[str, Any], str]:
