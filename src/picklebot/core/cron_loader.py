@@ -2,11 +2,14 @@
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 from croniter import croniter
 from pydantic import BaseModel, field_validator
+
+if TYPE_CHECKING:
+    from picklebot.utils.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +76,11 @@ class InvalidCronError(Exception):
 
 class CronLoader:
     """Loads cron job definitions from CRON.md files."""
+
+    @staticmethod
+    def from_config(config: "Config") -> "CronLoader":
+        """Create CronLoader from config."""
+        return CronLoader(config.crons_path)
 
     def __init__(self, crons_path: Path):
         """

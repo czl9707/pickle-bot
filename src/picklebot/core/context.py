@@ -16,4 +16,4 @@ class SharedContext:
         self.config = config
         self.history_store = HistoryStore.from_config(config)
         self.agent_loader = AgentLoader.from_config(config)
-        self.cron_loader = CronLoader(config.crons_path)
+        self.cron_loader = CronLoader.from_config(config)
