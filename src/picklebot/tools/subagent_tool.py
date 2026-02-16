@@ -1,14 +1,13 @@
 """Subagent dispatch tool factory for creating dynamic dispatch tool."""
 
 import json
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from picklebot.frontend.base import SilentFrontend
-from picklebot.tools.base import tool
+from picklebot.tools.base import BaseTool, tool
 from picklebot.utils.def_loader import DefNotFoundError
 
 if TYPE_CHECKING:
-    from picklebot.core.agent import Agent
     from picklebot.core.agent_loader import AgentLoader
     from picklebot.core.context import SharedContext
 
@@ -17,7 +16,7 @@ def create_subagent_dispatch_tool(
     agent_loader: "AgentLoader",
     current_agent_id: str,
     context: "SharedContext",
-) -> Callable | None:
+) -> BaseTool | None:
     """Factory to create subagent dispatch tool with dynamic schema.
 
     Args:
