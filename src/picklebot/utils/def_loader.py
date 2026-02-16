@@ -30,15 +30,16 @@ class InvalidDefError(Exception):
 
 def parse_frontmatter[T](
     content: str,
-    parse_fn: Callable[[dict[str, Any]], T],
+    def_id: str,
+    parse_fn: Callable[[str, dict[str, Any], str], T],
 ) -> tuple[T, str]:
     """
     Parse YAML frontmatter + markdown body with type conversion.
 
     Args:
         content: Raw file content
-        parse_fn: Callback to convert raw dict to typed object.
-                  Use `lambda d: d` for raw dict access.
+        def_id: Definition ID (passed to parse_fn for context)
+        parse_fn: Callback(def_id, frontmatter, body) -> typed object
 
     Returns:
         Tuple of (typed frontmatter, body string)
@@ -48,17 +49,19 @@ def parse_frontmatter[T](
     """
     # Find frontmatter delimiters
     if not content.startswith("---\n"):
-        return parse_fn({}), content
+        body = content
+        return parse_fn(def_id, {}, body), body
 
     end_delimiter = content.find("\n---\n", 4)
     if end_delimiter == -1:
-        return parse_fn({}), content
+        body = content
+        return parse_fn(def_id, {}, body), body
 
     frontmatter_text = content[4:end_delimiter]
     body = content[end_delimiter + 5:]
 
     raw_dict = yaml.safe_load(frontmatter_text) or {}
-    return parse_fn(raw_dict), body
+    return parse_fn(def_id, raw_dict, body), body
 
 
 def discover_definitions(
@@ -95,7 +98,9 @@ def discover_definitions(
 
         try:
             content = def_file.read_text()
-            frontmatter, body = parse_frontmatter(content, lambda d: d)
+            frontmatter, body = parse_frontmatter(
+                content, def_dir.name, lambda def_id, fm, body: fm
+            )
             metadata = parse_metadata(def_dir.name, frontmatter, body)
             if metadata is not None:
                 results.append(metadata)
