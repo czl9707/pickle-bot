@@ -28,6 +28,9 @@ def create_subagent_dispatch_tool(
     Returns:
         Async tool function for dispatching to subagents, or None if no agents available
     """
+    # Store reference before it gets shadowed by inner function parameter
+    shared_context = context
+
     # Discover available agents, exclude current
     available_agents = agent_loader.discover_agents()
     dispatchable_agents = [a for a in available_agents if a.id != current_agent_id]
@@ -76,7 +79,7 @@ def create_subagent_dispatch_tool(
             raise ValueError(f"Agent '{agent_id}' not found")
 
         # Create subagent instance
-        subagent = Agent(target_def, context)
+        subagent = Agent(target_def, shared_context)
 
         # Build initial message
         user_message = task
