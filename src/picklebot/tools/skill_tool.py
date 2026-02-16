@@ -1,20 +1,23 @@
 """Skill tool factory for creating dynamic skill tool."""
 
 from picklebot.tools.base import tool
-from picklebot.core.skill_def import SkillMetadata
 from picklebot.core.skill_loader import SkillLoader
 
 
-def create_skill_tool(skill_metadata: list[SkillMetadata], skill_loader: SkillLoader):
+def create_skill_tool(skill_loader: SkillLoader):
     """Factory function to create skill tool with dynamic schema.
 
     Args:
-        skill_metadata: List of available skill metadata
-        skill_loader: SkillLoader instance for loading skill content
+        skill_loader: SkillLoader instance for discovering and loading skills
 
     Returns:
-        Async tool function for loading skills
+        Async tool function for loading skills, or None if no skills available
     """
+    skill_metadata = skill_loader.discover_skills()
+
+    if not skill_metadata:
+        return None
+
     # Build XML description of available skills
     skills_xml = "<skills>\n"
     for meta in skill_metadata:

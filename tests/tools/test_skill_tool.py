@@ -2,7 +2,6 @@
 
 import pytest
 
-from picklebot.core.skill_def import SkillMetadata
 from picklebot.core.skill_loader import SkillLoader
 from picklebot.tools.skill_tool import create_skill_tool
 
@@ -10,35 +9,60 @@ from picklebot.tools.skill_tool import create_skill_tool
 class TestCreateSkillTool:
     """Tests for create_skill_tool factory function."""
 
+    def test_create_skill_tool_returns_none_when_no_skills(self, tmp_path):
+        """create_skill_tool should return None when no skills available."""
+        loader = SkillLoader(tmp_path)
+        tool_func = create_skill_tool(loader)
+        assert tool_func is None
+
     def test_create_skill_tool_returns_callable(self, tmp_path):
         """create_skill_tool should return a callable tool function."""
-        # Setup
-        metadata = [
-            SkillMetadata(
-                id="test-skill", name="Test Skill", description="A test skill"
-            )
-        ]
+        # Setup - create a valid skill
+        skill_dir = tmp_path / "test-skill"
+        skill_dir.mkdir()
+        skill_file = skill_dir / "SKILL.md"
+        skill_file.write_text(
+            """---
+name: Test Skill
+description: A test skill
+---
+
+# Test Skill
+"""
+        )
+
         loader = SkillLoader(tmp_path)
-        tool_func = create_skill_tool(metadata, loader)
+        tool_func = create_skill_tool(loader)
 
         # Should be a FunctionTool with execute method
+        assert tool_func is not None
         assert hasattr(tool_func, "execute")
         assert callable(tool_func.execute)
 
     def test_skill_tool_has_correct_schema(self, tmp_path):
         """Skill tool should have correct name, description, and parameters."""
-        # Setup
-        metadata = [
-            SkillMetadata(
-                id="code-review",
-                name="Code Review",
-                description="Review code for best practices",
-            ),
-            SkillMetadata(id="commit", name="Commit", description="Create git commits"),
-        ]
-        loader = SkillLoader(tmp_path)
-        tool_func = create_skill_tool(metadata, loader)
+        # Setup - create skills
+        for skill_id, name, desc in [
+            ("code-review", "Code Review", "Review code for best practices"),
+            ("commit", "Commit", "Create git commits"),
+        ]:
+            skill_dir = tmp_path / skill_id
+            skill_dir.mkdir()
+            skill_file = skill_dir / "SKILL.md"
+            skill_file.write_text(
+                f"""---
+name: {name}
+description: {desc}
+---
 
+# {name}
+"""
+            )
+
+        loader = SkillLoader(tmp_path)
+        tool_func = create_skill_tool(loader)
+
+        assert tool_func is not None
         # Check tool properties
         assert tool_func.name == "skill"
         assert "Load and invoke a specialized skill" in tool_func.description
@@ -77,14 +101,10 @@ This is the skill content.
 """
         )
 
-        metadata = [
-            SkillMetadata(
-                id="test-skill", name="Test Skill", description="A test skill"
-            )
-        ]
         loader = SkillLoader(tmp_path)
-        tool_func = create_skill_tool(metadata, loader)
+        tool_func = create_skill_tool(loader)
 
+        assert tool_func is not None
         # Execute
         result = await tool_func.execute(skill_name="test-skill")
 
@@ -95,18 +115,25 @@ This is the skill content.
     @pytest.mark.anyio
     async def test_skill_tool_handles_missing_skill(self, tmp_path):
         """Skill tool should return error message for missing skill."""
-        # Setup
-        metadata = [
-            SkillMetadata(
-                id="existing-skill",
-                name="Existing Skill",
-                description="An existing skill",
-            )
-        ]
-        loader = SkillLoader(tmp_path)
-        tool_func = create_skill_tool(metadata, loader)
+        # Setup - create one skill
+        skill_dir = tmp_path / "existing-skill"
+        skill_dir.mkdir()
+        skill_file = skill_dir / "SKILL.md"
+        skill_file.write_text(
+            """---
+name: Existing Skill
+description: An existing skill
+---
 
-        # Execute - try to load a skill not in metadata
+# Existing Skill
+"""
+        )
+
+        loader = SkillLoader(tmp_path)
+        tool_func = create_skill_tool(loader)
+
+        assert tool_func is not None
+        # Execute - try to load a skill that doesn't exist
         result = await tool_func.execute(skill_name="nonexistent-skill")
 
         # Verify - should return error message

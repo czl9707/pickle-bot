@@ -46,11 +46,8 @@ class Agent:
 
     def _register_skill_tool(self) -> None:
         """Register the skill tool if skills are available."""
-        skill_loader = self.context.skill_loader
-        skill_metadata = skill_loader.discover_skills()
-
-        if skill_metadata:
-            skill_tool = create_skill_tool(skill_metadata, skill_loader)
+        skill_tool = create_skill_tool(self.context.skill_loader)
+        if skill_tool:
             self.tools.register(skill_tool)
 
     def new_session(self) -> "AgentSession":
