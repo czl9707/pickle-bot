@@ -6,11 +6,8 @@ import tempfile
 import pytest
 
 from picklebot.utils.config import LLMConfig
-from picklebot.core.agent_loader import (
-    AgentLoader,
-    AgentNotFoundError,
-    InvalidAgentError,
-)
+from picklebot.core.agent_loader import AgentLoader
+from picklebot.utils.def_loader import DefNotFoundError, InvalidDefError
 
 
 class TestAgentLoaderParsing:
@@ -127,27 +124,27 @@ class TestAgentLoaderErrors:
             yield Path(tmpdir)
 
     def test_raises_not_found_when_folder_missing(self, temp_agents_dir, shared_llm):
-        """Raise AgentNotFoundError when folder doesn't exist."""
+        """Raise DefNotFoundError when folder doesn't exist."""
         loader = AgentLoader(temp_agents_dir, shared_llm)
 
-        with pytest.raises(AgentNotFoundError) as exc:
+        with pytest.raises(DefNotFoundError) as exc:
             loader.load("nonexistent")
 
-        assert exc.value.agent_id == "nonexistent"
+        assert exc.value.def_id == "nonexistent"
 
     def test_raises_not_found_when_file_missing(self, temp_agents_dir, shared_llm):
-        """Raise AgentNotFoundError when AGENT.md doesn't exist."""
+        """Raise DefNotFoundError when AGENT.md doesn't exist."""
         agent_dir = temp_agents_dir / "pickle"
         agent_dir.mkdir()
         # No AGENT.md created
 
         loader = AgentLoader(temp_agents_dir, shared_llm)
 
-        with pytest.raises(AgentNotFoundError):
+        with pytest.raises(DefNotFoundError):
             loader.load("pickle")
 
     def test_raises_invalid_when_missing_name(self, temp_agents_dir, shared_llm):
-        """Raise InvalidAgentError when name field is missing."""
+        """Raise InvalidDefError when name field is missing."""
         agent_dir = temp_agents_dir / "pickle"
         agent_dir.mkdir()
         (agent_dir / "AGENT.md").write_text(
@@ -156,7 +153,7 @@ class TestAgentLoaderErrors:
 
         loader = AgentLoader(temp_agents_dir, shared_llm)
 
-        with pytest.raises(InvalidAgentError) as exc:
+        with pytest.raises(InvalidDefError) as exc:
             loader.load("pickle")
 
         assert "name" in exc.value.reason

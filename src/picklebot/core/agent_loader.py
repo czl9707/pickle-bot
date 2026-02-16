@@ -4,9 +4,12 @@ from pathlib import Path
 from typing import Any
 from pydantic import BaseModel, Field
 
-import yaml
-
 from picklebot.utils.config import Config, LLMConfig
+from picklebot.utils.def_loader import (
+    DefNotFoundError,
+    InvalidDefError,
+    parse_frontmatter,
+)
 
 
 class AgentBehaviorConfig(BaseModel):
@@ -27,21 +30,9 @@ class AgentDef(BaseModel):
     allow_skills: bool = False
 
 
-class AgentNotFoundError(Exception):
-    """Agent folder or AGENT.md doesn't exist."""
-
-    def __init__(self, agent_id: str):
-        super().__init__(f"Agent not found: {agent_id}")
-        self.agent_id = agent_id
-
-
-class InvalidAgentError(Exception):
-    """Agent file is malformed."""
-
-    def __init__(self, agent_id: str, reason: str):
-        super().__init__(f"Invalid agent '{agent_id}': {reason}")
-        self.agent_id = agent_id
-        self.reason = reason
+# Keep old error names as aliases for backwards compatibility
+AgentNotFoundError = DefNotFoundError
+InvalidAgentError = InvalidDefError
 
 
 class AgentLoader:
@@ -73,20 +64,21 @@ class AgentLoader:
             AgentDef with merged settings
 
         Raises:
-            AgentNotFoundError: Agent folder or file doesn't exist
-            InvalidAgentError: Agent file is malformed
+            DefNotFoundError: Agent folder or file doesn't exist
+            InvalidDefError: Agent file is malformed
         """
         agent_file = self.agents_path / agent_id / "AGENT.md"
         if not agent_file.exists():
-            raise AgentNotFoundError(agent_id)
+            raise DefNotFoundError("agent", agent_id)
 
         try:
-            frontmatter, body = self._parse_agent_file(agent_file)
+            content = agent_file.read_text()
+            frontmatter, body = parse_frontmatter(content)
         except Exception as e:
-            raise InvalidAgentError(agent_id, str(e))
+            raise InvalidDefError("agent", agent_id, str(e))
 
         if "name" not in frontmatter:
-            raise InvalidAgentError(agent_id, "missing required field: name")
+            raise InvalidDefError("agent", agent_id, "missing required field: name")
 
         merged_llm = self._merge_llm_config(frontmatter)
 
@@ -101,28 +93,6 @@ class AgentLoader:
             ),
             allow_skills=frontmatter.get("allow_skills", False),
         )
-
-    def _parse_agent_file(self, path: Path) -> tuple[dict[str, Any], str]:
-        """
-        Parse YAML frontmatter + markdown body.
-
-        Args:
-            path: Path to AGENT.md file
-
-        Returns:
-            Tuple of (frontmatter dict, body string)
-        """
-        content = path.read_text()
-        parts = [p for p in content.split("---\n") if p.strip()]
-
-        if len(parts) < 2:
-            return {}, content
-
-        frontmatter_text = parts[0]
-        body = "---\n".join(parts[1:])
-
-        frontmatter = yaml.safe_load(frontmatter_text) or {}
-        return frontmatter, body
 
     def _merge_llm_config(self, frontmatter: dict[str, Any]) -> LLMConfig:
         """
