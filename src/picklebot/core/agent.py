@@ -7,8 +7,10 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from picklebot.core.context import SharedContext
+from picklebot.core.skill_loader import SkillLoader
 from picklebot.provider import LLMProvider
 from picklebot.tools.registry import ToolRegistry
+from picklebot.tools.skill_tool import create_skill_tool
 from picklebot.core.history import HistoryMessage
 
 from litellm.types.completion import (
@@ -34,10 +36,23 @@ class Agent:
     def __init__(self, agent_def: "AgentDef", context: SharedContext) -> None:
         self.agent_def = agent_def
         self.context = context
-        # tools currently is initialized within Agent class. 
+        # tools currently is initialized within Agent class.
         # This is intentional, in case agent will have its own tool regitry config later.
         self.tools = ToolRegistry.with_builtins()
         self.llm = LLMProvider.from_config(agent_def.llm)
+
+        # Add skill tool if allowed
+        if agent_def.allow_skills:
+            self._register_skill_tool()
+
+    def _register_skill_tool(self) -> None:
+        """Register the skill tool if skills are available."""
+        skill_loader = SkillLoader(self.context.config.skills_path)
+        skill_metadata = skill_loader.discover_skills()
+
+        if skill_metadata:
+            skill_tool = create_skill_tool(skill_metadata, skill_loader)
+            self.tools.register(skill_tool)
 
     def new_session(self) -> "AgentSession":
         """
