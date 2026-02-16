@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 from datetime import datetime
 
 from croniter import croniter
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ValidationError, field_validator
 
 from picklebot.utils.def_loader import (
     DefNotFoundError,
@@ -100,24 +100,17 @@ class CronLoader:
         Returns:
             CronDef instance or None on validation failure
         """
-        for field in ["name", "agent", "schedule"]:
-            if field not in frontmatter:
-                logger.warning(f"Missing required field '{field}' in cron {def_id}")
-                return None
-
         try:
-            CronDef.validate_schedule(frontmatter["schedule"])
-        except ValueError as e:
-            logger.warning(f"Invalid schedule in cron {def_id}: {e}")
+            return CronDef(
+                id=def_id,
+                name=frontmatter.get("name"),
+                agent=frontmatter.get("agent"),
+                schedule=frontmatter.get("schedule"),
+                prompt=body.strip(),
+            )
+        except ValidationError as e:
+            logger.warning(f"Invalid cron '{def_id}': {e}")
             return None
-
-        return CronDef(
-            id=def_id,
-            name=frontmatter["name"],
-            agent=frontmatter["agent"],
-            schedule=frontmatter["schedule"],
-            prompt=body.strip(),
-        )
 
     def load(self, cron_id: str) -> CronDef:
         """
@@ -151,19 +144,13 @@ class CronLoader:
         self, def_id: str, frontmatter: dict[str, Any], body: str
     ) -> CronDef:
         """Parse cron definition with strict validation (raises on error)."""
-        for field in ["name", "agent", "schedule"]:
-            if field not in frontmatter:
-                raise InvalidDefError("cron", def_id, f"missing required field: {field}")
-
         try:
-            CronDef.validate_schedule(frontmatter["schedule"])
-        except ValueError as e:
+            return CronDef(
+                id=def_id,
+                name=frontmatter.get("name"),
+                agent=frontmatter.get("agent"),
+                schedule=frontmatter.get("schedule"),
+                prompt=body.strip(),
+            )
+        except ValidationError as e:
             raise InvalidDefError("cron", def_id, str(e))
-
-        return CronDef(
-            id=def_id,
-            name=frontmatter["name"],
-            agent=frontmatter["agent"],
-            schedule=frontmatter["schedule"],
-            prompt=body.strip(),
-        )

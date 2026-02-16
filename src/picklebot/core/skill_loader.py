@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from picklebot.utils.def_loader import DefNotFoundError, discover_definitions
 
@@ -49,16 +49,16 @@ class SkillLoader:
         self, def_id: str, frontmatter: dict[str, Any], body: str
     ) -> SkillDef | None:
         """Parse skill definition from frontmatter (callback for discover_definitions)."""
-        if "name" not in frontmatter or "description" not in frontmatter:
-            logger.warning(f"Missing required fields in skill '{def_id}'")
+        try:
+            return SkillDef(
+                id=def_id,
+                name=frontmatter.get("name"),
+                description=frontmatter.get("description"),
+                content=body.strip(),
+            )
+        except ValidationError as e:
+            logger.warning(f"Invalid skill '{def_id}': {e}")
             return None
-
-        return SkillDef(
-            id=def_id,
-            name=frontmatter["name"],
-            description=frontmatter["description"],
-            content=body.strip(),
-        )
 
     def load_skill(self, skill_id: str) -> SkillDef:
         """Load full skill definition by ID.

@@ -2,7 +2,8 @@
 
 from pathlib import Path
 from typing import Any
-from pydantic import BaseModel, Field
+
+from pydantic import BaseModel, Field, ValidationError
 
 from picklebot.utils.config import Config, LLMConfig
 from picklebot.utils.def_loader import (
@@ -80,22 +81,22 @@ class AgentLoader:
         self, def_id: str, frontmatter: dict[str, Any], body: str
     ) -> AgentDef:
         """Parse agent definition from frontmatter (callback for parse_definition)."""
-        if "name" not in frontmatter:
-            raise InvalidDefError("agent", def_id, "missing required field: name")
-
         merged_llm = self._merge_llm_config(frontmatter)
 
-        return AgentDef(
-            id=def_id,
-            name=frontmatter["name"],
-            system_prompt=body.strip(),
-            llm=merged_llm,
-            behavior=AgentBehaviorConfig(
-                temperature=frontmatter.get("temperature", 0.7),
-                max_tokens=frontmatter.get("max_tokens", 2048),
-            ),
-            allow_skills=frontmatter.get("allow_skills", False),
-        )
+        try:
+            return AgentDef(
+                id=def_id,
+                name=frontmatter.get("name"),
+                system_prompt=body.strip(),
+                llm=merged_llm,
+                behavior=AgentBehaviorConfig(
+                    temperature=frontmatter.get("temperature", 0.7),
+                    max_tokens=frontmatter.get("max_tokens", 2048),
+                ),
+                allow_skills=frontmatter.get("allow_skills", False),
+            )
+        except ValidationError as e:
+            raise InvalidDefError("agent", def_id, str(e))
 
     def _merge_llm_config(self, frontmatter: dict[str, Any]) -> LLMConfig:
         """
