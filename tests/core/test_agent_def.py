@@ -56,3 +56,26 @@ class TestAgentDef:
 
         assert agent_def.behavior.temperature == 0.7
         assert agent_def.behavior.max_tokens == 2048
+
+    def test_agent_def_defaults(self):
+        """Test AgentDef has default values."""
+        agent_def = AgentDef(
+            id="test",
+            name="Test Agent",
+            system_prompt="You are a test agent",
+            llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
+            behavior=AgentBehaviorConfig()
+        )
+        assert agent_def.allow_skills is False
+
+    def test_agent_def_accepts_allow_skills(self):
+        """Test AgentDef can have allow_skills set."""
+        agent_def = AgentDef(
+            id="test",
+            name="Test Agent",
+            system_prompt="You are a test agent",
+            llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
+            behavior=AgentBehaviorConfig(),
+            allow_skills=True
+        )
+        assert agent_def.allow_skills is True

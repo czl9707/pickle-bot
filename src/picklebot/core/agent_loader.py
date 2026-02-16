@@ -24,6 +24,7 @@ class AgentDef(BaseModel):
     system_prompt: str
     llm: LLMConfig
     behavior: AgentBehaviorConfig
+    allow_skills: bool = False
 
 
 class AgentNotFoundError(Exception):
