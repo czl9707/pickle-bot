@@ -28,6 +28,48 @@ class LLMConfig(BaseModel):
         return v
 
 
+class TelegramConfig(BaseModel):
+    """Telegram platform configuration."""
+
+    enabled: bool = True
+    bot_token: str
+
+
+class DiscordConfig(BaseModel):
+    """Discord platform configuration."""
+
+    enabled: bool = True
+    bot_token: str
+    channel_id: str | None = None
+
+
+class MessageBusConfig(BaseModel):
+    """Message bus configuration."""
+
+    enabled: bool = False
+    default_platform: str | None = None
+    telegram: TelegramConfig | None = None
+    discord: DiscordConfig | None = None
+
+    @model_validator(mode="after")
+    def validate_default_platform(self) -> "MessageBusConfig":
+        """Validate default_platform is configured when enabled."""
+        if self.enabled:
+            # default_platform is required when enabled
+            if not self.default_platform:
+                raise ValueError("default_platform is required when messagebus is enabled")
+
+            # Verify default_platform has valid config
+            if self.default_platform == "telegram" and not self.telegram:
+                raise ValueError("default_platform is 'telegram' but telegram config is missing")
+            if self.default_platform == "discord" and not self.discord:
+                raise ValueError("default_platform is 'discord' but discord config is missing")
+            if self.default_platform not in ["telegram", "discord"]:
+                raise ValueError(f"Invalid default_platform: {self.default_platform}")
+
+        return self
+
+
 # ============================================================================
 # Main Configuration Class
 # ============================================================================
@@ -52,6 +94,7 @@ class Config(BaseModel):
     logging_path: Path = Field(default=Path(".logs"))
     history_path: Path = Field(default=Path(".history"))
     crons_path: Path = Field(default=Path("crons"))
+    messagebus: MessageBusConfig = Field(default_factory=MessageBusConfig)
 
     @model_validator(mode="after")
     def resolve_paths(self) -> "Config":
