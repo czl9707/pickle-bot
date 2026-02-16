@@ -29,3 +29,23 @@ class Frontend(ABC):
     def show_transient(self, content: str) -> Iterator[None]:
         """Display transient message (tool calls, intermediate steps)."""
         yield
+
+
+class SilentFrontend(Frontend):
+    """No-op frontend for unattended execution (e.g., cron jobs)."""
+
+    def show_welcome(self) -> None:
+        pass
+
+    def get_user_input(self) -> str:
+        return ""
+
+    def show_agent_response(self, content: str) -> None:
+        pass
+
+    def show_system_message(self, content: str) -> None:
+        pass
+
+    @contextlib.contextmanager
+    def show_transient(self, content: str) -> Iterator[None]:
+        yield
