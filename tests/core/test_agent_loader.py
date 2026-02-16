@@ -168,3 +168,45 @@ class TestAgentLoaderErrors:
             loader.load("pickle")
 
         assert "name" in exc.value.reason
+
+
+class TestAgentLoaderDiscover:
+    @pytest.fixture
+    def shared_llm(self):
+        return LLMConfig(provider="openai", model="gpt-4", api_key="test-key")
+
+    @pytest.fixture
+    def temp_agents_dir(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield Path(tmpdir)
+
+    def test_discover_agents_returns_all_agents(self, temp_agents_dir, shared_llm):
+        """discover_agents should return list of all valid AgentDef."""
+        # Create multiple agents
+        for agent_id, name, desc in [
+            ("agent-one", "Agent One", "First test agent"),
+            ("agent-two", "Agent Two", "Second test agent"),
+        ]:
+            agent_dir = temp_agents_dir / agent_id
+            agent_dir.mkdir(parents=True)
+            agent_file = agent_dir / "AGENT.md"
+            agent_file.write_text(
+                f"""---
+name: {name}
+description: {desc}
+---
+
+You are {name}.
+"""
+            )
+
+        loader = AgentLoader(temp_agents_dir, shared_llm)
+
+        # Execute
+        agents = loader.discover_agents()
+
+        # Verify
+        assert len(agents) == 2
+        agent_ids = {a.id for a in agents}
+        assert "agent-one" in agent_ids
+        assert "agent-two" in agent_ids

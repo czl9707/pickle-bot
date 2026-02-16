@@ -1,5 +1,6 @@
 """Agent definition loader."""
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -9,8 +10,11 @@ from picklebot.utils.config import Config, LLMConfig
 from picklebot.utils.def_loader import (
     DefNotFoundError,
     InvalidDefError,
+    discover_definitions,
     parse_definition,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class AgentBehaviorConfig(BaseModel):
@@ -77,6 +81,16 @@ class AgentLoader:
             raise InvalidDefError("agent", agent_id, str(e))
 
         return agent_def
+
+    def discover_agents(self) -> list[AgentDef]:
+        """Scan agents directory and return list of valid AgentDef.
+
+        Returns:
+            List of AgentDef objects for all valid agents
+        """
+        return discover_definitions(
+            self.agents_path, "AGENT.md", self._parse_agent_def, logger
+        )
 
     def _parse_agent_def(
         self, def_id: str, frontmatter: dict[str, Any], body: str
