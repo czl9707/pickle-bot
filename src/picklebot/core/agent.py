@@ -7,7 +7,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from picklebot.core.context import SharedContext
-from picklebot.core.skill_loader import SkillLoader
 from picklebot.provider import LLMProvider
 from picklebot.tools.registry import ToolRegistry
 from picklebot.tools.skill_tool import create_skill_tool
@@ -47,7 +46,7 @@ class Agent:
 
     def _register_skill_tool(self) -> None:
         """Register the skill tool if skills are available."""
-        skill_loader = SkillLoader(self.context.config.skills_path)
+        skill_loader = self.context.skill_loader
         skill_metadata = skill_loader.discover_skills()
 
         if skill_metadata:

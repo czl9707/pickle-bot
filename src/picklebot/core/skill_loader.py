@@ -2,13 +2,17 @@
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import yaml
 
 from picklebot.core.skill_def import SkillDef, SkillMetadata
 
+if TYPE_CHECKING:
+    from picklebot.utils.config import Config
+
 logger = logging.getLogger(__name__)
+
 
 class SkillNotFoundError(Exception):
     """Raised when a skill is not found."""
@@ -18,6 +22,11 @@ class SkillNotFoundError(Exception):
 
 class SkillLoader:
     """Load and manage skill definitions from filesystem."""
+
+    @staticmethod
+    def from_config(config: "Config") -> "SkillLoader":
+        """Create SkillLoader from config."""
+        return SkillLoader(config.skills_path)
 
     def __init__(self, skills_path: Path):
         self.skills_path = skills_path
