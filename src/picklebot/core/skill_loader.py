@@ -3,15 +3,35 @@
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
+from pydantic import BaseModel, ConfigDict
 
 import yaml
-
-from picklebot.core.skill_def import SkillDef, SkillMetadata
 
 if TYPE_CHECKING:
     from picklebot.utils.config import Config
 
 logger = logging.getLogger(__name__)
+
+
+class SkillMetadata(BaseModel):
+    """Lightweight skill info for discovery."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    name: str
+    description: str
+
+
+class SkillDef(BaseModel):
+    """Loaded skill definition."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    name: str
+    description: str
+    content: str
 
 
 class SkillNotFoundError(Exception):

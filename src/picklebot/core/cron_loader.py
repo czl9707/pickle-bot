@@ -3,6 +3,7 @@
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from datetime import datetime
 
 import yaml
 from croniter import croniter
@@ -41,7 +42,6 @@ class CronDef(BaseModel):
 
         # Check minimum 5-minute granularity using croniter
         # Get the first two run times and check the gap
-        from datetime import datetime
 
         base = datetime(2024, 1, 1, 0, 0)  # Arbitrary base time
         cron = croniter(v, base)
