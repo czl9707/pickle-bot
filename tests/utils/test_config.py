@@ -114,3 +114,24 @@ class TestRejectsAbsolutePaths:
                 history_path=Path("/var/history"),
             )
         assert "history_path must be relative" in str(exc.value)
+
+
+class TestSkillsPath:
+    def test_config_has_skills_path_default(self, minimal_llm_config):
+        """Test Config has skills_path with default value."""
+        config = Config(
+            workspace=Path("/workspace"),
+            llm=minimal_llm_config,
+            default_agent="pickle",
+        )
+        assert config.skills_path == Path("/workspace/skills")
+
+    def test_config_accepts_custom_skills_path(self, minimal_llm_config):
+        """Test Config can accept custom skills_path."""
+        config = Config(
+            workspace=Path("/workspace"),
+            llm=minimal_llm_config,
+            default_agent="pickle",
+            skills_path=Path("custom/skills"),
+        )
+        assert config.skills_path == Path("/workspace/custom/skills")
