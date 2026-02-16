@@ -1,11 +1,14 @@
 """Cron job definition loader."""
 
+import logging
 from pathlib import Path
 from typing import Any
 
 import yaml
 from croniter import croniter
 from pydantic import BaseModel, field_validator
+
+logger = logging.getLogger(__name__)
 
 
 class CronMetadata(BaseModel):
@@ -55,7 +58,7 @@ class CronDef(BaseModel):
                         f"Schedule must have minimum 5-minute granularity. Got: {v}"
                     )
             except ValueError:
-                pass  # Let croniter validation handle it
+                raise  # Re-raise ValueError for invalid interval format
         elif minute_field.isdigit():
             # Single minute value - this runs every hour at that minute, which is fine
             pass
@@ -82,3 +85,133 @@ class InvalidCronError(Exception):
         super().__init__(f"Invalid cron job '{cron_id}': {reason}")
         self.cron_id = cron_id
         self.reason = reason
+
+
+class CronLoader:
+    """Loads cron job definitions from CRON.md files."""
+
+    def __init__(self, crons_path: Path):
+        """
+        Initialize CronLoader.
+
+        Args:
+            crons_path: Directory containing cron folders
+        """
+        self.crons_path = crons_path
+
+    def discover_crons(self) -> list[CronMetadata]:
+        """
+        Scan crons directory, return lightweight metadata for all valid jobs.
+
+        Returns:
+            List of CronMetadata for valid cron jobs.
+        """
+        if not self.crons_path.exists():
+            logger.warning(f"Crons directory not found: {self.crons_path}")
+            return []
+
+        crons = []
+        for cron_dir in self.crons_path.iterdir():
+            if not cron_dir.is_dir():
+                continue
+
+            cron_file = cron_dir / "CRON.md"
+            if not cron_file.exists():
+                logger.warning(f"No CRON.md found in {cron_dir.name}")
+                continue
+
+            try:
+                metadata = self._parse_cron_metadata(cron_file)
+                crons.append(metadata)
+            except Exception as e:
+                logger.warning(f"Invalid cron {cron_dir.name}: {e}")
+                continue
+
+        return crons
+
+    def load(self, cron_id: str) -> CronDef:
+        """
+        Load cron by ID.
+
+        Args:
+            cron_id: Cron folder name
+
+        Returns:
+            CronDef with full definition
+
+        Raises:
+            CronNotFoundError: Cron folder or file doesn't exist
+            InvalidCronError: Cron file is malformed
+        """
+        cron_file = self.crons_path / cron_id / "CRON.md"
+        if not cron_file.exists():
+            raise CronNotFoundError(cron_id)
+
+        try:
+            frontmatter, body = self._parse_cron_file(cron_file)
+        except Exception as e:
+            raise InvalidCronError(cron_id, str(e))
+
+        # Validate required fields
+        for field in ["name", "agent", "schedule"]:
+            if field not in frontmatter:
+                raise InvalidCronError(cron_id, f"missing required field: {field}")
+
+        # Validate schedule via the field validator
+        try:
+            CronDef.validate_schedule(frontmatter["schedule"])
+        except ValueError as e:
+            raise InvalidCronError(cron_id, str(e))
+
+        return CronDef(
+            id=cron_id,
+            name=frontmatter["name"],
+            agent=frontmatter["agent"],
+            schedule=frontmatter["schedule"],
+            prompt=body.strip(),
+        )
+
+    def _parse_cron_file(self, path: Path) -> tuple[dict[str, Any], str]:
+        """
+        Parse YAML frontmatter + markdown body.
+
+        Args:
+            path: Path to CRON.md file
+
+        Returns:
+            Tuple of (frontmatter dict, body string)
+        """
+        content = path.read_text()
+        parts = [p for p in content.split("---\n") if p.strip()]
+
+        if len(parts) < 2:
+            return {}, content
+
+        frontmatter_text = parts[0]
+        body = "---\n".join(parts[1:])
+
+        frontmatter = yaml.safe_load(frontmatter_text) or {}
+        return frontmatter, body
+
+    def _parse_cron_metadata(self, path: Path) -> CronMetadata:
+        """
+        Parse cron file and return metadata only.
+
+        Args:
+            path: Path to CRON.md file
+
+        Returns:
+            CronMetadata instance
+        """
+        frontmatter, _ = self._parse_cron_file(path)
+
+        for field in ["name", "agent", "schedule"]:
+            if field not in frontmatter:
+                raise ValueError(f"missing required field: {field}")
+
+        return CronMetadata(
+            id=path.parent.name,
+            name=frontmatter["name"],
+            agent=frontmatter["agent"],
+            schedule=frontmatter["schedule"],
+        )
