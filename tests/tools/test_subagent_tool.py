@@ -18,9 +18,8 @@ class TestCreateSubagentDispatchTool:
         """create_subagent_dispatch_tool should return None when no agents available."""
         config = self._create_test_config(tmp_path)
         context = SharedContext(config=config)
-        loader = context.agent_loader
 
-        tool_func = create_subagent_dispatch_tool(loader, "any-agent", context)
+        tool_func = create_subagent_dispatch_tool("any-agent", context)
         assert tool_func is None
 
     def test_tool_has_correct_schema(self, tmp_path: Path):
@@ -44,9 +43,8 @@ You are {name}.
 """)
 
         context = SharedContext(config=config)
-        loader = context.agent_loader
 
-        tool_func = create_subagent_dispatch_tool(loader, "caller", context)
+        tool_func = create_subagent_dispatch_tool("caller", context)
 
         assert tool_func is not None
         # Check tool properties
@@ -89,10 +87,9 @@ You are {name}.
 """)
 
         context = SharedContext(config=config)
-        loader = context.agent_loader
 
         # When agent-b calls the factory, it should be excluded
-        tool_func = create_subagent_dispatch_tool(loader, "agent-b", context)
+        tool_func = create_subagent_dispatch_tool("agent-b", context)
 
         assert tool_func is not None
         enum_ids = set(tool_func.parameters["properties"]["agent_id"]["enum"])
@@ -118,9 +115,8 @@ You are the target agent.
 """)
 
         context = SharedContext(config=config)
-        loader = context.agent_loader
 
-        tool_func = create_subagent_dispatch_tool(loader, "caller", context)
+        tool_func = create_subagent_dispatch_tool("caller", context)
         assert tool_func is not None
 
         # Simpler approach: mock Agent and Session
@@ -163,9 +159,8 @@ You are the target agent.
 """)
 
         context = SharedContext(config=config)
-        loader = context.agent_loader
 
-        tool_func = create_subagent_dispatch_tool(loader, "caller", context)
+        tool_func = create_subagent_dispatch_tool("caller", context)
         assert tool_func is not None
 
         with patch("picklebot.core.agent.Agent") as mock_agent_class:

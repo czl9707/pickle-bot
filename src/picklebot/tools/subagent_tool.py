@@ -8,12 +8,10 @@ from picklebot.tools.base import BaseTool, tool
 from picklebot.utils.def_loader import DefNotFoundError
 
 if TYPE_CHECKING:
-    from picklebot.core.agent_loader import AgentLoader
     from picklebot.core.context import SharedContext
 
 
 def create_subagent_dispatch_tool(
-    agent_loader: "AgentLoader",
     current_agent_id: str,
     context: "SharedContext",
 ) -> BaseTool | None:
@@ -27,11 +25,10 @@ def create_subagent_dispatch_tool(
     Returns:
         Async tool function for dispatching to subagents, or None if no agents available
     """
-    # Store reference before it gets shadowed by inner function parameter
-    shared_context = context
 
     # Discover available agents, exclude current
-    available_agents = agent_loader.discover_agents()
+    shared_context = context
+    available_agents = shared_context.agent_loader.discover_agents()
     dispatchable_agents = [a for a in available_agents if a.id != current_agent_id]
 
     if not dispatchable_agents:
@@ -43,7 +40,6 @@ def create_subagent_dispatch_tool(
         agents_desc += f'  <agent id="{agent_def.id}">{agent_def.description}</agent>\n'
     agents_desc += "</available_agents>"
 
-    # Build enum of dispatchable agent IDs
     dispatchable_ids = [a.id for a in dispatchable_agents]
 
     @tool(
@@ -74,21 +70,17 @@ def create_subagent_dispatch_tool(
         # Import here to avoid circular dependency
         from picklebot.core.agent import Agent
 
-        # Load target agent definition
         try:
-            target_def = agent_loader.load(agent_id)
+            target_def = shared_context.agent_loader.load(agent_id)
         except DefNotFoundError:
             raise ValueError(f"Agent '{agent_id}' not found")
 
-        # Create subagent instance
         subagent = Agent(target_def, shared_context)
 
-        # Build initial message
         user_message = task
         if context:
             user_message = f"{task}\n\nContext:\n{context}"
 
-        # Create new session and run with silent frontend
         session = subagent.new_session()
         response = await session.chat(user_message, SilentFrontend())
 
