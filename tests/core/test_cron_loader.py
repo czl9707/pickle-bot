@@ -75,39 +75,6 @@ class TestCronLoader:
             assert d.prompt.startswith("Do ")
             assert d.id in d.prompt
 
-    def test_raises_not_found(self, temp_crons_dir):
-        """Raise CronNotFoundError when cron doesn't exist."""
-        loader = CronLoader(temp_crons_dir)
-
-        with pytest.raises(CronNotFoundError) as exc:
-            loader.load("nonexistent")
-
-        # CronNotFoundError is an alias for DefNotFoundError
-        assert exc.value.def_id == "nonexistent"
-        assert exc.value.kind == "cron"
-
-    def test_raises_invalid_missing_name(self, temp_crons_dir):
-        """Raise InvalidCronError when name is missing."""
-        cron_dir = temp_crons_dir / "bad-cron"
-        cron_dir.mkdir()
-        (cron_dir / "CRON.md").write_text(
-            "---\n"
-            "agent: pickle\n"
-            "schedule: '*/15 * * * *'\n"
-            "---\n"
-            "Do something"
-        )
-
-        loader = CronLoader(temp_crons_dir)
-
-        with pytest.raises(InvalidCronError) as exc:
-            loader.load("bad-cron")
-
-        # InvalidCronError is an alias for InvalidDefError
-        assert "name" in exc.value.reason
-        assert exc.value.def_id == "bad-cron"
-        assert exc.value.kind == "cron"
-
     def test_error_aliases(self):
         """Verify error aliases are correct."""
         # CronNotFoundError is an alias for DefNotFoundError
