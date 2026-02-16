@@ -83,20 +83,7 @@ class TestAgentLoaderParsing:
         assert "---" in agent_def.system_prompt
         assert "And more content." in agent_def.system_prompt
 
-
-class TestAgentLoaderAllowSkills:
-    """Tests for allow_skills parsing in AgentLoader."""
-
-    @pytest.fixture
-    def shared_llm(self):
-        return LLMConfig(provider="test", model="test-model", api_key="test-key")
-
-    @pytest.fixture
-    def temp_agents_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
-
-    def test_load_agent_with_allow_skills(self, temp_agents_dir, shared_llm):
+    def test_parse_agent_with_allow_skills(self, temp_agents_dir, shared_llm):
         """Test AgentLoader parses allow_skills from frontmatter."""
         agent_dir = temp_agents_dir / "test-agent"
         agent_dir.mkdir()
@@ -113,7 +100,7 @@ class TestAgentLoaderAllowSkills:
 
         assert agent_def.allow_skills is True
 
-    def test_load_agent_without_allow_skills_defaults_false(
+    def test_parse_agent_without_allow_skills_defaults_false(
         self, temp_agents_dir, shared_llm
     ):
         """Test AgentLoader defaults allow_skills to False."""

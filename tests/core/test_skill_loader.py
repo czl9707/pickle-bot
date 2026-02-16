@@ -6,8 +6,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from picklebot.core.skill_loader import SkillLoader
-from picklebot.core.exceptions import SkillNotFoundError
+from picklebot.core.skill_loader import SkillLoader, SkillNotFoundError
 
 
 class TestSkillLoaderDiscovery:
