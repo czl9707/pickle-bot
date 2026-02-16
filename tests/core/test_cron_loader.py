@@ -5,7 +5,40 @@ import tempfile
 
 import pytest
 
+from picklebot.core.cron_loader import CronDef, CronMetadata
 from picklebot.utils.config import Config, LLMConfig
+
+
+class TestCronDef:
+    """Test CronDef model."""
+
+    def test_cron_def_basic(self):
+        """CronDef should have required fields."""
+        cron = CronDef(
+            id="test-job",
+            name="Test Job",
+            agent="pickle",
+            schedule="*/15 * * * *",
+            prompt="Do something",
+        )
+
+        assert cron.id == "test-job"
+        assert cron.name == "Test Job"
+        assert cron.agent == "pickle"
+        assert cron.schedule == "*/15 * * * *"
+        assert cron.prompt == "Do something"
+
+    def test_cron_metadata_basic(self):
+        """CronMetadata should have discovery fields."""
+        meta = CronMetadata(
+            id="test-job",
+            name="Test Job",
+            agent="pickle",
+            schedule="*/15 * * * *",
+        )
+
+        assert meta.id == "test-job"
+        assert meta.name == "Test Job"
 
 
 class TestCronConfig:
