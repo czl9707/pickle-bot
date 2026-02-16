@@ -23,23 +23,31 @@ uv run mypy .           # Type check
 
 ```
 src/picklebot/
-├── cli/           # Typer CLI (main.py, chat.py)
-├── core/          # Agent, AgentSession, AgentDef, AgentLoader, HistoryStore
+├── cli/           # Typer CLI (main.py, chat.py, server.py)
+├── core/          # Agent, AgentSession, AgentDef, loaders, executor
 ├── provider/      # LLM provider abstraction (base.py, providers.py)
-├── tools/         # Tool system (base.py, registry.py, builtin_tools.py)
+├── tools/         # Tool system (base.py, registry.py, builtin_tools.py, skill_tool.py)
 ├── frontend/      # UI abstraction (base.py, console.py)
-└── utils/         # Config, logging
+└── utils/         # Config, logging, def_loader
 ```
 
 ### Key Components
 
 **Agent** (`core/agent.py`): Main orchestrator that handles chat loops, tool calls, and LLM interaction. Receives `AgentDef`, builds context from session history, executes tool calls via ToolRegistry.
 
-**AgentDef** (`core/agent_def.py`): Loaded agent definition containing id, name, system_prompt, llm config, and behavior settings. Created by `AgentLoader` from AGENT.md files.
+**AgentDef** (`core/agent_def.py`): Loaded agent definition containing id, name, system_prompt, llm config, and `allow_skills` flag. Created by `AgentLoader` from AGENT.md files.
 
-**AgentLoader** (`core/agent_loader.py`): Parses AGENT.md files with YAML frontmatter, merges agent-specific LLM settings with shared config. Raises `AgentNotFoundError` or `InvalidAgentError` on failures.
+**AgentLoader** (`core/agent_loader.py`): Parses AGENT.md files with YAML frontmatter using `def_loader` utilities. Raises `DefNotFoundError` or `InvalidDefError` on failures.
 
 **AgentSession** (`core/session.py`): Runtime state for a conversation. Manages in-memory message list and persists to HistoryStore. Async context manager.
+
+**SharedContext** (`core/context.py`): Container for shared resources (config, frontend, tool registry) passed to Agent and CronExecutor.
+
+**SkillLoader** (`core/skill_loader.py`): Discovers and loads SKILL.md files. Used by `create_skill_tool()` to build the skill tool.
+
+**CronLoader** (`core/cron_loader.py`): Discovers and loads CRON.md files with schedule definitions.
+
+**CronExecutor** (`core/cron_executor.py`): Runs scheduled cron jobs. Loops every 60 seconds, executes due jobs sequentially with fresh sessions.
 
 **HistoryStore** (`core/history.py`): JSON file-based persistence. Directory: `~/.pickle-bot/history/sessions/` with an `index.json` for fast session listing. `HistoryMessage` has `from_message()` and `to_message()` methods for litellm Message conversion.
 
@@ -47,17 +55,35 @@ src/picklebot/
 
 **ToolRegistry** (`tools/registry.py`): Registers tools and generates schemas for LiteLLM function calling. Use `@tool` decorator or inherit from `BaseTool`.
 
+**def_loader** (`utils/def_loader.py`): Shared utilities for parsing markdown files with YAML frontmatter. Provides `parse_definition()` and `discover_definitions()` functions used by all loaders.
+
 **Frontend** (`frontend/base.py`): Abstract UI interface. `ConsoleFrontend` uses Rich for terminal output. Key method: `show_transient()` displays temporary status during tool calls.
+
+### Error Classes
+
+All loaders use unified exceptions from `utils/def_loader.py`:
+
+- **DefNotFoundError**: Definition folder or file doesn't exist
+- **InvalidDefError**: Definition file is malformed
 
 ### Configuration
 
 Stored in `~/.pickle-bot/`:
+
 - `config.system.yaml` - System defaults (default_agent, paths)
 - `config.user.yaml` - User overrides (llm settings, deep-merged)
-- `agents/` - Agent definition folders
-  - `agents/[name]/AGENT.md` - Agent config with YAML frontmatter
+- `agents/` - Agent definitions (`[name]/AGENT.md`)
+- `skills/` - Skill definitions (`[name]/SKILL.md`)
+- `crons/` - Cron definitions (`[name]/CRON.md`)
 
 Pydantic models in `utils/config.py`. Load via `Config.load(workspace_dir)`.
+
+Config paths are relative to workspace and auto-resolved:
+```python
+agents_path: Path = Path("agents")   # resolves to workspace/agents
+skills_path: Path = Path("skills")   # resolves to workspace/skills
+crons_path: Path = Path("crons")     # resolves to workspace/crons
+```
 
 ### Agent Definitions
 
@@ -70,6 +96,7 @@ provider: openai        # Optional: override shared LLM
 model: gpt-4            # Optional: override shared LLM
 temperature: 0.7
 max_tokens: 4096
+allow_skills: true      # Optional: enable skill tool
 ---
 
 You are a helpful assistant...
@@ -83,9 +110,7 @@ agent_def = loader.load("agent-name")
 
 ### Skill System
 
-Skills are user-defined capabilities that can be loaded on-demand by the LLM. Skills are defined in `~/.pickle-bot/skills/[name]/SKILL.md` files with YAML frontmatter.
-
-**Skill Definition Format:**
+Skills are user-defined capabilities loaded on-demand by the LLM. Defined in `~/.pickle-bot/skills/[name]/SKILL.md`:
 
 ```markdown
 ---
@@ -98,22 +123,23 @@ description: Brief description for LLM to decide whether to load
 Instructions for the skill...
 ```
 
-**Enabling Skills:**
+When `allow_skills: true` in an agent, a "skill" tool is registered that presents available skills and loads content on demand.
 
-Add `allow_skills: true` to your agent's AGENT.md:
+### Cron System
+
+Cron jobs run scheduled agent invocations. Defined in `~/.pickle-bot/crons/[name]/CRON.md`:
 
 ```markdown
 ---
-name: My Agent
-allow_skills: true
+name: Inbox Check
+agent: pickle
+schedule: "*/15 * * * *"
 ---
 
-You are a helpful assistant...
+Check my inbox and summarize unread messages.
 ```
 
-**Available Skills:**
-
-When skills are enabled, the LLM has access to a "skill" tool that presents all available skills and can load their content on demand.
+Start the server with `picklebot server`. Jobs run sequentially with fresh sessions (no memory between runs).
 
 ## Patterns
 

@@ -5,7 +5,9 @@ A personal AI assistant with pluggable tools, built with Python.
 ## Features
 
 - **Multi-Agent Support** - Define multiple agents with different prompts and settings
+- **Skill System** - On-demand capability loading for specialized tasks
 - **Pluggable Tools System** - Function calling with custom tools
+- **Cron Jobs** - Scheduled agent invocations via server mode
 - **LLM Provider Abstraction** - Support for multiple LLM providers (Z.ai, OpenAI, Anthropic)
 - **CLI Interface** - Clean command-line interface with Rich formatting
 - **YAML Configuration** - Config-driven with system/user config split
@@ -30,6 +32,9 @@ Configuration is stored in `~/.pickle-bot/`:
 ├── agents/               # Agent definitions
 │   └── pickle/
 │       └── AGENT.md
+├── skills/               # Skill definitions
+│   └── brainstorming/
+│       └── SKILL.md
 ├── crons/                # Cron job definitions
 │   └── inbox-check/
 │       └── CRON.md
@@ -52,33 +57,6 @@ llm:
   model: "zai/glm-4.7"
   api_key: "your-api-key"
   api_base: "https://api.z.ai/api/coding/paas/v4"
-```
-
-**`~/.pickle-bot/agents/pickle/AGENT.md`:**
-```markdown
----
-name: Pickle
-temperature: 0.7
-max_tokens: 4096
----
-
-You are pickle-bot, a helpful AI assistant.
-```
-
-### Agent Definition Format
-
-Agents are defined in `AGENT.md` files with YAML frontmatter:
-
-```markdown
----
-name: Agent Name              # Required
-provider: openai              # Optional: override shared LLM provider
-model: gpt-4                  # Optional: override shared model
-temperature: 0.7              # Optional: sampling temperature
-max_tokens: 4096              # Optional: max response tokens
----
-
-System prompt goes here...
 ```
 
 ## Usage
@@ -117,6 +95,56 @@ Check my inbox and summarize unread messages.
 - Fresh session per run (no memory between runs)
 - Sequential execution (one job at a time)
 
+## Definition Formats
+
+### Agent Definition
+
+Agents are defined in `AGENT.md` files with YAML frontmatter:
+
+```markdown
+---
+name: Agent Name              # Required
+provider: openai              # Optional: override shared LLM provider
+model: gpt-4                  # Optional: override shared model
+temperature: 0.7              # Optional: sampling temperature
+max_tokens: 4096              # Optional: max response tokens
+allow_skills: true            # Optional: enable skill tool
+---
+
+System prompt goes here...
+```
+
+### Skill Definition
+
+Skills are user-defined capabilities loaded on-demand by the LLM:
+
+```markdown
+---
+name: Brainstorming
+description: Turn ideas into fully formed designs through collaborative dialogue
+---
+
+# Brainstorming Ideas Into Designs
+
+[Skill instructions...]
+```
+
+To enable skills on an agent, add `allow_skills: true` to its frontmatter. The LLM can then call the `skill` tool to load and use available skills.
+
+### Cron Definition
+
+Cron jobs run scheduled agent invocations:
+
+```markdown
+---
+name: Inbox Check
+agent: pickle
+schedule: "*/15 * * * *"
+---
+
+Check my inbox and summarize unread messages.
+```
+
 ## Built-in Tools
 
 | Tool | Description |
@@ -125,6 +153,7 @@ Check my inbox and summarize unread messages.
 | `write` | Write content to a file |
 | `edit` | Replace text in a file |
 | `bash` | Execute shell commands |
+| `skill` | Load and invoke a specialized skill (when enabled) |
 
 ## Project Structure
 
@@ -132,24 +161,30 @@ Check my inbox and summarize unread messages.
 src/picklebot/
 ├── cli/           # CLI interface (Typer)
 │   ├── main.py    # Main CLI app
-│   └── chat.py    # Chat loop handler
+│   ├── chat.py    # Chat loop handler
+│   └── server.py  # Cron server
 ├── core/          # Core functionality
-│   ├── agent.py   # Agent orchestrator
+│   ├── agent.py       # Agent orchestrator
 │   ├── agent_def.py   # Agent definition model
-│   ├── agent_loader.py # Agent file loader
-│   ├── session.py # Runtime session state
-│   └── history.py # JSON persistence
+│   ├── agent_loader.py
+│   ├── session.py     # Runtime session state
+│   ├── history.py     # JSON persistence
+│   ├── context.py     # Shared context container
+│   ├── skill_loader.py
+│   ├── cron_loader.py
+│   └── cron_executor.py
 ├── provider/      # LLM abstraction
 │   ├── base.py    # LLMProvider base class
 │   └── providers.py
 ├── tools/         # Tool system
 │   ├── base.py    # BaseTool interface
 │   ├── registry.py
-│   └── builtin_tools.py
+│   ├── builtin_tools.py
+│   └── skill_tool.py
 ├── frontend/      # UI abstraction
 │   ├── base.py    # Frontend interface
 │   └── console.py # Rich console implementation
-└── utils/         # Config, logging
+└── utils/         # Config, logging, def_loader
 ```
 
 ## Adding Custom Tools
