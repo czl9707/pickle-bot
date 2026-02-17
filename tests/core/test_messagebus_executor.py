@@ -3,7 +3,7 @@
 import pytest
 import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, MagicMock
 
 from picklebot.core.messagebus_executor import MessageBusExecutor
 from picklebot.messagebus.base import MessageBus
@@ -199,3 +199,77 @@ async def test_messagebus_executor_multiple_platforms(tmp_path: Path):
         assert bus1.messages_sent[0] == ("user1", "Test response")
         assert len(bus2.messages_sent) == 1
         assert bus2.messages_sent[0] == ("user2", "Test response")
+
+
+class MockBusWithConfig(MessageBus):
+    """Mock bus with config for whitelist testing."""
+
+    def __init__(self, platform_name: str, allowed_user_ids: list[str] = None):
+        self._platform_name = platform_name
+        self.config = MagicMock()
+        self.config.allowed_user_ids = allowed_user_ids or []
+        self.messages_sent: list[tuple[str, str]] = []
+
+    @property
+    def platform_name(self) -> str:
+        return self._platform_name
+
+    async def start(self, on_message) -> None:
+        pass
+
+    async def send_message(self, content: str, user_id: str = None) -> None:
+        self.messages_sent.append((user_id, content))
+
+    async def stop(self) -> None:
+        pass
+
+
+@pytest.mark.anyio
+async def test_messagebus_executor_whitelist_allows_listed_user(tmp_path: Path):
+    """Messages from whitelisted users should be processed."""
+    from picklebot.core.context import SharedContext
+
+    config = _create_test_config(tmp_path)
+    context = SharedContext(config)
+
+    bus = MockBusWithConfig("mock", allowed_user_ids=["user123"])
+    executor = MessageBusExecutor(context, [bus])
+
+    # Whitelisted user
+    await executor._enqueue_message("Hello", "mock", "user123")
+
+    assert executor.message_queue.qsize() == 1
+
+
+@pytest.mark.anyio
+async def test_messagebus_executor_whitelist_blocks_unlisted_user(tmp_path: Path):
+    """Messages from non-whitelisted users should be ignored."""
+    from picklebot.core.context import SharedContext
+
+    config = _create_test_config(tmp_path)
+    context = SharedContext(config)
+
+    bus = MockBusWithConfig("mock", allowed_user_ids=["user123"])
+    executor = MessageBusExecutor(context, [bus])
+
+    # Non-whitelisted user
+    await executor._enqueue_message("Hello", "mock", "unknown_user")
+
+    assert executor.message_queue.qsize() == 0
+
+
+@pytest.mark.anyio
+async def test_messagebus_executor_empty_whitelist_allows_all(tmp_path: Path):
+    """When whitelist is empty, all users should be allowed."""
+    from picklebot.core.context import SharedContext
+
+    config = _create_test_config(tmp_path)
+    context = SharedContext(config)
+
+    bus = MockBusWithConfig("mock", allowed_user_ids=[])
+    executor = MessageBusExecutor(context, [bus])
+
+    # Any user when whitelist is empty
+    await executor._enqueue_message("Hello", "mock", "any_user")
+
+    assert executor.message_queue.qsize() == 1

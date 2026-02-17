@@ -59,6 +59,17 @@ class MessageBusExecutor:
             platform: Platform identifier
             user_id: Platform-specific user ID
         """
+        bus = self.bus_map[platform]
+
+        # Check whitelist (empty list allows all)
+        if (
+            hasattr(bus, "config")
+            and bus.config.allowed_user_ids
+            and user_id not in bus.config.allowed_user_ids
+        ):
+            logger.info(f"Ignored message from non-whitelisted user {platform}/{user_id}")
+            return
+
         await self.message_queue.put((message, platform, user_id))
         logger.debug(f"Enqueued message from {platform}/{user_id}")
 
