@@ -22,14 +22,13 @@ class MessageBusExecutor:
             context: Shared application context
             buses: List of message bus implementations
         """
-        self.context = context
         self.buses = buses
         self.bus_map = {bus.platform_name: bus for bus in buses}
 
         # Single shared session for all platforms
-        self.agent_def = context.agent_loader.load(context.config.default_agent)
-        self.agent = Agent(agent_def=self.agent_def, context=context)
-        self.session = self.agent.new_session()
+        agent_def = context.agent_loader.load(context.config.default_agent)
+        agent = Agent(agent_def=agent_def, context=context)
+        self.session = agent.new_session()
 
         # Message queue for sequential processing
         self.message_queue: asyncio.Queue[tuple[str, str, str]] = asyncio.Queue()
@@ -39,10 +38,7 @@ class MessageBusExecutor:
         """Start message processing loop and all buses."""
         logger.info("MessageBusExecutor started")
 
-        # Start worker task to process messages
         worker_task = asyncio.create_task(self._process_messages())
-
-        # Start all message buses
         bus_tasks = [bus.start(self._enqueue_message) for bus in self.buses]
 
         try:
