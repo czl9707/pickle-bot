@@ -1,37 +1,32 @@
 """Tests for subagent dispatch tool factory."""
 
 import json
-from pathlib import Path
 from unittest.mock import ANY, AsyncMock, patch
 
 import pytest
 
 from picklebot.core.context import SharedContext
 from picklebot.tools.subagent_tool import create_subagent_dispatch_tool
-from picklebot.utils.config import Config
 
 
 class TestCreateSubagentDispatchTool:
     """Tests for create_subagent_dispatch_tool factory function."""
 
-    def test_create_tool_returns_none_when_no_agents(self, tmp_path: Path):
+    def test_create_tool_returns_none_when_no_agents(self, test_config):
         """create_subagent_dispatch_tool should return None when no agents available."""
-        config = self._create_test_config(tmp_path)
-        context = SharedContext(config=config)
+        context = SharedContext(config=test_config)
 
         tool_func = create_subagent_dispatch_tool("any-agent", context)
         assert tool_func is None
 
-    def test_tool_has_correct_schema(self, tmp_path: Path):
+    def test_tool_has_correct_schema(self, test_config):
         """Subagent dispatch tool should have correct name, description, and parameters."""
-        config = self._create_test_config(tmp_path)
-
         # Create multiple agents
         for agent_id, name, desc in [
             ("reviewer", "Code Reviewer", "Reviews code for quality"),
             ("planner", "Task Planner", "Plans and organizes tasks"),
         ]:
-            agent_dir = config.agents_path / agent_id
+            agent_dir = test_config.agents_path / agent_id
             agent_dir.mkdir(parents=True)
             agent_file = agent_dir / "AGENT.md"
             agent_file.write_text(f"""---
@@ -42,7 +37,7 @@ description: {desc}
 You are {name}.
 """)
 
-        context = SharedContext(config=config)
+        context = SharedContext(config=test_config)
 
         tool_func = create_subagent_dispatch_tool("caller", context)
 
@@ -65,17 +60,15 @@ You are {name}.
         assert "context" in params["properties"]
         assert params["required"] == ["agent_id", "task"]
 
-    def test_tool_excludes_calling_agent(self, tmp_path: Path):
+    def test_tool_excludes_calling_agent(self, test_config):
         """Subagent dispatch tool should exclude the calling agent from enum."""
-        config = self._create_test_config(tmp_path)
-
         # Create multiple agents
         for agent_id, name, desc in [
             ("agent-a", "Agent A", "First agent"),
             ("agent-b", "Agent B", "Second agent"),
             ("agent-c", "Agent C", "Third agent"),
         ]:
-            agent_dir = config.agents_path / agent_id
+            agent_dir = test_config.agents_path / agent_id
             agent_dir.mkdir(parents=True)
             agent_file = agent_dir / "AGENT.md"
             agent_file.write_text(f"""---
@@ -86,7 +79,7 @@ description: {desc}
 You are {name}.
 """)
 
-        context = SharedContext(config=config)
+        context = SharedContext(config=test_config)
 
         # When agent-b calls the factory, it should be excluded
         tool_func = create_subagent_dispatch_tool("agent-b", context)
@@ -98,12 +91,10 @@ You are {name}.
         assert "agent-b" not in enum_ids  # Excluded!
 
     @pytest.mark.anyio
-    async def test_tool_dispatches_to_subagent(self, tmp_path: Path):
+    async def test_tool_dispatches_to_subagent(self, test_config):
         """Subagent dispatch tool should create session and return result + session_id."""
-        config = self._create_test_config(tmp_path)
-
         # Create target agent
-        agent_dir = config.agents_path / "target-agent"
+        agent_dir = test_config.agents_path / "target-agent"
         agent_dir.mkdir(parents=True)
         agent_file = agent_dir / "AGENT.md"
         agent_file.write_text("""---
@@ -114,7 +105,7 @@ description: A target for dispatch testing
 You are the target agent.
 """)
 
-        context = SharedContext(config=config)
+        context = SharedContext(config=test_config)
 
         tool_func = create_subagent_dispatch_tool("caller", context)
         assert tool_func is not None
@@ -142,12 +133,10 @@ You are the target agent.
             mock_session.chat.assert_called_once_with("Do something", ANY)
 
     @pytest.mark.anyio
-    async def test_tool_includes_context_in_message(self, tmp_path: Path):
+    async def test_tool_includes_context_in_message(self, test_config):
         """Subagent dispatch tool should include context in user message."""
-        config = self._create_test_config(tmp_path)
-
         # Create target agent
-        agent_dir = config.agents_path / "target-agent"
+        agent_dir = test_config.agents_path / "target-agent"
         agent_dir.mkdir(parents=True)
         agent_file = agent_dir / "AGENT.md"
         agent_file.write_text("""---
@@ -158,7 +147,7 @@ description: A target for dispatch testing
 You are the target agent.
 """)
 
-        context = SharedContext(config=config)
+        context = SharedContext(config=test_config)
 
         tool_func = create_subagent_dispatch_tool("caller", context)
         assert tool_func is not None
@@ -183,15 +172,3 @@ You are the target agent.
             assert "Review this" in message
             assert "Context:" in message
             assert "The code is in src/main.py" in message
-
-    def _create_test_config(self, tmp_path: Path) -> Config:
-        """Create a minimal test config."""
-        config_file = tmp_path / "config.system.yaml"
-        config_file.write_text("""
-llm:
-  provider: openai
-  model: gpt-4
-  api_key: test-key
-default_agent: test-agent
-""")
-        return Config.load(tmp_path)
