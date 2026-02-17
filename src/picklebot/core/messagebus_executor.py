@@ -82,14 +82,14 @@ class MessageBusExecutor:
 
             try:
                 response = await self.session.chat(message, self.frontend)
-                await self.bus_map[platform].send_message(user_id, response)
+                await self.bus_map[platform].send_message(content=response, user_id=user_id)
                 logger.info(f"Sent response to {platform}/{user_id}")
             except Exception as e:
                 logger.error(f"Error processing message from {platform}: {e}")
                 try:
                     await self.bus_map[platform].send_message(
-                        user_id,
-                        "Sorry, I encountered an error processing your message.",
+                        content="Sorry, I encountered an error processing your message.",
+                        user_id=user_id,
                     )
                 except Exception as send_error:
                     logger.error(f"Failed to send error message: {send_error}")
