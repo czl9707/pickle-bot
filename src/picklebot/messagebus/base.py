@@ -3,6 +3,8 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Awaitable
 
+from picklebot.utils.config import MessageBusConfig
+
 
 class MessageBus(ABC):
     """Abstract base for messaging platforms."""
@@ -45,3 +47,28 @@ class MessageBus(ABC):
     async def stop(self) -> None:
         """Stop listening and cleanup resources."""
         pass
+
+    @staticmethod
+    def from_config(config: MessageBusConfig) -> list["MessageBus"]:
+        """
+        Create message bus instances from configuration.
+
+        Args:
+            config: Message bus configuration
+
+        Returns:
+            List of configured message bus instances
+        """
+        # Inline imports to avoid circular dependency
+        from picklebot.messagebus.telegram_bus import TelegramBus
+        from picklebot.messagebus.discord_bus import DiscordBus
+
+        buses = []
+
+        if config.telegram and config.telegram.enabled:
+            buses.append(TelegramBus(config.telegram))
+
+        if config.discord and config.discord.enabled:
+            buses.append(DiscordBus(config.discord))
+
+        return buses

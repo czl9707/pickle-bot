@@ -23,7 +23,7 @@ async def _run_server(context: SharedContext) -> None:
     # Start CronExecutor
     cron_task = asyncio.create_task(CronExecutor(context).run())
 
-    # Start MessageBusExecutor if enabled and buses are configured
+    # Start MessageBusExecutor
     if context.config.messagebus.enabled:
         buses = context.messagebus_buses
         if buses:

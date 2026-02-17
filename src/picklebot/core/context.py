@@ -3,8 +3,6 @@ from picklebot.core.cron_loader import CronLoader
 from picklebot.core.history import HistoryStore
 from picklebot.core.skill_loader import SkillLoader
 from picklebot.messagebus.base import MessageBus
-from picklebot.messagebus.telegram_bus import TelegramBus
-from picklebot.messagebus.discord_bus import DiscordBus
 from picklebot.utils.config import Config
 
 
@@ -36,22 +34,5 @@ class SharedContext:
             List of MessageBus instances (may be empty)
         """
         if self._messagebus_buses is None:
-            self._messagebus_buses = self._create_messagebus_buses()
+            self._messagebus_buses = MessageBus.from_config(self.config.messagebus)
         return self._messagebus_buses
-
-    def _create_messagebus_buses(self) -> list[MessageBus]:
-        """
-        Create message bus instances based on configuration.
-
-        Returns:
-            List of configured message bus instances
-        """
-        buses = []
-
-        if self.config.messagebus.telegram and self.config.messagebus.telegram.enabled:
-            buses.append(TelegramBus(self.config.messagebus.telegram))
-
-        if self.config.messagebus.discord and self.config.messagebus.discord.enabled:
-            buses.append(DiscordBus(self.config.messagebus.discord))
-
-        return buses
