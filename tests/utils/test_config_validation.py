@@ -7,28 +7,17 @@ from pydantic import ValidationError
 
 from picklebot.utils.config import (
     Config,
-    LLMConfig,
     MessageBusConfig,
     TelegramConfig,
     DiscordConfig,
 )
 
 
-@pytest.fixture
-def minimal_llm_config():
-    """Minimal LLM config for testing."""
-    return LLMConfig(
-        provider="test",
-        model="test-model",
-        api_key="test-key",
-    )
-
-
-def test_messagebus_disabled_by_default(minimal_llm_config):
+def test_messagebus_disabled_by_default(llm_config):
     """Test that messagebus is disabled by default."""
     config = Config(
         workspace=Path("/workspace"),
-        llm=minimal_llm_config,
+        llm=llm_config,
         default_agent="pickle",
     )
     assert not config.messagebus.enabled
@@ -87,11 +76,11 @@ def test_messagebus_can_be_disabled():
     assert not config.enabled
 
 
-def test_messagebus_integration_with_config(minimal_llm_config):
+def test_messagebus_integration_with_config(llm_config):
     """Test messagebus integration with full config."""
     config = Config(
         workspace=Path("/workspace"),
-        llm=minimal_llm_config,
+        llm=llm_config,
         default_agent="pickle",
         messagebus=MessageBusConfig(
             enabled=True,
