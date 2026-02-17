@@ -33,13 +33,13 @@ class MessageBus(ABC):
         pass
 
     @abstractmethod
-    async def send_message(self, user_id: str, content: str) -> None:
+    async def send_message(self, content: str, user_id: str | None = None) -> None:
         """
-        Send message to specific user on this platform.
+        Send message to user on this platform.
 
         Args:
-            user_id: Platform-specific user identifier
             content: Message content to send
+            user_id: Platform-specific user identifier (uses default if not provided)
         """
         pass
 
