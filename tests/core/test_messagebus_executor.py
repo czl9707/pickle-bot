@@ -1,9 +1,10 @@
 """Tests for MessageBusExecutor."""
 
-import pytest
 import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, Mock, MagicMock
+from unittest.mock import MagicMock
+
+import pytest
 
 from picklebot.core.messagebus_executor import MessageBusExecutor
 from picklebot.messagebus.base import MessageBus
@@ -26,8 +27,8 @@ class MockBus(MessageBus):
         self.started = True
         self._on_message = on_message
 
-    async def send_message(self, user_id: str, content: str) -> None:
-        self.messages_sent.append((user_id, content))
+    async def send_message(self, content: str, user_id: str | None = None) -> None:
+        self.messages_sent.append((user_id or "default", content))
 
     async def stop(self) -> None:
         self.started = False
@@ -204,7 +205,7 @@ async def test_messagebus_executor_multiple_platforms(tmp_path: Path):
 class MockBusWithConfig(MessageBus):
     """Mock bus with config for whitelist testing."""
 
-    def __init__(self, platform_name: str, allowed_user_ids: list[str] = None):
+    def __init__(self, platform_name: str, allowed_user_ids: list[str] | None = None):
         self._platform_name = platform_name
         self.config = MagicMock()
         self.config.allowed_user_ids = allowed_user_ids or []
@@ -217,8 +218,8 @@ class MockBusWithConfig(MessageBus):
     async def start(self, on_message) -> None:
         pass
 
-    async def send_message(self, content: str, user_id: str = None) -> None:
-        self.messages_sent.append((user_id, content))
+    async def send_message(self, content: str, user_id: str | None = None) -> None:
+        self.messages_sent.append((user_id or "default", content))
 
     async def stop(self) -> None:
         pass
