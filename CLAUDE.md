@@ -24,7 +24,8 @@ uv run mypy .           # Type check
 ```
 src/picklebot/
 ├── cli/           # Typer CLI (main.py, chat.py, server.py)
-├── core/          # Agent, AgentSession, AgentDef, loaders, executor
+├── core/          # Agent, AgentSession, AgentDef, loaders, executors
+├── messagebus/    # Message bus abstraction (base.py, telegram_bus.py, discord_bus.py)
 ├── provider/      # LLM provider abstraction (base.py, providers.py)
 ├── tools/         # Tool system (base.py, registry.py, builtin_tools.py, skill_tool.py, subagent_tool.py)
 ├── frontend/      # UI abstraction (base.py, console.py)
@@ -48,6 +49,10 @@ src/picklebot/
 **CronLoader** (`core/cron_loader.py`): Discovers and loads CRON.md files with schedule definitions.
 
 **CronExecutor** (`core/cron_executor.py`): Runs scheduled cron jobs. Loops every 60 seconds, executes due jobs sequentially with fresh sessions.
+
+**MessageBusExecutor** (`core/messagebus_executor.py`): Handles incoming messages from messaging platforms. Uses queue-based sequential processing with a shared AgentSession across all platforms. Responses route back to sender's platform.
+
+**MessageBus** (`messagebus/base.py`): Abstract base for messaging platforms. Defines interface for `start()`, `send_message()`, and `stop()`. Factory method `from_config()` creates configured bus instances. Implementations: `TelegramBus`, `DiscordBus`.
 
 **HistoryStore** (`core/history.py`): JSON file-based persistence. Directory: `~/.pickle-bot/history/sessions/` with an `index.json` for fast session listing. `HistoryMessage` has `from_message()` and `to_message()` methods for litellm Message conversion.
 
@@ -75,6 +80,7 @@ Stored in `~/.pickle-bot/`:
 - `agents/` - Agent definitions (`[name]/AGENT.md`)
 - `skills/` - Skill definitions (`[name]/SKILL.md`)
 - `crons/` - Cron definitions (`[name]/CRON.md`)
+- `messagebus` - Message bus config (Telegram, Discord, default_platform)
 
 Pydantic models in `utils/config.py`. Load via `Config.load(workspace_dir)`.
 
@@ -142,6 +148,34 @@ Check my inbox and summarize unread messages.
 ```
 
 Start the server with `picklebot server`. Jobs run sequentially with fresh sessions (no memory between runs).
+
+### MessageBus System
+
+Message bus enables chat via Telegram and Discord with shared conversation history. Configuration in `~/.pickle-bot/config.user.yaml`:
+
+```yaml
+messagebus:
+  enabled: true
+  default_platform: telegram  # Required when enabled
+  telegram:
+    enabled: true
+    bot_token: "your-token"
+  discord:
+    enabled: false
+    bot_token: "your-token"
+    channel_id: "optional-id"
+```
+
+**Architecture:**
+- Event-driven with `asyncio.Queue` for sequential message processing
+- Single shared `AgentSession` across all platforms
+- Platform routing: user messages → reply to sender's platform, cron messages → `default_platform`
+- `MessageBus.from_config()` factory creates bus instances with inline imports to avoid circular dependencies
+
+**Implementation:**
+- `MessageBusExecutor` runs alongside `CronExecutor` in server mode
+- Each platform implements `MessageBus` abstract interface
+- Console logging enabled in server mode via `setup_logging(config, console_output=True)`
 
 ### Memory System
 

@@ -7,6 +7,7 @@ A personal AI assistant with pluggable tools, built with Python.
 - **Multi-Agent Support** - Define multiple agents with different prompts and settings
 - **Subagent Dispatch** - Delegate specialized work to other agents through tool calls
 - **Long-Term Memory** - Persistent memory via Cookie agent with topic and time-based organization
+- **Message Bus Support** - Chat via Telegram and Discord with shared conversation history
 - **Skill System** - On-demand capability loading for specialized tasks
 - **Pluggable Tools System** - Function calling with custom tools
 - **Cron Jobs** - Scheduled agent invocations via server mode
@@ -65,6 +66,18 @@ llm:
   api_key: "your-api-key"
   api_base: "https://api.z.ai/api/coding/paas/v4"
 memories_path: memories        # Optional: override memory storage location
+
+# Optional: Enable message bus (Telegram and/or Discord)
+messagebus:
+  enabled: true
+  default_platform: telegram   # Required when enabled
+  telegram:
+    enabled: true
+    bot_token: "your-telegram-bot-token"
+  discord:
+    enabled: false
+    bot_token: "your-discord-bot-token"
+    channel_id: "optional-channel-id"
 ```
 
 ## Usage
@@ -79,12 +92,18 @@ picklebot --help            # Show help
 
 ### Server Mode
 
-Run pickle-bot as a 24/7 server for scheduled cron jobs:
+Run pickle-bot as a 24/7 server for scheduled cron jobs and message bus:
 
 ```bash
 picklebot server            # Start server with default workspace
 picklebot server -w /path   # Use custom workspace
 ```
+
+The server runs two components:
+- **CronExecutor** - Executes scheduled cron jobs
+- **MessageBusExecutor** - Handles incoming messages from Telegram/Discord (when configured)
+
+#### Cron Jobs
 
 The server reads cron jobs from `~/.pickle-bot/crons/[job-id]/CRON.md`:
 
@@ -102,6 +121,18 @@ Check my inbox and summarize unread messages.
 - Minimum granularity: 5 minutes
 - Fresh session per run (no memory between runs)
 - Sequential execution (one job at a time)
+- Responses sent to `default_platform` when messagebus is enabled
+
+#### Message Bus
+
+When message bus is enabled, the server also handles incoming messages from Telegram and Discord:
+
+- **Shared conversation** - Single session across all platforms
+- **Event-driven** - Queue-based sequential message processing
+- **Platform routing** - User messages reply to sender's platform, cron messages use `default_platform`
+- **Console logging** - Logs visible in terminal while server runs
+
+See `docs/message-bus-setup.md` for Telegram and Discord bot setup instructions.
 
 ## Definition Formats
 
@@ -193,7 +224,12 @@ src/picklebot/
 │   ├── context.py     # Shared context container
 │   ├── skill_loader.py
 │   ├── cron_loader.py
-│   └── cron_executor.py
+│   ├── cron_executor.py
+│   └── messagebus_executor.py
+├── messagebus/    # Message bus abstraction
+│   ├── base.py        # MessageBus abstract interface
+│   ├── telegram_bus.py
+│   └── discord_bus.py
 ├── provider/      # LLM abstraction
 │   ├── base.py    # LLMProvider base class
 │   └── providers.py
