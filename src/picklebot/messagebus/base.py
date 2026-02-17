@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Awaitable
 
-from picklebot.utils.config import MessageBusConfig
+from picklebot.utils.config import Config
 
 
 class MessageBus(ABC):
@@ -49,7 +49,7 @@ class MessageBus(ABC):
         pass
 
     @staticmethod
-    def from_config(config: MessageBusConfig) -> list["MessageBus"]:
+    def from_config(config: Config) -> list["MessageBus"]:
         """
         Create message bus instances from configuration.
 
@@ -63,12 +63,12 @@ class MessageBus(ABC):
         from picklebot.messagebus.telegram_bus import TelegramBus
         from picklebot.messagebus.discord_bus import DiscordBus
 
-        buses = []
+        buses: list["MessageBus"] = []
+        bus_config = config.messagebus
+        if bus_config.telegram and bus_config.telegram.enabled:
+            buses.append(TelegramBus(bus_config.telegram))
 
-        if config.telegram and config.telegram.enabled:
-            buses.append(TelegramBus(config.telegram))
-
-        if config.discord and config.discord.enabled:
-            buses.append(DiscordBus(config.discord))
+        if bus_config.discord and bus_config.discord.enabled:
+            buses.append(DiscordBus(bus_config.discord))
 
         return buses

@@ -39,6 +39,7 @@ class TelegramBus(MessageBus):
         Args:
             on_message: Callback for incoming messages
         """
+        logger.info(f"Message bus enabled with platform: {self.platform_name}")
         self.application = Application.builder().token(self.config.bot_token).build()
 
         async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):

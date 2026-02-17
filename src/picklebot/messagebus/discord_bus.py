@@ -24,7 +24,6 @@ class DiscordBus(MessageBus):
         """
         self.config = config
         self.client: discord.Client | None = None
-        self._on_message: Callable[[str, str, str], Awaitable[None]] | None = None
 
     @property
     def platform_name(self) -> str:
@@ -40,7 +39,7 @@ class DiscordBus(MessageBus):
         Args:
             on_message: Callback for incoming messages
         """
-        self._on_message = on_message
+        logger.info(f"Message bus enabled with platform: {self.platform_name}")
 
         # Configure intents
         intents = discord.Intents.default()
@@ -73,7 +72,7 @@ class DiscordBus(MessageBus):
             logger.info(f"Received Discord message from {user_id}")
 
             try:
-                await self._on_message(content, self.platform_name, user_id)
+                await on_message(content, self.platform_name, user_id)
             except Exception as e:
                 logger.error(f"Error in message callback: {e}")
 

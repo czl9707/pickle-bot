@@ -14,7 +14,7 @@ class SharedContext:
     agent_loader: AgentLoader
     skill_loader: SkillLoader
     cron_loader: CronLoader
-    _messagebus_buses: list[MessageBus] | None = None
+    messagebus_buses: list[MessageBus]
 
     def __init__(self, config: Config):
         self.config = config
@@ -22,17 +22,4 @@ class SharedContext:
         self.agent_loader = AgentLoader.from_config(config)
         self.skill_loader = SkillLoader.from_config(config)
         self.cron_loader = CronLoader.from_config(config)
-
-    @property
-    def messagebus_buses(self) -> list[MessageBus]:
-        """
-        Get list of configured message bus instances.
-
-        Lazily initialized on first access.
-
-        Returns:
-            List of MessageBus instances (may be empty)
-        """
-        if self._messagebus_buses is None:
-            self._messagebus_buses = MessageBus.from_config(self.config.messagebus)
-        return self._messagebus_buses
+        self.messagebus_buses = MessageBus.from_config(config)

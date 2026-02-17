@@ -46,19 +46,6 @@ def server_command(
     setup_logging(config, console_output=True)
 
     typer.echo("Starting pickle-bot server...")
-    typer.echo(f"Crons path: {config.crons_path}")
-
-    # Show message bus status
-    if config.messagebus.enabled:
-        enabled_buses = []
-        if config.messagebus.telegram and config.messagebus.telegram.enabled:
-            enabled_buses.append("telegram")
-        if config.messagebus.discord and config.messagebus.discord.enabled:
-            enabled_buses.append("discord")
-        typer.echo(f"Message bus enabled with platform(s): {', '.join(enabled_buses)}")
-    else:
-        typer.echo("Message bus disabled")
-
     typer.echo("Press Ctrl+C to stop")
 
     try:
