@@ -50,14 +50,17 @@ class DiscordBus(MessageBus):
         self.client = discord.Client(intents=intents)
 
         @self.client.event
-        async def on_message(message: discord.Message):
+        async def _on_discord_message(message: discord.Message):
             """Handle incoming Discord message."""
             # Ignore bot's own messages
             if message.author == self.client.user:
                 return
 
             # Check channel restriction
-            if self.config.channel_id and str(message.channel.id) != self.config.channel_id:
+            if (
+                self.config.channel_id
+                and str(message.channel.id) != self.config.channel_id
+            ):
                 return
 
             # Only handle text messages
