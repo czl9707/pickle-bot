@@ -52,6 +52,7 @@ class Config(BaseModel):
     logging_path: Path = Field(default=Path(".logs"))
     history_path: Path = Field(default=Path(".history"))
     crons_path: Path = Field(default=Path("crons"))
+    memories_path: Path = Field(default=Path("memories"))
 
     @model_validator(mode="after")
     def resolve_paths(self) -> "Config":
@@ -62,6 +63,7 @@ class Config(BaseModel):
             "logging_path",
             "history_path",
             "crons_path",
+            "memories_path",
         ):
             path = getattr(self, field_name)
             if path.is_absolute():

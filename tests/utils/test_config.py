@@ -102,6 +102,7 @@ class TestPathResolution:
         assert config.agents_path == Path("/workspace/agents")
         assert config.skills_path == Path("/workspace/skills")
         assert config.crons_path == Path("/workspace/crons")
+        assert config.memories_path == Path("/workspace/memories")
 
     def test_resolves_relative_skills_path(self, minimal_llm_config):
         """Relative skills_path should be resolved to absolute."""
@@ -158,3 +159,36 @@ class TestRejectsAbsolutePaths:
                 crons_path=Path("/var/crons"),
             )
         assert "crons_path must be relative" in str(exc.value)
+
+
+class TestMemoriesPath:
+    def test_config_has_memories_path(self, minimal_llm_config):
+        """Config should include memories_path field."""
+        config = Config(
+            workspace=Path("/workspace"),
+            llm=minimal_llm_config,
+            default_agent="pickle",
+        )
+        assert hasattr(config, "memories_path")
+        assert config.memories_path == Path("/workspace/memories")
+
+    def test_resolves_relative_memories_path(self, minimal_llm_config):
+        """Relative memories_path should be resolved to absolute."""
+        config = Config(
+            workspace=Path("/workspace"),
+            llm=minimal_llm_config,
+            default_agent="pickle",
+            memories_path=Path("custom/memories"),
+        )
+        assert config.memories_path == Path("/workspace/custom/memories")
+
+    def test_rejects_absolute_memories_path(self, minimal_llm_config):
+        """Absolute memories_path should raise ValidationError."""
+        with pytest.raises(ValidationError) as exc:
+            Config(
+                workspace=Path("/workspace"),
+                llm=minimal_llm_config,
+                default_agent="pickle",
+                memories_path=Path("/var/memories"),
+            )
+        assert "memories_path must be relative" in str(exc.value)
