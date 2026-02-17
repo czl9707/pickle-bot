@@ -11,6 +11,7 @@ from picklebot.provider import LLMProvider
 from picklebot.tools.registry import ToolRegistry
 from picklebot.tools.skill_tool import create_skill_tool
 from picklebot.tools.subagent_tool import create_subagent_dispatch_tool
+from picklebot.tools.post_message_tool import create_post_message_tool
 from picklebot.core.history import HistoryMessage
 
 from litellm.types.completion import (
@@ -48,6 +49,9 @@ class Agent:
         # Add subagent dispatch tool
         self._register_subagent_tool()
 
+        # Add post_message tool
+        self._register_post_message_tool()
+
     def _register_skill_tool(self) -> None:
         """Register the skill tool if skills are available."""
         skill_tool = create_skill_tool(self.context.skill_loader)
@@ -59,6 +63,12 @@ class Agent:
         subagent_tool = create_subagent_dispatch_tool(self.agent_def.id, self.context)
         if subagent_tool:
             self.tools.register(subagent_tool)
+
+    def _register_post_message_tool(self) -> None:
+        """Register the post_message tool if messagebus is enabled."""
+        post_tool = create_post_message_tool(self.context)
+        if post_tool:
+            self.tools.register(post_tool)
 
     def new_session(self) -> "AgentSession":
         """
