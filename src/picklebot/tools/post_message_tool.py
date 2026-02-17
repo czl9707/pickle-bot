@@ -26,10 +26,6 @@ def create_post_message_tool(context: "SharedContext") -> BaseTool | None:
 
     # Get default platform
     default_platform = config.messagebus.default_platform
-    if not default_platform:
-        return None
-
-    # Find the default platform bus
     bus_map = {bus.platform_name: bus for bus in context.messagebus_buses}
     default_bus = bus_map.get(default_platform)
 
