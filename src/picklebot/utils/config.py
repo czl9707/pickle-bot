@@ -33,6 +33,8 @@ class TelegramConfig(BaseModel):
 
     enabled: bool = True
     bot_token: str
+    allowed_user_ids: list[str] = Field(default_factory=list)
+    default_user_id: str | None = None
 
 
 class DiscordConfig(BaseModel):
@@ -41,6 +43,8 @@ class DiscordConfig(BaseModel):
     enabled: bool = True
     bot_token: str
     channel_id: str | None = None
+    allowed_user_ids: list[str] = Field(default_factory=list)
+    default_user_id: str | None = None
 
 
 class MessageBusConfig(BaseModel):
