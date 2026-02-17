@@ -13,7 +13,7 @@ from picklebot.utils.config import Config, LLMConfig
 @pytest.fixture
 def llm_config() -> LLMConfig:
     """Minimal LLM config for testing."""
-    return LLMConfig(provider="test", model="test-model", api_key="test-key")
+    return LLMConfig(provider="openai", model="gpt-4", api_key="test-key")
 
 
 @pytest.fixture
