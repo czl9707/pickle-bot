@@ -26,6 +26,7 @@ dev = [
   "types-pyyaml",
   "types-croniter",
   "pytest>=9.0.2",
+  "pytest-asyncio>=0.23.0",
   "ruff>=0.15.1",
   "mypy>=1.19.1",
 ]
