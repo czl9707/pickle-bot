@@ -74,10 +74,14 @@ messagebus:
   telegram:
     enabled: true
     bot_token: "your-telegram-bot-token"
+    allowed_user_ids: ["123456789"]  # Whitelist: only these users can message
+    default_user_id: "123456789"     # Target for agent-initiated messages
   discord:
     enabled: false
     bot_token: "your-discord-bot-token"
     channel_id: "optional-channel-id"
+    allowed_user_ids: []
+    default_user_id: ""
 ```
 
 ## Usage
@@ -131,6 +135,12 @@ When message bus is enabled, the server also handles incoming messages from Tele
 - **Event-driven** - Queue-based sequential message processing
 - **Platform routing** - User messages reply to sender's platform, cron messages use `default_platform`
 - **Console logging** - Logs visible in terminal while server runs
+
+**User Whitelist:**
+Configure `allowed_user_ids` per platform to restrict who can message the bot. Messages from non-whitelisted users are silently ignored. An empty list allows all users.
+
+**Proactive Messaging:**
+The `post_message` tool allows agents to send messages proactively (e.g., cron job notifications, task completion alerts). Messages are sent to the `default_user_id` on the `default_platform`.
 
 See `docs/message-bus-setup.md` for Telegram and Discord bot setup instructions.
 
@@ -206,6 +216,7 @@ Check my inbox and summarize unread messages.
 | `bash` | Execute shell commands |
 | `skill` | Load and invoke a specialized skill (when enabled) |
 | `subagent_dispatch` | Delegate work to another agent (when other agents exist) |
+| `post_message` | Send a message to the user via default platform (when messagebus enabled) |
 
 ## Project Structure
 
@@ -238,7 +249,8 @@ src/picklebot/
 │   ├── registry.py
 │   ├── builtin_tools.py
 │   ├── skill_tool.py
-│   └── subagent_tool.py
+│   ├── subagent_tool.py
+│   └── post_message_tool.py
 ├── frontend/      # UI abstraction
 │   ├── base.py    # Frontend interface
 │   └── console.py # Rich console implementation

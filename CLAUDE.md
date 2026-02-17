@@ -27,7 +27,7 @@ src/picklebot/
 ├── core/          # Agent, AgentSession, AgentDef, loaders, executors
 ├── messagebus/    # Message bus abstraction (base.py, telegram_bus.py, discord_bus.py)
 ├── provider/      # LLM provider abstraction (base.py, providers.py)
-├── tools/         # Tool system (base.py, registry.py, builtin_tools.py, skill_tool.py, subagent_tool.py)
+├── tools/         # Tool system (base.py, registry.py, builtin_tools.py, skill_tool.py, subagent_tool.py, post_message_tool.py)
 ├── frontend/      # UI abstraction (base.py, console.py)
 └── utils/         # Config, logging, def_loader
 ```
@@ -160,10 +160,14 @@ messagebus:
   telegram:
     enabled: true
     bot_token: "your-token"
+    allowed_user_ids: ["123456789"]  # Whitelist for incoming messages
+    default_user_id: "123456789"     # Target for agent-initiated messages
   discord:
     enabled: false
     bot_token: "your-token"
     channel_id: "optional-id"
+    allowed_user_ids: []
+    default_user_id: ""
 ```
 
 **Architecture:**
@@ -172,9 +176,21 @@ messagebus:
 - Platform routing: user messages → reply to sender's platform, cron messages → `default_platform`
 - `MessageBus.from_config()` factory creates bus instances with inline imports to avoid circular dependencies
 
+**User Whitelist:**
+- `allowed_user_ids` filters incoming messages per platform
+- Empty list allows all users; non-empty list restricts to listed IDs
+- Non-whitelisted messages are silently ignored (logged at INFO level)
+
+**Post Message Tool:**
+- `post_message_tool.py` provides `create_post_message_tool()` factory
+- Tool sends messages to `default_user_id` on `default_platform`
+- Only registered when messagebus is enabled with valid config
+- Useful for cron job notifications and proactive alerts
+
 **Implementation:**
 - `MessageBusExecutor` runs alongside `CronExecutor` in server mode
 - Each platform implements `MessageBus` abstract interface
+- `send_message(content, user_id=None)` falls back to `default_user_id`
 - Console logging enabled in server mode via `setup_logging(config, console_output=True)`
 
 ### Memory System
