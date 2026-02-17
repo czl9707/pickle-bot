@@ -35,13 +35,9 @@ class ConsoleFrontend(Frontend):
         )
         self.console.print("Type 'quit' or 'exit' to end the session.\n")
 
-    def get_user_input(self) -> str:
-        """Get user input."""
-        return self.console.input("[bold green]You:[/bold green] ")
-
-    def show_agent_response(self, content: str) -> None:
-        """Display agent's final response to user."""
-        self.console.print(f"[bold cyan]{self.agent_def.name}:[/bold cyan] {content}\n")
+    def show_message(self, content: str) -> None:
+        """Display a message."""
+        self.console.print(content)
 
     def show_system_message(self, content: str) -> None:
         """Display system-level message (goodbye, errors, interrupts)."""

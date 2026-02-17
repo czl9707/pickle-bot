@@ -9,7 +9,6 @@ from rich.console import Console
 from picklebot.cli.chat import ChatLoop
 from picklebot.cli.server import server_command
 from picklebot.utils.config import Config
-from picklebot.utils.logging import setup_logging
 
 app = typer.Typer(
     name="picklebot",
@@ -28,8 +27,6 @@ def load_config_callback(ctx: typer.Context, workspace: str):
         cfg = Config.load(Path(workspace))
         ctx.ensure_object(dict)
         ctx.obj["config"] = cfg
-
-        setup_logging(cfg)
 
     except FileNotFoundError as e:
         console.print(f"[red]{e}[/red]")

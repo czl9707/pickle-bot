@@ -13,12 +13,8 @@ class Frontend(ABC):
         """Display welcome message."""
 
     @abstractmethod
-    def get_user_input(self) -> str:
-        """Get user input."""
-
-    @abstractmethod
-    def show_agent_response(self, content: str) -> None:
-        """Display agent's final response to user."""
+    def show_message(self, content: str) -> None:
+        """Display a message (user or agent)."""
 
     @abstractmethod
     def show_system_message(self, content: str) -> None:
@@ -37,10 +33,7 @@ class SilentFrontend(Frontend):
     def show_welcome(self) -> None:
         pass
 
-    def get_user_input(self) -> str:
-        return ""
-
-    def show_agent_response(self, content: str) -> None:
+    def show_message(self, content: str) -> None:
         pass
 
     def show_system_message(self, content: str) -> None:
