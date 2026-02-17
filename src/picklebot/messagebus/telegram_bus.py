@@ -67,22 +67,27 @@ class TelegramBus(MessageBus):
 
         logger.info("TelegramBus started")
 
-    async def send_message(self, user_id: str, content: str) -> None:
+    async def send_message(self, content: str, user_id: str | None = None) -> None:
         """
         Send message to Telegram user.
 
         Args:
-            user_id: Telegram chat ID
             content: Message content
+            user_id: Telegram chat ID (uses default_user_id if not provided)
         """
         if not self.application:
             raise RuntimeError("TelegramBus not started")
 
+        # Fall back to default user if not provided
+        target_user = user_id or self.config.default_user_id
+        if not target_user:
+            raise ValueError("No user_id provided and no default_user_id configured")
+
         try:
             await self.application.bot.send_message(
-                chat_id=int(user_id), text=content
+                chat_id=int(target_user), text=content
             )
-            logger.debug(f"Sent Telegram message to {user_id}")
+            logger.debug(f"Sent Telegram message to {target_user}")
         except Exception as e:
             logger.error(f"Failed to send Telegram message: {e}")
             raise

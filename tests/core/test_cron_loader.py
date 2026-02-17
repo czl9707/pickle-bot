@@ -6,7 +6,6 @@ import tempfile
 import pytest
 
 from picklebot.core.cron_loader import CronLoader
-from picklebot.utils.def_loader import DefNotFoundError, InvalidDefError
 
 
 class TestCronLoader:

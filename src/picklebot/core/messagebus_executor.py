@@ -59,6 +59,17 @@ class MessageBusExecutor:
             platform: Platform identifier
             user_id: Platform-specific user ID
         """
+        bus = self.bus_map[platform]
+
+        # Check whitelist (empty list allows all)
+        if (
+            hasattr(bus, "config")
+            and bus.config.allowed_user_ids
+            and user_id not in bus.config.allowed_user_ids
+        ):
+            logger.info(f"Ignored message from non-whitelisted user {platform}/{user_id}")
+            return
+
         await self.message_queue.put((message, platform, user_id))
         logger.debug(f"Enqueued message from {platform}/{user_id}")
 
@@ -71,14 +82,14 @@ class MessageBusExecutor:
 
             try:
                 response = await self.session.chat(message, self.frontend)
-                await self.bus_map[platform].send_message(user_id, response)
+                await self.bus_map[platform].send_message(content=response, user_id=user_id)
                 logger.info(f"Sent response to {platform}/{user_id}")
             except Exception as e:
                 logger.error(f"Error processing message from {platform}: {e}")
                 try:
                     await self.bus_map[platform].send_message(
-                        user_id,
-                        "Sorry, I encountered an error processing your message.",
+                        content="Sorry, I encountered an error processing your message.",
+                        user_id=user_id,
                     )
                 except Exception as send_error:
                     logger.error(f"Failed to send error message: {send_error}")

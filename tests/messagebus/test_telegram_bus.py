@@ -66,7 +66,7 @@ async def test_telegram_bus_send_message():
     bus.application = mock_app
 
     # Send a message
-    await bus.send_message("12345", "Hello, world!")
+    await bus.send_message(content="Hello, world!", user_id="12345")
 
     # Verify the message was sent
     mock_app.bot.send_message.assert_called_once_with(
@@ -81,4 +81,87 @@ async def test_telegram_bus_send_message_not_started():
     bus = TelegramBus(config)
 
     with pytest.raises(RuntimeError, match="TelegramBus not started"):
-        await bus.send_message("12345", "Hello, world!")
+        await bus.send_message(content="Hello, world!", user_id="12345")
+
+
+class TestTelegramBusDefaultUser:
+    """Tests for default user ID fallback."""
+
+    def test_send_message_uses_default_user_when_not_provided(self):
+        """send_message should use default_user_id when user_id is None."""
+        config = TelegramConfig(
+            enabled=True,
+            bot_token="test-token",
+            default_user_id="123456789",
+        )
+        bus = TelegramBus(config)
+
+        # Verify config has the default
+        assert bus.config.default_user_id == "123456789"
+
+    @pytest.mark.anyio
+    async def test_send_message_falls_back_to_default(self):
+        """When user_id is None, should send to default_user_id."""
+        config = TelegramConfig(
+            enabled=True,
+            bot_token="test-token",
+            default_user_id="999888777",
+        )
+        bus = TelegramBus(config)
+
+        # Mock the application
+        mock_app = MagicMock()
+        mock_app.bot.send_message = AsyncMock()
+        bus.application = mock_app
+
+        # Call without user_id
+        await bus.send_message(content="Test message")
+
+        # Should have called with default user_id
+        mock_app.bot.send_message.assert_called_once()
+        call_args = mock_app.bot.send_message.call_args
+        assert call_args.kwargs["chat_id"] == 999888777
+        assert call_args.kwargs["text"] == "Test message"
+
+    @pytest.mark.anyio
+    async def test_send_message_with_explicit_user_id(self):
+        """When user_id is provided, should use it instead of default."""
+        config = TelegramConfig(
+            enabled=True,
+            bot_token="test-token",
+            default_user_id="999888777",
+        )
+        bus = TelegramBus(config)
+
+        # Mock the application
+        mock_app = MagicMock()
+        mock_app.bot.send_message = AsyncMock()
+        bus.application = mock_app
+
+        # Call with explicit user_id
+        await bus.send_message(content="Test message", user_id="111222333")
+
+        # Should have called with explicit user_id, not default
+        mock_app.bot.send_message.assert_called_once()
+        call_args = mock_app.bot.send_message.call_args
+        assert call_args.kwargs["chat_id"] == 111222333
+        assert call_args.kwargs["text"] == "Test message"
+
+    @pytest.mark.anyio
+    async def test_send_message_no_user_no_default_raises(self):
+        """Should raise ValueError when no user_id and no default configured."""
+        config = TelegramConfig(
+            enabled=True,
+            bot_token="test-token",
+            default_user_id=None,  # No default configured
+        )
+        bus = TelegramBus(config)
+
+        # Mock the application
+        mock_app = MagicMock()
+        mock_app.bot.send_message = AsyncMock()
+        bus.application = mock_app
+
+        # Should raise ValueError
+        with pytest.raises(ValueError, match="No user_id provided and no default_user_id configured"):
+            await bus.send_message(content="Test message")

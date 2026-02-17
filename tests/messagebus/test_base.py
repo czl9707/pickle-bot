@@ -1,6 +1,6 @@
 """Tests for MessageBus abstract interface."""
 
-from pathlib import Path
+import inspect
 import pytest
 
 from picklebot.messagebus.base import MessageBus
@@ -25,7 +25,7 @@ class MockBus(MessageBus):
     async def start(self, on_message) -> None:
         pass
 
-    async def send_message(self, user_id: str, content: str) -> None:
+    async def send_message(self, content: str, user_id: str | None = None) -> None:
         pass
 
     async def stop(self) -> None:
@@ -38,11 +38,28 @@ def test_messagebus_has_platform_name():
     assert bus.platform_name == "mock"
 
 
+class TestMessageBusSignature:
+    """Tests for MessageBus abstract interface."""
+
+    def test_send_message_user_id_is_optional(self):
+        """send_message should have optional user_id parameter."""
+        sig = inspect.signature(MessageBus.send_message)
+        params = list(sig.parameters.keys())
+
+        # Should have: self, content, user_id (with default)
+        assert "content" in params
+        assert "user_id" in params
+
+        # user_id should have a default value
+        user_id_param = sig.parameters["user_id"]
+        assert user_id_param.default is not inspect.Parameter.empty
+
+
 @pytest.mark.anyio
 async def test_messagebus_send_message_interface():
     """Test that send_message can be called."""
     bus = MockBus()
-    await bus.send_message("user123", "test message")
+    await bus.send_message("test message", user_id="user123")
     # Should not raise
 
 

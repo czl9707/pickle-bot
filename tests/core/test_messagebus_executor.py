@@ -1,7 +1,8 @@
 """Tests for MessageBusExecutor."""
 
 import asyncio
-from unittest.mock import AsyncMock, patch
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -26,8 +27,8 @@ class MockBus(MessageBus):
         self.started = True
         self._on_message = on_message
 
-    async def send_message(self, user_id: str, content: str) -> None:
-        self.messages_sent.append((user_id, content))
+    async def send_message(self, content: str, user_id: str | None = None) -> None:
+        self.messages_sent.append((user_id or "default", content))
 
     async def stop(self) -> None:
         self.started = False
@@ -183,3 +184,104 @@ You are a test assistant.
         assert bus1.messages_sent[0] == ("user1", "Test response")
         assert len(bus2.messages_sent) == 1
         assert bus2.messages_sent[0] == ("user2", "Test response")
+
+
+class MockBusWithConfig(MessageBus):
+    """Mock bus with config for whitelist testing."""
+
+    def __init__(self, platform_name: str, allowed_user_ids: list[str] | None = None):
+        self._platform_name = platform_name
+        self.config = MagicMock()
+        self.config.allowed_user_ids = allowed_user_ids or []
+        self.messages_sent: list[tuple[str, str]] = []
+
+    @property
+    def platform_name(self) -> str:
+        return self._platform_name
+
+    async def start(self, on_message) -> None:
+        pass
+
+    async def send_message(self, content: str, user_id: str | None = None) -> None:
+        self.messages_sent.append((user_id or "default", content))
+
+    async def stop(self) -> None:
+        pass
+
+
+def _create_test_config_for_whitelist(tmp_path: Path):
+    """Create a minimal test config for whitelist tests."""
+    from picklebot.utils.config import Config
+
+    config_file = tmp_path / "config.system.yaml"
+    config_file.write_text(
+        """
+llm:
+  provider: openai
+  model: gpt-4
+  api_key: test-key
+default_agent: test-agent
+"""
+    )
+
+    # Create test agent
+    agents_path = tmp_path / "agents"
+    test_agent_dir = agents_path / "test-agent"
+    test_agent_dir.mkdir(parents=True)
+    agent_file = test_agent_dir / "AGENT.md"
+    agent_file.write_text(
+        """---
+name: Test Agent
+description: A test agent
+---
+
+You are a test assistant.
+"""
+    )
+
+    return Config.load(tmp_path)
+
+
+@pytest.mark.anyio
+async def test_messagebus_executor_whitelist_allows_listed_user(tmp_path: Path):
+    """Messages from whitelisted users should be processed."""
+    config = _create_test_config_for_whitelist(tmp_path)
+    context = SharedContext(config)
+
+    bus = MockBusWithConfig("mock", allowed_user_ids=["user123"])
+    executor = MessageBusExecutor(context, [bus])
+
+    # Whitelisted user
+    await executor._enqueue_message("Hello", "mock", "user123")
+
+    assert executor.message_queue.qsize() == 1
+
+
+@pytest.mark.anyio
+async def test_messagebus_executor_whitelist_blocks_unlisted_user(tmp_path: Path):
+    """Messages from non-whitelisted users should be ignored."""
+    config = _create_test_config_for_whitelist(tmp_path)
+    context = SharedContext(config)
+
+    bus = MockBusWithConfig("mock", allowed_user_ids=["user123"])
+    executor = MessageBusExecutor(context, [bus])
+
+    # Non-whitelisted user
+    await executor._enqueue_message("Hello", "mock", "unknown_user")
+
+    assert executor.message_queue.qsize() == 0
+
+
+@pytest.mark.anyio
+async def test_messagebus_executor_empty_whitelist_allows_all(tmp_path: Path):
+    """When whitelist is empty, all users should be allowed."""
+    config = _create_test_config_for_whitelist(tmp_path)
+    context = SharedContext(config)
+
+    bus = MockBusWithConfig("mock", allowed_user_ids=[])
+    executor = MessageBusExecutor(context, [bus])
+
+    # Any user when whitelist is empty
+    await executor._enqueue_message("Hello", "mock", "any_user")
+
+    assert executor.message_queue.qsize() == 1

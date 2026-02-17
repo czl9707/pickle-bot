@@ -60,3 +60,45 @@ class TestConfigValidation:
                 llm=llm_config,
             )
         assert "default_agent" in str(exc.value)
+
+
+class TestMessageBusUserFields:
+    """Tests for messagebus user configuration fields."""
+
+    def test_telegram_config_allows_user_fields(self, llm_config):
+        """TelegramConfig should accept allowed_user_ids and default_user_id."""
+        from picklebot.utils.config import TelegramConfig
+
+        telegram = TelegramConfig(
+            enabled=True,
+            bot_token="test-token",
+            allowed_user_ids=["123456"],
+            default_user_id="123456",
+        )
+        assert telegram.allowed_user_ids == ["123456"]
+        assert telegram.default_user_id == "123456"
+
+    def test_discord_config_allows_user_fields(self, llm_config):
+        """DiscordConfig should accept allowed_user_ids and default_user_id."""
+        from picklebot.utils.config import DiscordConfig
+
+        discord = DiscordConfig(
+            enabled=True,
+            bot_token="test-token",
+            allowed_user_ids=["789012"],
+            default_user_id="789012",
+        )
+        assert discord.allowed_user_ids == ["789012"]
+        assert discord.default_user_id == "789012"
+
+    def test_user_fields_default_to_empty(self, llm_config):
+        """User fields should have sensible defaults."""
+        from picklebot.utils.config import TelegramConfig, DiscordConfig
+
+        telegram = TelegramConfig(enabled=True, bot_token="test-token")
+        assert telegram.allowed_user_ids == []
+        assert telegram.default_user_id is None
+
+        discord = DiscordConfig(enabled=True, bot_token="test-token")
+        assert discord.allowed_user_ids == []
+        assert discord.default_user_id is None

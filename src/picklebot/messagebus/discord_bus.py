@@ -84,24 +84,29 @@ class DiscordBus(MessageBus):
 
         logger.info("DiscordBus started")
 
-    async def send_message(self, user_id: str, content: str) -> None:
+    async def send_message(self, content: str, user_id: str | None = None) -> None:
         """
         Send message to Discord channel.
 
         Args:
-            user_id: Discord channel ID
             content: Message content
+            user_id: Discord channel ID (uses default_user_id if not provided)
         """
         if not self.client:
             raise RuntimeError("DiscordBus not started")
 
+        # Fall back to default user if not provided
+        target_user = user_id or self.config.default_user_id
+        if not target_user:
+            raise ValueError("No user_id provided and no default_user_id configured")
+
         try:
-            channel = self.client.get_channel(int(user_id))
+            channel = self.client.get_channel(int(target_user))
             if not channel:
-                raise ValueError(f"Channel {user_id} not found")
+                raise ValueError(f"Channel {target_user} not found")
 
             await channel.send(content)
-            logger.debug(f"Sent Discord message to {user_id}")
+            logger.debug(f"Sent Discord message to {target_user}")
         except Exception as e:
             logger.error(f"Failed to send Discord message: {e}")
             raise
