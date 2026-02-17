@@ -1,13 +1,13 @@
 """Tests for MessageBusExecutor."""
 
-import pytest
 import asyncio
-from pathlib import Path
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, patch
 
+import pytest
+
+from picklebot.core.context import SharedContext
 from picklebot.core.messagebus_executor import MessageBusExecutor
 from picklebot.messagebus.base import MessageBus
-from picklebot.utils.config import Config
 
 
 class MockBus(MessageBus):
@@ -33,22 +33,12 @@ class MockBus(MessageBus):
         self.started = False
 
 
-def _create_test_config(tmp_path: Path) -> Config:
-    """Create a minimal test config file."""
-    config_file = tmp_path / "config.system.yaml"
-    config_file.write_text(
-        """
-llm:
-  provider: openai
-  model: gpt-4
-  api_key: test-key
-default_agent: test-agent
-"""
-    )
-
-    # Create test agent
-    agents_path = tmp_path / "agents"
-    test_agent_dir = agents_path / "test-agent"
+@pytest.fixture
+def executor_with_mock_bus(test_config):
+    """Create MessageBusExecutor with mock bus."""
+    # Create test agent for the executor (must match default_agent="test")
+    agents_path = test_config.agents_path
+    test_agent_dir = agents_path / "test"
     test_agent_dir.mkdir(parents=True)
     agent_file = test_agent_dir / "AGENT.md"
     agent_file.write_text(
@@ -61,19 +51,16 @@ You are a test assistant.
 """
     )
 
-    return Config.load(tmp_path)
+    context = SharedContext(test_config)
+    bus = MockBus("mock")
+    executor = MessageBusExecutor(context, [bus])
+    return executor, bus
 
 
 @pytest.mark.anyio
-async def test_messagebus_executor_enqueue_message(tmp_path: Path):
+async def test_messagebus_executor_enqueue_message(executor_with_mock_bus):
     """Test that messages are enqueued."""
-    from picklebot.core.context import SharedContext
-
-    config = _create_test_config(tmp_path)
-    context = SharedContext(config)
-
-    bus = MockBus("mock")
-    executor = MessageBusExecutor(context, [bus])
+    executor, _ = executor_with_mock_bus
 
     await executor._enqueue_message("Hello", "mock", "user123")
 
@@ -81,16 +68,9 @@ async def test_messagebus_executor_enqueue_message(tmp_path: Path):
 
 
 @pytest.mark.anyio
-async def test_messagebus_executor_processes_queue(tmp_path: Path):
+async def test_messagebus_executor_processes_queue(executor_with_mock_bus):
     """Test that messages are processed from queue."""
-    from picklebot.core.context import SharedContext
-    from unittest.mock import AsyncMock, patch
-
-    config = _create_test_config(tmp_path)
-    context = SharedContext(config)
-
-    bus = MockBus("mock")
-    executor = MessageBusExecutor(context, [bus])
+    executor, bus = executor_with_mock_bus
 
     # Mock the session.chat method to avoid LLM calls
     with patch.object(
@@ -120,16 +100,9 @@ async def test_messagebus_executor_processes_queue(tmp_path: Path):
 
 
 @pytest.mark.anyio
-async def test_messagebus_executor_handles_errors(tmp_path: Path):
+async def test_messagebus_executor_handles_errors(executor_with_mock_bus):
     """Test that errors during processing are handled gracefully."""
-    from picklebot.core.context import SharedContext
-    from unittest.mock import AsyncMock, patch
-
-    config = _create_test_config(tmp_path)
-    context = SharedContext(config)
-
-    bus = MockBus("mock")
-    executor = MessageBusExecutor(context, [bus])
+    executor, bus = executor_with_mock_bus
 
     # Mock session.chat to raise an error
     with patch.object(
@@ -159,13 +132,24 @@ async def test_messagebus_executor_handles_errors(tmp_path: Path):
 
 
 @pytest.mark.anyio
-async def test_messagebus_executor_multiple_platforms(tmp_path: Path):
+async def test_messagebus_executor_multiple_platforms(test_config):
     """Test that executor works with multiple platforms."""
-    from picklebot.core.context import SharedContext
-    from unittest.mock import AsyncMock, patch
+    # Create test agent (must match default_agent="test")
+    agents_path = test_config.agents_path
+    test_agent_dir = agents_path / "test"
+    test_agent_dir.mkdir(parents=True)
+    agent_file = test_agent_dir / "AGENT.md"
+    agent_file.write_text(
+        """---
+name: Test Agent
+description: A test agent
+---
 
-    config = _create_test_config(tmp_path)
-    context = SharedContext(config)
+You are a test assistant.
+"""
+    )
+
+    context = SharedContext(test_config)
 
     bus1 = MockBus("telegram")
     bus2 = MockBus("discord")
