@@ -83,6 +83,7 @@ Config paths are relative to workspace and auto-resolved:
 agents_path: Path = Path("agents")   # resolves to workspace/agents
 skills_path: Path = Path("skills")   # resolves to workspace/skills
 crons_path: Path = Path("crons")     # resolves to workspace/crons
+memories_path: Path = Path("memories")  # resolves to workspace/memories
 ```
 
 ### Agent Definitions
@@ -141,6 +142,20 @@ Check my inbox and summarize unread messages.
 ```
 
 Start the server with `picklebot server`. Jobs run sequentially with fresh sessions (no memory between runs).
+
+### Memory System
+
+Long-term memories are managed by the Cookie agent (a subagent). Cookie stores memories in markdown files with two organizational axes:
+
+- **topics/** - Timeless facts (user preferences, project knowledge)
+- **daily-notes/** - Day-specific events and decisions (YYYY-MM-DD.md)
+
+Memory flows:
+1. Real-time storage - Pickle dispatches to cookie during conversations
+2. Scheduled capture - Daily cron at 2AM extracts missed memories
+3. On-demand retrieval - Pickle dispatches to query relevant memories
+
+Cookie uses existing tools (read, write, edit) to manage memory files. No special tools required.
 
 ### Subagent Dispatch System
 

@@ -6,6 +6,7 @@ A personal AI assistant with pluggable tools, built with Python.
 
 - **Multi-Agent Support** - Define multiple agents with different prompts and settings
 - **Subagent Dispatch** - Delegate specialized work to other agents through tool calls
+- **Long-Term Memory** - Persistent memory via Cookie agent with topic and time-based organization
 - **Skill System** - On-demand capability loading for specialized tasks
 - **Pluggable Tools System** - Function calling with custom tools
 - **Cron Jobs** - Scheduled agent invocations via server mode
@@ -31,8 +32,13 @@ Configuration is stored in `~/.pickle-bot/`:
 ├── config.system.yaml    # System defaults
 ├── config.user.yaml      # Your overrides (optional)
 ├── agents/               # Agent definitions
-│   └── pickle/
-│       └── AGENT.md
+│   ├── pickle/
+│   │   └── AGENT.md
+│   └── cookie/
+│       └── AGENT.md           # Memory management agent
+├── memories/             # Long-term memory storage
+│   ├── topics/                # Timeless facts
+│   └── daily-notes/           # Day-specific events
 ├── skills/               # Skill definitions
 │   └── brainstorming/
 │       └── SKILL.md
@@ -58,6 +64,7 @@ llm:
   model: "zai/glm-4.7"
   api_key: "your-api-key"
   api_base: "https://api.z.ai/api/coding/paas/v4"
+memories_path: memories        # Optional: override memory storage location
 ```
 
 ## Usage
