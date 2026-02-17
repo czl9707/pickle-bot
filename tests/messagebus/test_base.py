@@ -1,10 +1,18 @@
 """Tests for MessageBus abstract interface."""
 
+from pathlib import Path
 import pytest
+
 from picklebot.messagebus.base import MessageBus
 from picklebot.messagebus.telegram_bus import TelegramBus
 from picklebot.messagebus.discord_bus import DiscordBus
-from picklebot.utils.config import TelegramConfig, DiscordConfig, MessageBusConfig
+from picklebot.utils.config import (
+    TelegramConfig,
+    DiscordConfig,
+    MessageBusConfig,
+    Config,
+    LLMConfig,
+)
 
 
 class MockBus(MessageBus):
@@ -38,20 +46,30 @@ async def test_messagebus_send_message_interface():
     # Should not raise
 
 
-def test_messagebus_from_config_empty():
+def test_messagebus_from_config_empty(tmp_path):
     """Test from_config returns empty list when no buses configured."""
-    config = MessageBusConfig(enabled=False)
+    config = Config(
+        workspace=tmp_path,
+        llm=LLMConfig(provider="test", model="test", api_key="test"),
+        default_agent="test",
+        messagebus=MessageBusConfig(enabled=False),
+    )
     buses = MessageBus.from_config(config)
     assert buses == []
 
 
-def test_messagebus_from_config_telegram():
+def test_messagebus_from_config_telegram(tmp_path):
     """Test from_config creates TelegramBus when configured."""
     telegram_config = TelegramConfig(enabled=True, bot_token="test_token")
-    config = MessageBusConfig(
-        enabled=True,
-        default_platform="telegram",
-        telegram=telegram_config,
+    config = Config(
+        workspace=tmp_path,
+        llm=LLMConfig(provider="test", model="test", api_key="test"),
+        default_agent="test",
+        messagebus=MessageBusConfig(
+            enabled=True,
+            default_platform="telegram",
+            telegram=telegram_config,
+        ),
     )
     buses = MessageBus.from_config(config)
 
@@ -60,13 +78,18 @@ def test_messagebus_from_config_telegram():
     assert buses[0].config == telegram_config
 
 
-def test_messagebus_from_config_discord():
+def test_messagebus_from_config_discord(tmp_path):
     """Test from_config creates DiscordBus when configured."""
     discord_config = DiscordConfig(enabled=True, bot_token="test_token")
-    config = MessageBusConfig(
-        enabled=True,
-        default_platform="discord",
-        discord=discord_config,
+    config = Config(
+        workspace=tmp_path,
+        llm=LLMConfig(provider="test", model="test", api_key="test"),
+        default_agent="test",
+        messagebus=MessageBusConfig(
+            enabled=True,
+            default_platform="discord",
+            discord=discord_config,
+        ),
     )
     buses = MessageBus.from_config(config)
 
@@ -75,13 +98,18 @@ def test_messagebus_from_config_discord():
     assert buses[0].config == discord_config
 
 
-def test_messagebus_from_config_both():
+def test_messagebus_from_config_both(tmp_path):
     """Test from_config creates both buses when both configured."""
-    config = MessageBusConfig(
-        enabled=True,
-        default_platform="telegram",
-        telegram=TelegramConfig(enabled=True, bot_token="test_token"),
-        discord=DiscordConfig(enabled=True, bot_token="test_token"),
+    config = Config(
+        workspace=tmp_path,
+        llm=LLMConfig(provider="test", model="test", api_key="test"),
+        default_agent="test",
+        messagebus=MessageBusConfig(
+            enabled=True,
+            default_platform="telegram",
+            telegram=TelegramConfig(enabled=True, bot_token="test_token"),
+            discord=DiscordConfig(enabled=True, bot_token="test_token"),
+        ),
     )
     buses = MessageBus.from_config(config)
 
@@ -90,12 +118,17 @@ def test_messagebus_from_config_both():
     assert isinstance(buses[1], DiscordBus)
 
 
-def test_messagebus_from_config_disabled_platform():
+def test_messagebus_from_config_disabled_platform(tmp_path):
     """Test from_config skips disabled platforms."""
-    config = MessageBusConfig(
-        enabled=True,
-        default_platform="telegram",
-        telegram=TelegramConfig(enabled=False, bot_token="test_token"),
+    config = Config(
+        workspace=tmp_path,
+        llm=LLMConfig(provider="test", model="test", api_key="test"),
+        default_agent="test",
+        messagebus=MessageBusConfig(
+            enabled=True,
+            default_platform="telegram",
+            telegram=TelegramConfig(enabled=False, bot_token="test_token"),
+        ),
     )
     buses = MessageBus.from_config(config)
 
