@@ -158,7 +158,9 @@ def test_messagebus_from_config_discord(tmp_path):
     assert buses[0].config == discord_config
 
 
-@pytest.mark.xfail(reason="TelegramBus and DiscordBus need update for new interface (Tasks 4 and 5)")
+@pytest.mark.xfail(
+    reason="TelegramBus and DiscordBus need update for new interface (Tasks 4 and 5)"
+)
 def test_messagebus_from_config_both(tmp_path):
     """Test from_config creates both buses when both configured."""
     config = Config(

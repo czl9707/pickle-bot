@@ -56,7 +56,9 @@ class TelegramBus(MessageBus[TelegramContext]):
                 chat_id = str(update.effective_chat.id)
                 message = update.message.text
 
-                logger.info(f"Received Telegram message from user {user_id} in chat {chat_id}")
+                logger.info(
+                    f"Received Telegram message from user {user_id} in chat {chat_id}"
+                )
 
                 ctx = TelegramContext(user_id=user_id, chat_id=chat_id)
 
