@@ -44,7 +44,7 @@ You are a test assistant.
             telegram=TelegramConfig(
                 enabled=True,
                 bot_token="test-token",
-                default_user_id="123456",
+                default_chat_id="123456",
             ),
         )
     else:
@@ -85,7 +85,7 @@ class TestPostMessageToolExecution:
 
     @pytest.mark.anyio
     async def test_sends_message_to_default_platform(self):
-        """Should send message to default_platform with default_user_id."""
+        """Should send message to default_platform with default_chat_id."""
 
         context = _make_context_with_messagebus(enabled=True, default_platform="telegram")
 
