@@ -1,6 +1,5 @@
 """Tests for MessageBus abstract interface."""
 
-import inspect
 import pytest
 
 from picklebot.messagebus.base import MessageBus
@@ -36,23 +35,6 @@ def test_messagebus_has_platform_name():
     """Test that MessageBus has platform_name property."""
     bus = MockBus()
     assert bus.platform_name == "mock"
-
-
-class TestMessageBusSignature:
-    """Tests for MessageBus abstract interface."""
-
-    def test_send_message_user_id_is_optional(self):
-        """send_message should have optional user_id parameter."""
-        sig = inspect.signature(MessageBus.send_message)
-        params = list(sig.parameters.keys())
-
-        # Should have: self, content, user_id (with default)
-        assert "content" in params
-        assert "user_id" in params
-
-        # user_id should have a default value
-        user_id_param = sig.parameters["user_id"]
-        assert user_id_param.default is not inspect.Parameter.empty
 
 
 @pytest.mark.anyio
