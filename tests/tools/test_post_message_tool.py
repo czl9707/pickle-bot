@@ -85,29 +85,27 @@ class TestPostMessageToolExecution:
 
     @pytest.mark.anyio
     async def test_sends_message_to_default_platform(self):
-        """Should send message to default_platform with default_chat_id."""
+        """Should send message to default_platform using post()."""
 
         context = _make_context_with_messagebus(enabled=True, default_platform="telegram")
 
-        # Find the telegram bus and mock its send_message
+        # Find the telegram bus and mock its post method
         telegram_bus = next(
             (b for b in context.messagebus_buses if b.platform_name == "telegram"), None
         )
         assert telegram_bus is not None
 
-        # Mock send_message
-        original_send = telegram_bus.send_message
-        telegram_bus.send_message = AsyncMock()
+        # Mock post
+        original_post = telegram_bus.post
+        telegram_bus.post = AsyncMock()
 
         tool = create_post_message_tool(context)
         assert tool is not None
 
         result = await tool.execute(content="Hello from agent!")
 
-        telegram_bus.send_message.assert_called_once_with(
-            content="Hello from agent!", user_id=None
-        )
+        telegram_bus.post.assert_called_once_with(content="Hello from agent!", target=None)
         assert "sent" in result.lower() or "success" in result.lower()
 
         # Restore
-        telegram_bus.send_message = original_send
+        telegram_bus.post = original_post

@@ -57,7 +57,7 @@ def create_post_message_tool(context: "SharedContext") -> BaseTool | None:
             Success or error message
         """
         try:
-            await default_bus.send_message(content=content, user_id=None)
+            await default_bus.post(content=content, target=None)
             return f"Message sent successfully to {default_platform}"
         except Exception as e:
             return f"Failed to send message: {e}"
