@@ -1,6 +1,7 @@
 """Tests for MessageBusExecutor."""
 
 import asyncio
+from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -11,7 +12,15 @@ from picklebot.core.messagebus_executor import MessageBusExecutor
 from picklebot.messagebus.base import MessageBus
 
 
-class MockBus(MessageBus):
+@dataclass
+class MockContext:
+    """Mock context for testing."""
+
+    user_id: str
+    chat_id: str
+
+
+class MockBus(MessageBus[MockContext]):
     """Mock bus for testing."""
 
     def __init__(self, platform_name: str):
@@ -27,14 +36,20 @@ class MockBus(MessageBus):
         self.started = True
         self._on_message = on_message
 
-    async def send_message(self, content: str, user_id: str | None = None) -> None:
-        self.messages_sent.append((user_id or "default", content))
+    def is_allowed(self, context: MockContext) -> bool:
+        return True  # Allow all in basic mock
+
+    async def reply(self, content: str, context: MockContext) -> None:
+        self.messages_sent.append((context.chat_id, content))
+
+    async def post(self, content: str, target: str | None = None) -> None:
+        self.messages_sent.append(("default", content))
 
     async def stop(self) -> None:
         self.started = False
 
 
-class MockBusWithConfig(MessageBus):
+class MockBusWithConfig(MessageBus[MockContext]):
     """Mock bus with config for whitelist testing."""
 
     def __init__(self, platform_name: str, allowed_user_ids: list[str] | None = None):
@@ -50,8 +65,16 @@ class MockBusWithConfig(MessageBus):
     async def start(self, on_message) -> None:
         pass
 
-    async def send_message(self, content: str, user_id: str | None = None) -> None:
-        self.messages_sent.append((user_id or "default", content))
+    def is_allowed(self, context: MockContext) -> bool:
+        if not self.config.allowed_user_ids:
+            return True
+        return context.user_id in self.config.allowed_user_ids
+
+    async def reply(self, content: str, context: MockContext) -> None:
+        self.messages_sent.append((context.chat_id, content))
+
+    async def post(self, content: str, target: str | None = None) -> None:
+        self.messages_sent.append(("default", content))
 
     async def stop(self) -> None:
         pass
@@ -124,7 +147,8 @@ class TestMessageEnqueue:
         """Test that messages are enqueued."""
         executor, _ = executor_with_mock_bus
 
-        await executor._enqueue_message("Hello", "mock", "user123")
+        ctx = MockContext(user_id="user123", chat_id="chat456")
+        await executor._enqueue_message("Hello", "mock", ctx)
 
         assert executor.message_queue.qsize() == 1
 
@@ -137,7 +161,8 @@ class TestMessageEnqueue:
         bus = MockBusWithConfig("mock", allowed_user_ids=["user123"])
         executor = MessageBusExecutor(context, [bus])
 
-        await executor._enqueue_message("Hello", "mock", "user123")
+        ctx = MockContext(user_id="user123", chat_id="chat456")
+        await executor._enqueue_message("Hello", "mock", ctx)
 
         assert executor.message_queue.qsize() == 1
 
@@ -150,7 +175,8 @@ class TestMessageEnqueue:
         bus = MockBusWithConfig("mock", allowed_user_ids=["user123"])
         executor = MessageBusExecutor(context, [bus])
 
-        await executor._enqueue_message("Hello", "mock", "unknown_user")
+        ctx = MockContext(user_id="unknown_user", chat_id="chat456")
+        await executor._enqueue_message("Hello", "mock", ctx)
 
         assert executor.message_queue.qsize() == 0
 
@@ -163,7 +189,8 @@ class TestMessageEnqueue:
         bus = MockBusWithConfig("mock", allowed_user_ids=[])
         executor = MessageBusExecutor(context, [bus])
 
-        await executor._enqueue_message("Hello", "mock", "any_user")
+        ctx = MockContext(user_id="any_user", chat_id="chat456")
+        await executor._enqueue_message("Hello", "mock", ctx)
 
         assert executor.message_queue.qsize() == 1
 
@@ -179,7 +206,8 @@ class TestMessageProcessing:
         with patch.object(executor.session, "chat", new_callable=AsyncMock) as mock_chat:
             mock_chat.return_value = "Test response"
 
-            await executor._enqueue_message("Hello", "mock", "user123")
+            ctx = MockContext(user_id="user123", chat_id="chat456")
+            await executor._enqueue_message("Hello", "mock", ctx)
 
             task = asyncio.create_task(executor._process_messages())
             await asyncio.sleep(0.5)
@@ -190,7 +218,7 @@ class TestMessageProcessing:
                 pass
 
             assert len(bus.messages_sent) > 0
-            assert bus.messages_sent[0] == ("user123", "Test response")
+            assert bus.messages_sent[0] == ("chat456", "Test response")
 
     @pytest.mark.anyio
     async def test_handles_errors(self, executor_with_mock_bus):
@@ -200,7 +228,8 @@ class TestMessageProcessing:
         with patch.object(executor.session, "chat", new_callable=AsyncMock) as mock_chat:
             mock_chat.side_effect = Exception("LLM error")
 
-            await executor._enqueue_message("Hello", "mock", "user123")
+            ctx = MockContext(user_id="user123", chat_id="chat456")
+            await executor._enqueue_message("Hello", "mock", ctx)
 
             task = asyncio.create_task(executor._process_messages())
             await asyncio.sleep(0.5)
@@ -231,8 +260,10 @@ class TestMultiPlatform:
         with patch.object(executor.session, "chat", new_callable=AsyncMock) as mock_chat:
             mock_chat.return_value = "Test response"
 
-            await executor._enqueue_message("Hello Telegram", "telegram", "user1")
-            await executor._enqueue_message("Hello Discord", "discord", "user2")
+            ctx1 = MockContext(user_id="user1", chat_id="chat1")
+            ctx2 = MockContext(user_id="user2", chat_id="chat2")
+            await executor._enqueue_message("Hello Telegram", "telegram", ctx1)
+            await executor._enqueue_message("Hello Discord", "discord", ctx2)
 
             task = asyncio.create_task(executor._process_messages())
             await asyncio.sleep(0.5)
@@ -243,6 +274,6 @@ class TestMultiPlatform:
                 pass
 
             assert len(bus1.messages_sent) == 1
-            assert bus1.messages_sent[0] == ("user1", "Test response")
+            assert bus1.messages_sent[0] == ("chat1", "Test response")
             assert len(bus2.messages_sent) == 1
-            assert bus2.messages_sent[0] == ("user2", "Test response")
+            assert bus2.messages_sent[0] == ("chat2", "Test response")

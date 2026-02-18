@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from typing import Any, Callable, Awaitable
 
 from picklebot.core.context import SharedContext
 from picklebot.core.agent import Agent
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 class MessageBusExecutor:
     """Orchestrates message flow between platforms and agent."""
 
-    def __init__(self, context: SharedContext, buses: list[MessageBus]):
+    def __init__(self, context: SharedContext, buses: list[MessageBus[Any]]):
         """
         Initialize MessageBusExecutor.
 
@@ -31,7 +32,8 @@ class MessageBusExecutor:
         self.session = agent.new_session()
 
         # Message queue for sequential processing
-        self.message_queue: asyncio.Queue[tuple[str, str, str]] = asyncio.Queue()
+        # Stores (message, platform, context) - context is platform-specific
+        self.message_queue: asyncio.Queue[tuple[str, str, Any]] = asyncio.Queue()
         self.frontend = SilentFrontend()
 
     async def run(self) -> None:
@@ -39,7 +41,10 @@ class MessageBusExecutor:
         logger.info("MessageBusExecutor started")
 
         worker_task = asyncio.create_task(self._process_messages())
-        bus_tasks = [bus.start(self._enqueue_message) for bus in self.buses]
+        # Create wrapper callbacks that add platform identifier
+        bus_tasks = [
+            bus.start(self._create_callback(bus.platform_name)) for bus in self.buses
+        ]
 
         try:
             await asyncio.gather(worker_task, *bus_tasks)
@@ -48,48 +53,60 @@ class MessageBusExecutor:
             await asyncio.gather(*[bus.stop() for bus in self.buses])
             raise
 
-    async def _enqueue_message(
-        self, message: str, platform: str, user_id: str
-    ) -> None:
+    def _create_callback(
+        self, platform: str
+    ) -> Callable[[str, Any], Awaitable[None]]:
+        """
+        Create a callback wrapper for a specific platform.
+
+        Args:
+            platform: Platform identifier
+
+        Returns:
+            Async callback function that enqueues messages with platform info
+        """
+
+        async def callback(message: str, context: Any) -> None:
+            await self._enqueue_message(message, platform, context)
+
+        return callback
+
+    async def _enqueue_message(self, message: str, platform: str, context: Any) -> None:
         """
         Add incoming message to queue (called by buses).
 
         Args:
             message: User message content
             platform: Platform identifier
-            user_id: Platform-specific user ID
+            context: Platform-specific message context
         """
         bus = self.bus_map[platform]
 
-        # Check whitelist (empty list allows all)
-        if (
-            hasattr(bus, "config")
-            and bus.config.allowed_user_ids
-            and user_id not in bus.config.allowed_user_ids
-        ):
-            logger.info(f"Ignored message from non-whitelisted user {platform}/{user_id}")
+        # Delegate whitelist check to bus
+        if not bus.is_allowed(context):
+            logger.info(f"Ignored message from non-whitelisted user on {platform}")
             return
 
-        await self.message_queue.put((message, platform, user_id))
-        logger.debug(f"Enqueued message from {platform}/{user_id}")
+        await self.message_queue.put((message, platform, context))
+        logger.debug(f"Enqueued message from {platform}")
 
     async def _process_messages(self) -> None:
         """Worker that processes messages sequentially from queue."""
         while True:
-            message, platform, user_id = await self.message_queue.get()
+            message, platform, context = await self.message_queue.get()
 
-            logger.info(f"Processing message from {platform}/{user_id}")
+            logger.info(f"Processing message from {platform}")
 
             try:
                 response = await self.session.chat(message, self.frontend)
-                await self.bus_map[platform].send_message(content=response, user_id=user_id)
-                logger.info(f"Sent response to {platform}/{user_id}")
+                await self.bus_map[platform].reply(content=response, context=context)
+                logger.info(f"Sent response to {platform}")
             except Exception as e:
                 logger.error(f"Error processing message from {platform}: {e}")
                 try:
-                    await self.bus_map[platform].send_message(
+                    await self.bus_map[platform].reply(
                         content="Sorry, I encountered an error processing your message.",
-                        user_id=user_id,
+                        context=context,
                     )
                 except Exception as send_error:
                     logger.error(f"Failed to send error message: {send_error}")
