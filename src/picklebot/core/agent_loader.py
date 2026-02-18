@@ -98,7 +98,7 @@ class AgentLoader:
         try:
             return AgentDef(
                 id=def_id,
-                name=frontmatter.get("name"),
+                name=frontmatter["name"],  # type: ignore[misc]
                 description=frontmatter.get("description", ""),
                 system_prompt=body.strip(),
                 llm=merged_llm,

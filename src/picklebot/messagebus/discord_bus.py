@@ -6,13 +6,13 @@ from typing import Callable, Awaitable
 
 import discord
 
-from picklebot.messagebus.base import MessageBus
+from picklebot.messagebus.base import MessageBus, DiscordContext
 from picklebot.utils.config import DiscordConfig
 
 logger = logging.getLogger(__name__)
 
 
-class DiscordBus(MessageBus):
+class DiscordBus(MessageBus[DiscordContext]):
     """Discord platform implementation using discord.py."""
 
     def __init__(self, config: DiscordConfig):
@@ -31,14 +31,9 @@ class DiscordBus(MessageBus):
         return "discord"
 
     async def start(
-        self, on_message: Callable[[str, str, str], Awaitable[None]]
+        self, on_message: Callable[[str, DiscordContext], Awaitable[None]]
     ) -> None:
-        """
-        Start listening for Discord messages.
-
-        Args:
-            on_message: Callback for incoming messages
-        """
+        """Start listening for Discord messages."""
         logger.info(f"Message bus enabled with platform: {self.platform_name}")
 
         # Configure intents
@@ -49,13 +44,13 @@ class DiscordBus(MessageBus):
         self.client = discord.Client(intents=intents)
 
         @self.client.event
-        async def _on_discord_message(message: discord.Message):
+        async def _on_discord_message(message: discord.Message) -> None:
             """Handle incoming Discord message."""
             # Ignore bot's own messages
-            if message.author == self.client.user:
+            if self.client and message.author == self.client.user:
                 return
 
-            # Check channel restriction
+            # Check channel restriction (optional)
             if (
                 self.config.channel_id
                 and str(message.channel.id) != self.config.channel_id
@@ -66,13 +61,17 @@ class DiscordBus(MessageBus):
             if not message.content:
                 return
 
-            user_id = str(message.channel.id)
+            # Extract user_id (the person) and channel_id (the channel)
+            user_id = str(message.author.id)
+            channel_id = str(message.channel.id)
             content = message.content
 
-            logger.info(f"Received Discord message from {user_id}")
+            logger.info(f"Received Discord message from user {user_id} in channel {channel_id}")
+
+            ctx = DiscordContext(user_id=user_id, channel_id=channel_id)
 
             try:
-                await on_message(content, self.platform_name, user_id)
+                await on_message(content, ctx)
             except Exception as e:
                 logger.error(f"Error in message callback: {e}")
 
@@ -84,31 +83,48 @@ class DiscordBus(MessageBus):
 
         logger.info("DiscordBus started")
 
-    async def send_message(self, content: str, user_id: str | None = None) -> None:
-        """
-        Send message to Discord channel.
+    def is_allowed(self, context: DiscordContext) -> bool:
+        """Check if sender is whitelisted."""
+        if not self.config.allowed_user_ids:
+            return True
+        return context.user_id in self.config.allowed_user_ids
 
-        Args:
-            content: Message content
-            user_id: Discord channel ID (uses default_user_id if not provided)
-        """
+    async def reply(self, content: str, context: DiscordContext) -> None:
+        """Reply to incoming message in the same channel."""
         if not self.client:
             raise RuntimeError("DiscordBus not started")
 
-        # Fall back to default user if not provided
-        target_user = user_id or self.config.default_user_id
-        if not target_user:
-            raise ValueError("No user_id provided and no default_user_id configured")
+        try:
+            channel = self.client.get_channel(int(context.channel_id))
+            if not channel:
+                raise ValueError(f"Channel {context.channel_id} not found")
+
+            # Type ignore: discord.py returns a union, but we know text channels have send()
+            await channel.send(content)  # type: ignore[union-attr]
+            logger.debug(f"Sent Discord reply to {context.channel_id}")
+        except Exception as e:
+            logger.error(f"Failed to send Discord reply: {e}")
+            raise
+
+    async def post(self, content: str, target: str | None = None) -> None:
+        """Post proactive message to default_chat_id."""
+        if not self.client:
+            raise RuntimeError("DiscordBus not started")
+
+        # For now, ignore target parameter (future: support "user:123" or "channel:456")
+        if not self.config.default_chat_id:
+            raise ValueError("No default_chat_id configured")
 
         try:
-            channel = self.client.get_channel(int(target_user))
+            channel = self.client.get_channel(int(self.config.default_chat_id))
             if not channel:
-                raise ValueError(f"Channel {target_user} not found")
+                raise ValueError(f"Channel {self.config.default_chat_id} not found")
 
-            await channel.send(content)
-            logger.debug(f"Sent Discord message to {target_user}")
+            # Type ignore: discord.py returns a union, but we know text channels have send()
+            await channel.send(content)  # type: ignore[union-attr]
+            logger.debug(f"Sent Discord post to {self.config.default_chat_id}")
         except Exception as e:
-            logger.error(f"Failed to send Discord message: {e}")
+            logger.error(f"Failed to send Discord post: {e}")
             raise
 
     async def stop(self) -> None:

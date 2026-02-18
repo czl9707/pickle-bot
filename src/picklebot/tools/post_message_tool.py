@@ -26,6 +26,8 @@ def create_post_message_tool(context: "SharedContext") -> BaseTool | None:
 
     # Get default platform
     default_platform = config.messagebus.default_platform
+    if default_platform is None:
+        return None
     bus_map = {bus.platform_name: bus for bus in context.messagebus_buses}
     default_bus = bus_map.get(default_platform)
 
@@ -57,7 +59,7 @@ def create_post_message_tool(context: "SharedContext") -> BaseTool | None:
             Success or error message
         """
         try:
-            await default_bus.send_message(content=content, user_id=None)
+            await default_bus.post(content=content, target=None)
             return f"Message sent successfully to {default_platform}"
         except Exception as e:
             return f"Failed to send message: {e}"

@@ -52,7 +52,7 @@ src/picklebot/
 
 **MessageBusExecutor** (`core/messagebus_executor.py`): Handles incoming messages from messaging platforms. Uses queue-based sequential processing with a shared AgentSession across all platforms. Responses route back to sender's platform.
 
-**MessageBus** (`messagebus/base.py`): Abstract base for messaging platforms. Defines interface for `start()`, `send_message()`, and `stop()`. Factory method `from_config()` creates configured bus instances. Implementations: `TelegramBus`, `DiscordBus`.
+**MessageBus** (`messagebus/base.py`): Abstract generic base with platform-specific context. Key methods: `is_allowed(context)`, `reply(content, context)`, `post(content, target=None)`. Implementations: `TelegramBus[TelegramContext]`, `DiscordBus[DiscordContext]`.
 
 **HistoryStore** (`core/history.py`): JSON file-based persistence. Directory: `~/.pickle-bot/history/sessions/` with an `index.json` for fast session listing. `HistoryMessage` has `from_message()` and `to_message()` methods for litellm Message conversion.
 
@@ -160,14 +160,14 @@ messagebus:
   telegram:
     enabled: true
     bot_token: "your-token"
-    allowed_user_ids: ["123456789"]  # Whitelist for incoming messages
-    default_user_id: "123456789"     # Target for agent-initiated messages
+    allowed_chat_ids: ["123456789"]  # Whitelist for incoming messages
+    default_chat_id: "123456789"     # Target for agent-initiated messages
   discord:
     enabled: false
     bot_token: "your-token"
     channel_id: "optional-id"
-    allowed_user_ids: []
-    default_user_id: ""
+    allowed_chat_ids: []
+    default_chat_id: ""
 ```
 
 **Architecture:**
@@ -176,21 +176,22 @@ messagebus:
 - Platform routing: user messages → reply to sender's platform, cron messages → `default_platform`
 - `MessageBus.from_config()` factory creates bus instances with inline imports to avoid circular dependencies
 
-**User Whitelist:**
-- `allowed_user_ids` filters incoming messages per platform
-- Empty list allows all users; non-empty list restricts to listed IDs
+**Chat Whitelist:**
+- `allowed_chat_ids` filters incoming messages per platform
+- Empty list allows all chats; non-empty list restricts to listed IDs
 - Non-whitelisted messages are silently ignored (logged at INFO level)
 
 **Post Message Tool:**
 - `post_message_tool.py` provides `create_post_message_tool()` factory
-- Tool sends messages to `default_user_id` on `default_platform`
+- Tool sends messages to `default_chat_id` on `default_platform`
 - Only registered when messagebus is enabled with valid config
 - Useful for cron job notifications and proactive alerts
 
 **Implementation:**
 - `MessageBusExecutor` runs alongside `CronExecutor` in server mode
-- Each platform implements `MessageBus` abstract interface
-- `send_message(content, user_id=None)` falls back to `default_user_id`
+- Each platform implements `MessageBus` abstract interface with typed context
+- `reply(content, context)` sends to the context's originating chat
+- `post(content, target=None)` sends to `default_chat_id` if target not specified
 - Console logging enabled in server mode via `setup_logging(config, console_output=True)`
 
 ### Memory System

@@ -3,7 +3,7 @@
 from picklebot.core.agent import Agent
 from picklebot.core.agent_loader import AgentBehaviorConfig, AgentDef
 from picklebot.core.context import SharedContext
-from picklebot.utils.config import Config, LLMConfig
+from picklebot.utils.config import LLMConfig
 
 
 def test_agent_creation_with_new_structure(test_agent, test_agent_def, test_context):

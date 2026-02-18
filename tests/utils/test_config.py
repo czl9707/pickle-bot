@@ -62,30 +62,30 @@ class TestConfigValidation:
         assert "default_agent" in str(exc.value)
 
     def test_telegram_config_allows_user_fields(self, llm_config):
-        """TelegramConfig should accept allowed_user_ids and default_user_id."""
+        """TelegramConfig should accept allowed_user_ids and default_chat_id."""
         from picklebot.utils.config import TelegramConfig
 
         telegram = TelegramConfig(
             enabled=True,
             bot_token="test-token",
             allowed_user_ids=["123456"],
-            default_user_id="123456",
+            default_chat_id="123456",
         )
         assert telegram.allowed_user_ids == ["123456"]
-        assert telegram.default_user_id == "123456"
+        assert telegram.default_chat_id == "123456"
 
     def test_discord_config_allows_user_fields(self, llm_config):
-        """DiscordConfig should accept allowed_user_ids and default_user_id."""
+        """DiscordConfig should accept allowed_user_ids and default_chat_id."""
         from picklebot.utils.config import DiscordConfig
 
         discord = DiscordConfig(
             enabled=True,
             bot_token="test-token",
             allowed_user_ids=["789012"],
-            default_user_id="789012",
+            default_chat_id="789012",
         )
         assert discord.allowed_user_ids == ["789012"]
-        assert discord.default_user_id == "789012"
+        assert discord.default_chat_id == "789012"
 
     def test_messagebus_user_fields_default_to_empty(self, llm_config):
         """User fields should have sensible defaults."""
@@ -93,8 +93,32 @@ class TestConfigValidation:
 
         telegram = TelegramConfig(enabled=True, bot_token="test-token")
         assert telegram.allowed_user_ids == []
-        assert telegram.default_user_id is None
+        assert telegram.default_chat_id is None
 
         discord = DiscordConfig(enabled=True, bot_token="test-token")
         assert discord.allowed_user_ids == []
-        assert discord.default_user_id is None
+        assert discord.default_chat_id is None
+
+
+class TestConfigDefaultChatId:
+    """Tests for default_chat_id config field."""
+
+    def test_telegram_config_has_default_chat_id(self):
+        """TelegramConfig should have default_chat_id field."""
+        from picklebot.utils.config import TelegramConfig
+
+        config = TelegramConfig(
+            bot_token="test-token",
+            default_chat_id="123456",
+        )
+        assert config.default_chat_id == "123456"
+
+    def test_discord_config_has_default_chat_id(self):
+        """DiscordConfig should have default_chat_id field."""
+        from picklebot.utils.config import DiscordConfig
+
+        config = DiscordConfig(
+            bot_token="test-token",
+            default_chat_id="789012",
+        )
+        assert config.default_chat_id == "789012"
