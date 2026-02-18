@@ -61,10 +61,6 @@ class TestConfigValidation:
             )
         assert "default_agent" in str(exc.value)
 
-
-class TestMessageBusUserFields:
-    """Tests for messagebus user configuration fields."""
-
     def test_telegram_config_allows_user_fields(self, llm_config):
         """TelegramConfig should accept allowed_user_ids and default_user_id."""
         from picklebot.utils.config import TelegramConfig
@@ -91,7 +87,7 @@ class TestMessageBusUserFields:
         assert discord.allowed_user_ids == ["789012"]
         assert discord.default_user_id == "789012"
 
-    def test_user_fields_default_to_empty(self, llm_config):
+    def test_messagebus_user_fields_default_to_empty(self, llm_config):
         """User fields should have sensible defaults."""
         from picklebot.utils.config import TelegramConfig, DiscordConfig
 
