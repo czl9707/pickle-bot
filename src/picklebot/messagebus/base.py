@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Callable, Awaitable, Generic, TypeVar
+from typing import Callable, Awaitable, Generic, TypeVar, Any
 
 from picklebot.utils.config import Config
 
@@ -26,8 +26,8 @@ class DiscordContext:
     channel_id: str  # channel.id - for replying
 
 
-class MessageBus(ABC):
-    """Abstract base for messaging platforms."""
+class MessageBus(ABC, Generic[T]):
+    """Abstract base for messaging platforms with platform-specific context."""
 
     @property
     @abstractmethod
@@ -41,25 +41,47 @@ class MessageBus(ABC):
         pass
 
     @abstractmethod
-    async def start(
-        self, on_message: Callable[[str, str, str], Awaitable[None]]
-    ) -> None:
+    async def start(self, on_message: Callable[[str, T], Awaitable[None]]) -> None:
         """
         Start listening for messages.
 
         Args:
-            on_message: Callback async function(message: str, platform: str, user_id: str)
+            on_message: Callback async function(message: str, context: T)
         """
         pass
 
     @abstractmethod
-    async def send_message(self, content: str, user_id: str | None = None) -> None:
+    def is_allowed(self, context: T) -> bool:
         """
-        Send message to user on this platform.
+        Check if sender is whitelisted.
+
+        Args:
+            context: Platform-specific message context
+
+        Returns:
+            True if sender is allowed
+        """
+        pass
+
+    @abstractmethod
+    async def reply(self, content: str, context: T) -> None:
+        """
+        Reply to incoming message.
 
         Args:
             content: Message content to send
-            user_id: Platform-specific user identifier (uses default if not provided)
+            context: Platform-specific context from incoming message
+        """
+        pass
+
+    @abstractmethod
+    async def post(self, content: str, target: str | None = None) -> None:
+        """
+        Post proactive message to default destination or specific target.
+
+        Args:
+            content: Message content to send
+            target: Optional target (e.g., "user:123", "channel:456")
         """
         pass
 
@@ -69,7 +91,7 @@ class MessageBus(ABC):
         pass
 
     @staticmethod
-    def from_config(config: Config) -> list["MessageBus"]:
+    def from_config(config: Config) -> list["MessageBus[Any]"]:
         """
         Create message bus instances from configuration.
 
@@ -83,7 +105,7 @@ class MessageBus(ABC):
         from picklebot.messagebus.telegram_bus import TelegramBus
         from picklebot.messagebus.discord_bus import DiscordBus
 
-        buses: list["MessageBus"] = []
+        buses: list["MessageBus[Any]"] = []
         bus_config = config.messagebus
         if bus_config.telegram and bus_config.telegram.enabled:
             buses.append(TelegramBus(bus_config.telegram))

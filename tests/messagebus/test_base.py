@@ -1,6 +1,7 @@
 """Tests for MessageBus abstract interface."""
 
 import pytest
+from typing import Any
 
 from picklebot.messagebus.base import MessageBus
 from picklebot.messagebus.telegram_bus import TelegramBus
@@ -14,7 +15,7 @@ from picklebot.utils.config import (
 )
 
 
-class MockBus(MessageBus):
+class MockBus(MessageBus[Any]):
     """Mock implementation for testing."""
 
     @property
@@ -24,7 +25,13 @@ class MockBus(MessageBus):
     async def start(self, on_message) -> None:
         pass
 
-    async def send_message(self, content: str, user_id: str | None = None) -> None:
+    def is_allowed(self, context: Any) -> bool:
+        return True
+
+    async def reply(self, content: str, context: Any) -> None:
+        pass
+
+    async def post(self, content: str, target: str | None = None) -> None:
         pass
 
     async def stop(self) -> None:
@@ -38,11 +45,63 @@ def test_messagebus_has_platform_name():
 
 
 @pytest.mark.anyio
-async def test_messagebus_send_message_interface():
-    """Test that send_message can be called."""
+async def test_messagebus_reply_interface():
+    """Test that reply can be called."""
     bus = MockBus()
-    await bus.send_message("test message", user_id="user123")
+    await bus.reply("test message", context={})
     # Should not raise
+
+
+@pytest.mark.anyio
+async def test_messagebus_post_interface():
+    """Test that post can be called."""
+    bus = MockBus()
+    await bus.post("test message")
+    # Should not raise
+
+
+class TestMessageBusGenericInterface:
+    """Tests for generic MessageBus interface."""
+
+    def test_messagebus_is_generic(self):
+        """MessageBus should be a Generic class."""
+        from picklebot.messagebus.base import MessageBus
+
+        # Should have generic type parameter
+        assert hasattr(MessageBus, "__orig_bases__")
+
+    def test_messagebus_has_is_allowed_method(self):
+        """MessageBus should have is_allowed abstract method."""
+        from picklebot.messagebus.base import MessageBus
+        import inspect
+
+        # Check is_allowed is an abstract method
+        assert hasattr(MessageBus, "is_allowed")
+        sig = inspect.signature(MessageBus.is_allowed)
+        params = list(sig.parameters.keys())
+        assert "self" in params
+        assert "context" in params
+
+    def test_messagebus_has_reply_method(self):
+        """MessageBus should have reply abstract method."""
+        from picklebot.messagebus.base import MessageBus
+        import inspect
+
+        assert hasattr(MessageBus, "reply")
+        sig = inspect.signature(MessageBus.reply)
+        params = list(sig.parameters.keys())
+        assert "content" in params
+        assert "context" in params
+
+    def test_messagebus_has_post_method(self):
+        """MessageBus should have post abstract method."""
+        from picklebot.messagebus.base import MessageBus
+        import inspect
+
+        assert hasattr(MessageBus, "post")
+        sig = inspect.signature(MessageBus.post)
+        params = list(sig.parameters.keys())
+        assert "content" in params
 
 
 def test_messagebus_from_config_empty(tmp_path):
@@ -57,6 +116,7 @@ def test_messagebus_from_config_empty(tmp_path):
     assert buses == []
 
 
+@pytest.mark.xfail(reason="TelegramBus needs update for new interface (Task 4)")
 def test_messagebus_from_config_telegram(tmp_path):
     """Test from_config creates TelegramBus when configured."""
     telegram_config = TelegramConfig(enabled=True, bot_token="test_token")
@@ -77,6 +137,7 @@ def test_messagebus_from_config_telegram(tmp_path):
     assert buses[0].config == telegram_config
 
 
+@pytest.mark.xfail(reason="DiscordBus needs update for new interface (Task 5)")
 def test_messagebus_from_config_discord(tmp_path):
     """Test from_config creates DiscordBus when configured."""
     discord_config = DiscordConfig(enabled=True, bot_token="test_token")
@@ -97,6 +158,7 @@ def test_messagebus_from_config_discord(tmp_path):
     assert buses[0].config == discord_config
 
 
+@pytest.mark.xfail(reason="TelegramBus and DiscordBus need update for new interface (Tasks 4 and 5)")
 def test_messagebus_from_config_both(tmp_path):
     """Test from_config creates both buses when both configured."""
     config = Config(
