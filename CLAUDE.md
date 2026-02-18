@@ -195,9 +195,10 @@ messagebus:
 
 ### Memory System
 
-Long-term memories are managed by the Cookie agent (a subagent). Cookie stores memories in markdown files with two organizational axes:
+Long-term memories are managed by the Cookie agent (a subagent). Cookie stores memories in markdown files with three organizational axes:
 
-- **topics/** - Timeless facts (user preferences, project knowledge)
+- **topics/** - Timeless facts about the user (preferences, identity, relationships)
+- **projects/** - Project state and context (status, progress, blockers, next steps)
 - **daily-notes/** - Day-specific events and decisions (YYYY-MM-DD.md)
 
 Memory flows:
@@ -206,6 +207,35 @@ Memory flows:
 3. On-demand retrieval - Pickle dispatches to query relevant memories
 
 Cookie uses existing tools (read, write, edit) to manage memory files. No special tools required.
+
+### Heartbeat & Continuous Work
+
+Pickle-bot can work continuously on projects through the heartbeat cron (`~/.pickle-bot/crons/heartbeat/CRON.md`):
+
+```markdown
+---
+name: Heartbeat
+agent: pickle
+schedule: "*/30 * * * *"  # Every 30 minutes
+---
+
+## Active Tasks
+
+- [ ] Check on project X progress
+- [ ] Monitor build status for project Y
+
+## Completed
+
+<!-- Move completed tasks here -->
+```
+
+**Workflow:**
+1. User assigns project → Cookie creates `memories/projects/{name}.md`
+2. User asks for periodic check → Pickle adds task to heartbeat CRON.md body
+3. Heartbeat fires → Pickle reads active tasks, checks project state, acts if needed
+4. User asks to stop → Pickle removes task from heartbeat
+
+This enables agents to work on projects autonomously between user interactions.
 
 ### Subagent Dispatch System
 
