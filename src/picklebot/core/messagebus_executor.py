@@ -53,9 +53,7 @@ class MessageBusExecutor:
             await asyncio.gather(*[bus.stop() for bus in self.buses])
             raise
 
-    def _create_callback(
-        self, platform: str
-    ) -> Callable[[str, Any], Awaitable[None]]:
+    def _create_callback(self, platform: str) -> Callable[[str, Any], Awaitable[None]]:
         """
         Create a callback wrapper for a specific platform.
 

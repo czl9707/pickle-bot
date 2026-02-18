@@ -203,7 +203,9 @@ class TestMessageProcessing:
         """Test that messages are processed from queue."""
         executor, bus = executor_with_mock_bus
 
-        with patch.object(executor.session, "chat", new_callable=AsyncMock) as mock_chat:
+        with patch.object(
+            executor.session, "chat", new_callable=AsyncMock
+        ) as mock_chat:
             mock_chat.return_value = "Test response"
 
             ctx = MockContext(user_id="user123", chat_id="chat456")
@@ -225,7 +227,9 @@ class TestMessageProcessing:
         """Test that errors during processing are handled gracefully."""
         executor, bus = executor_with_mock_bus
 
-        with patch.object(executor.session, "chat", new_callable=AsyncMock) as mock_chat:
+        with patch.object(
+            executor.session, "chat", new_callable=AsyncMock
+        ) as mock_chat:
             mock_chat.side_effect = Exception("LLM error")
 
             ctx = MockContext(user_id="user123", chat_id="chat456")
@@ -257,7 +261,9 @@ class TestMultiPlatform:
         bus2 = MockBus("discord")
         executor = MessageBusExecutor(context, [bus1, bus2])
 
-        with patch.object(executor.session, "chat", new_callable=AsyncMock) as mock_chat:
+        with patch.object(
+            executor.session, "chat", new_callable=AsyncMock
+        ) as mock_chat:
             mock_chat.return_value = "Test response"
 
             ctx1 = MockContext(user_id="user1", chat_id="chat1")

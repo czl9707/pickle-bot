@@ -98,9 +98,9 @@ class CronLoader:
         try:
             return CronDef(
                 id=def_id,
-                name=frontmatter.get("name"),
-                agent=frontmatter.get("agent"),
-                schedule=frontmatter.get("schedule"),
+                name=frontmatter["name"],  # type: ignore[misc]
+                agent=frontmatter["agent"],  # type: ignore[misc]
+                schedule=frontmatter["schedule"],  # type: ignore[misc]
                 prompt=body.strip(),
             )
         except ValidationError as e:
@@ -142,9 +142,9 @@ class CronLoader:
         try:
             return CronDef(
                 id=def_id,
-                name=frontmatter.get("name"),
-                agent=frontmatter.get("agent"),
-                schedule=frontmatter.get("schedule"),
+                name=frontmatter["name"],  # type: ignore[misc]
+                agent=frontmatter["agent"],  # type: ignore[misc]
+                schedule=frontmatter["schedule"],  # type: ignore[misc]
                 prompt=body.strip(),
             )
         except ValidationError as e:

@@ -52,8 +52,8 @@ class SkillLoader:
         try:
             return SkillDef(
                 id=def_id,
-                name=frontmatter.get("name"),
-                description=frontmatter.get("description"),
+                name=frontmatter["name"],  # type: ignore[misc]
+                description=frontmatter["description"],  # type: ignore[misc]
                 content=body.strip(),
             )
         except ValidationError as e:
