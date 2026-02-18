@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from picklebot.messagebus.base import TelegramContext
 from picklebot.messagebus.telegram_bus import TelegramBus
 from picklebot.utils.config import TelegramConfig
 
@@ -36,8 +37,11 @@ async def test_telegram_bus_start_stop():
     with patch("picklebot.messagebus.telegram_bus.Application.builder") as mock_builder:
         mock_builder.return_value.token.return_value.build.return_value = mock_app
 
-        # Should not raise
-        await bus.start(lambda msg, plat, uid: None)
+        # Should not raise - callback now receives (message, context)
+        async def dummy_callback(msg: str, ctx: TelegramContext) -> None:
+            pass
+
+        await bus.start(dummy_callback)
         await bus.stop()
 
         # Verify lifecycle was called
@@ -49,41 +53,77 @@ async def test_telegram_bus_start_stop():
         mock_app.shutdown.assert_called_once()
 
 
-@pytest.mark.anyio
-async def test_telegram_bus_send_message_not_started():
-    """Test that send_message raises when not started."""
-    config = TelegramConfig(bot_token="test_token")
-    bus = TelegramBus(config)
-
-    with pytest.raises(RuntimeError, match="TelegramBus not started"):
-        await bus.send_message(content="Hello, world!", user_id="12345")
-
-
-class TestTelegramBusSendMesssageUserIdHandling:
-    """Tests for send_message user_id handling."""
+class TestTelegramBusReplyNotStarted:
+    """Tests for TelegramBus.reply when not started."""
 
     @pytest.mark.anyio
-    @pytest.mark.parametrize(
-        "user_id,default_user_id,expected_chat_id,should_raise",
-        [
-            # Explicit user_id overrides default
-            ("111222333", "999888777", 111222333, False),
-            # Fallback to default when no user_id
-            (None, "999888777", 999888777, False),
-            # Error when neither provided
-            (None, None, None, True),
-        ],
-        ids=["explicit_user_id", "fallback_to_default", "error_no_user_no_default"],
-    )
-    async def test_send_message_user_id_handling(
-        self, user_id, default_user_id, expected_chat_id, should_raise
-    ):
-        """Test send_message handles user_id correctly in all cases."""
+    async def test_reply_raises_when_not_started(self):
+        """reply should raise when not started."""
+        config = TelegramConfig(bot_token="test_token")
+        bus = TelegramBus(config)
+
+        ctx = TelegramContext(user_id="user123", chat_id="456789")
+        with pytest.raises(RuntimeError, match="TelegramBus not started"):
+            await bus.reply(content="Hello, world!", context=ctx)
+
+
+class TestTelegramBusPostNotStarted:
+    """Tests for TelegramBus.post when not started."""
+
+    @pytest.mark.anyio
+    async def test_post_raises_when_not_started(self):
+        """post should raise when not started."""
+        config = TelegramConfig(bot_token="test_token", default_chat_id="12345")
+        bus = TelegramBus(config)
+
+        with pytest.raises(RuntimeError, match="TelegramBus not started"):
+            await bus.post(content="Hello, world!")
+
+
+class TestTelegramBusIsAllowed:
+    """Tests for TelegramBus.is_allowed method."""
+
+    def test_is_allowed_returns_true_for_whitelisted_user(self):
+        """is_allowed should return True for whitelisted user."""
         config = TelegramConfig(
-            enabled=True,
             bot_token="test-token",
-            default_user_id=default_user_id,
+            allowed_user_ids=["user123"],
         )
+        bus = TelegramBus(config)
+
+        ctx = TelegramContext(user_id="user123", chat_id="456789")
+        assert bus.is_allowed(ctx) is True
+
+    def test_is_allowed_returns_false_for_non_whitelisted_user(self):
+        """is_allowed should return False for non-whitelisted user."""
+        config = TelegramConfig(
+            bot_token="test-token",
+            allowed_user_ids=["user123"],
+        )
+        bus = TelegramBus(config)
+
+        ctx = TelegramContext(user_id="unknown", chat_id="456789")
+        assert bus.is_allowed(ctx) is False
+
+    def test_is_allowed_returns_true_when_whitelist_empty(self):
+        """is_allowed should return True when whitelist is empty."""
+        config = TelegramConfig(
+            bot_token="test-token",
+            allowed_user_ids=[],
+        )
+        bus = TelegramBus(config)
+
+        ctx = TelegramContext(user_id="anyone", chat_id="456789")
+        assert bus.is_allowed(ctx) is True
+
+
+class TestTelegramBusReply:
+    """Tests for TelegramBus.reply method."""
+
+    @pytest.mark.anyio
+    async def test_reply_sends_to_chat_id(self):
+        """reply should send to context.chat_id."""
+        config = TelegramConfig(bot_token="test-token")
         bus = TelegramBus(config)
 
         # Mock the application
@@ -91,15 +131,43 @@ class TestTelegramBusSendMesssageUserIdHandling:
         mock_app.bot.send_message = AsyncMock()
         bus.application = mock_app
 
-        if should_raise:
-            with pytest.raises(
-                ValueError, match="No user_id provided and no default_user_id configured"
-            ):
-                await bus.send_message(content="Test message", user_id=user_id)
-        else:
-            await bus.send_message(content="Test message", user_id=user_id)
+        # Use numeric strings for chat_id (Telegram uses numeric IDs)
+        ctx = TelegramContext(user_id="user123", chat_id="456789")
+        await bus.reply(content="Test reply", context=ctx)
 
-            mock_app.bot.send_message.assert_called_once()
-            call_args = mock_app.bot.send_message.call_args
-            assert call_args.kwargs["chat_id"] == expected_chat_id
-            assert call_args.kwargs["text"] == "Test message"
+        mock_app.bot.send_message.assert_called_once()
+        call_args = mock_app.bot.send_message.call_args
+        assert call_args.kwargs["chat_id"] == 456789
+        assert call_args.kwargs["text"] == "Test reply"
+
+
+class TestTelegramBusPost:
+    """Tests for TelegramBus.post method."""
+
+    @pytest.mark.anyio
+    async def test_post_sends_to_default_chat_id(self):
+        """post should send to config.default_chat_id."""
+        config = TelegramConfig(bot_token="test-token", default_chat_id="999888")
+        bus = TelegramBus(config)
+
+        # Mock the application
+        mock_app = MagicMock()
+        mock_app.bot.send_message = AsyncMock()
+        bus.application = mock_app
+
+        await bus.post(content="Proactive message")
+
+        mock_app.bot.send_message.assert_called_once()
+        call_args = mock_app.bot.send_message.call_args
+        assert call_args.kwargs["chat_id"] == 999888
+
+    @pytest.mark.anyio
+    async def test_post_raises_when_no_default_chat_id(self):
+        """post should raise when no default_chat_id configured."""
+        config = TelegramConfig(bot_token="test-token", default_chat_id=None)
+        bus = TelegramBus(config)
+
+        bus.application = MagicMock()  # Mark as started
+
+        with pytest.raises(ValueError, match="No default_chat_id configured"):
+            await bus.post(content="Test")

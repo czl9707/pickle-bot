@@ -6,13 +6,13 @@ from typing import Callable, Awaitable
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 
-from picklebot.messagebus.base import MessageBus
+from picklebot.messagebus.base import MessageBus, TelegramContext
 from picklebot.utils.config import TelegramConfig
 
 logger = logging.getLogger(__name__)
 
 
-class TelegramBus(MessageBus):
+class TelegramBus(MessageBus[TelegramContext]):
     """Telegram platform implementation using python-telegram-bot."""
 
     def __init__(self, config: TelegramConfig):
@@ -30,28 +30,38 @@ class TelegramBus(MessageBus):
         """Platform identifier."""
         return "telegram"
 
-    async def start(
-        self, on_message: Callable[[str, str, str], Awaitable[None]]
-    ) -> None:
-        """
-        Start listening for Telegram messages.
+    def is_allowed(self, context: TelegramContext) -> bool:
+        """Check if sender is whitelisted."""
+        if not self.config.allowed_user_ids:
+            return True
+        return context.user_id in self.config.allowed_user_ids
 
-        Args:
-            on_message: Callback for incoming messages
-        """
+    async def start(
+        self, on_message: Callable[[str, TelegramContext], Awaitable[None]]
+    ) -> None:
+        """Start listening for Telegram messages."""
         logger.info(f"Message bus enabled with platform: {self.platform_name}")
         self.application = Application.builder().token(self.config.bot_token).build()
 
         async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             """Handle incoming Telegram message."""
-            if update.message and update.message.text and update.effective_chat:
-                user_id = str(update.effective_chat.id)
+            if (
+                update.message
+                and update.message.text
+                and update.effective_chat
+                and update.message.from_user
+            ):
+                # Extract user_id (the person) and chat_id (the conversation)
+                user_id = str(update.message.from_user.id)
+                chat_id = str(update.effective_chat.id)
                 message = update.message.text
 
-                logger.info(f"Received Telegram message from {user_id}")
+                logger.info(f"Received Telegram message from user {user_id} in chat {chat_id}")
+
+                ctx = TelegramContext(user_id=user_id, chat_id=chat_id)
 
                 try:
-                    await on_message(message, self.platform_name, user_id)
+                    await on_message(message, ctx)
                 except Exception as e:
                     logger.error(f"Error in message callback: {e}")
 
@@ -67,29 +77,36 @@ class TelegramBus(MessageBus):
 
         logger.info("TelegramBus started")
 
-    async def send_message(self, content: str, user_id: str | None = None) -> None:
-        """
-        Send message to Telegram user.
-
-        Args:
-            content: Message content
-            user_id: Telegram chat ID (uses default_user_id if not provided)
-        """
+    async def reply(self, content: str, context: TelegramContext) -> None:
+        """Reply to incoming message."""
         if not self.application:
             raise RuntimeError("TelegramBus not started")
 
-        # Fall back to default user if not provided
-        target_user = user_id or self.config.default_user_id
-        if not target_user:
-            raise ValueError("No user_id provided and no default_user_id configured")
+        try:
+            await self.application.bot.send_message(
+                chat_id=int(context.chat_id), text=content
+            )
+            logger.debug(f"Sent Telegram reply to {context.chat_id}")
+        except Exception as e:
+            logger.error(f"Failed to send Telegram reply: {e}")
+            raise
+
+    async def post(self, content: str, target: str | None = None) -> None:
+        """Post proactive message to default_chat_id."""
+        if not self.application:
+            raise RuntimeError("TelegramBus not started")
+
+        # For now, ignore target parameter (future: support "user:123" format)
+        if not self.config.default_chat_id:
+            raise ValueError("No default_chat_id configured")
 
         try:
             await self.application.bot.send_message(
-                chat_id=int(target_user), text=content
+                chat_id=int(self.config.default_chat_id), text=content
             )
-            logger.debug(f"Sent Telegram message to {target_user}")
+            logger.debug(f"Sent Telegram post to {self.config.default_chat_id}")
         except Exception as e:
-            logger.error(f"Failed to send Telegram message: {e}")
+            logger.error(f"Failed to send Telegram post: {e}")
             raise
 
     async def stop(self) -> None:
