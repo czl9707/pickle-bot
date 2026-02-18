@@ -15,6 +15,8 @@
      default_platform: "telegram"
      telegram:
        bot_token: "YOUR_BOT_TOKEN"
+       allowed_chat_ids: ["123456789"]  # Optional: whitelist for incoming messages
+       default_chat_id: "123456789"     # Optional: target for agent-initiated messages
    ```
 
 3. Start server:
@@ -52,7 +54,9 @@
      default_platform: "discord"
      discord:
        bot_token: "YOUR_BOT_TOKEN"
-       channel_id: "CHANNEL_ID"  # Optional: restrict to specific channel
+       channel_id: "CHANNEL_ID"        # Optional: restrict to specific channel
+       allowed_chat_ids: ["123456789"] # Optional: whitelist for incoming messages
+       default_chat_id: "123456789"    # Optional: target for agent-initiated messages
    ```
 
 4. Start server and test
@@ -65,8 +69,12 @@ messagebus:
   default_platform: "telegram"  # Cron responses go here
   telegram:
     bot_token: "TELEGRAM_TOKEN"
+    allowed_chat_ids: ["123456789"]
+    default_chat_id: "123456789"
   discord:
     bot_token: "DISCORD_TOKEN"
+    allowed_chat_ids: []
+    default_chat_id: ""
 ```
 
 Both platforms will send messages to the same shared session.
