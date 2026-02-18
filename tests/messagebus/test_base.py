@@ -132,3 +132,23 @@ def test_messagebus_from_config_disabled_platform(tmp_path):
     buses = MessageBus.from_config(config)
 
     assert len(buses) == 0
+
+
+class TestContextDataclasses:
+    """Tests for platform context dataclasses."""
+
+    def test_telegram_context_fields(self):
+        """TelegramContext should have user_id and chat_id."""
+        from picklebot.messagebus.base import TelegramContext
+
+        ctx = TelegramContext(user_id="111", chat_id="222")
+        assert ctx.user_id == "111"
+        assert ctx.chat_id == "222"
+
+    def test_discord_context_fields(self):
+        """DiscordContext should have user_id and channel_id."""
+        from picklebot.messagebus.base import DiscordContext
+
+        ctx = DiscordContext(user_id="333", channel_id="444")
+        assert ctx.user_id == "333"
+        assert ctx.channel_id == "444"
