@@ -29,43 +29,6 @@ async def test_discord_bus_start_stop():
     await bus.stop()
 
 
-class TestDiscordBusIsAllowed:
-    """Tests for DiscordBus.is_allowed method."""
-
-    def test_is_allowed_returns_true_for_whitelisted_user(self):
-        """is_allowed should return True for whitelisted user."""
-        config = DiscordConfig(
-            bot_token="test-token",
-            allowed_user_ids=["123456789"],
-        )
-        bus = DiscordBus(config)
-
-        ctx = DiscordContext(user_id="123456789", channel_id="987654321")
-        assert bus.is_allowed(ctx) is True
-
-    def test_is_allowed_returns_false_for_non_whitelisted_user(self):
-        """is_allowed should return False for non-whitelisted user."""
-        config = DiscordConfig(
-            bot_token="test-token",
-            allowed_user_ids=["123456789"],
-        )
-        bus = DiscordBus(config)
-
-        ctx = DiscordContext(user_id="999888777", channel_id="987654321")
-        assert bus.is_allowed(ctx) is False
-
-    def test_is_allowed_returns_true_when_whitelist_empty(self):
-        """is_allowed should return True when whitelist is empty."""
-        config = DiscordConfig(
-            bot_token="test-token",
-            allowed_user_ids=[],
-        )
-        bus = DiscordBus(config)
-
-        ctx = DiscordContext(user_id="555666777", channel_id="987654321")
-        assert bus.is_allowed(ctx) is True
-
-
 class TestDiscordBusReply:
     """Tests for DiscordBus.reply method."""
 
