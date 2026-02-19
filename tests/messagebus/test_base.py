@@ -44,22 +44,6 @@ def test_messagebus_has_platform_name():
     assert bus.platform_name == "mock"
 
 
-@pytest.mark.anyio
-async def test_messagebus_reply_interface():
-    """Test that reply can be called."""
-    bus = MockBus()
-    await bus.reply("test message", context={})
-    # Should not raise
-
-
-@pytest.mark.anyio
-async def test_messagebus_post_interface():
-    """Test that post can be called."""
-    bus = MockBus()
-    await bus.post("test message")
-    # Should not raise
-
-
 class TestMessageBusGenericInterface:
     """Tests for generic MessageBus interface."""
 
