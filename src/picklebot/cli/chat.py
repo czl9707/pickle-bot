@@ -1,6 +1,7 @@
 """CLI command handlers for pickle-bot."""
 
 from picklebot.core import Agent, SharedContext
+from picklebot.core.agent import SessionMode
 from picklebot.utils.config import Config
 from picklebot.frontend import ConsoleFrontend
 from picklebot.utils.logging import setup_logging
@@ -23,7 +24,7 @@ class ChatLoop:
 
     async def run(self) -> None:
         """Run the interactive chat loop."""
-        session = self.agent.new_session()
+        session = self.agent.new_session(SessionMode.CHAT)
         self.frontend.show_welcome()
 
         while True:
