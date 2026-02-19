@@ -1,25 +1,14 @@
 """Tests for AgentLoader."""
 
 from pathlib import Path
-import tempfile
 
 import pytest
 
-from picklebot.utils.config import LLMConfig
 from picklebot.core.agent_loader import AgentLoader
 from picklebot.utils.def_loader import DefNotFoundError, InvalidDefError
 
 
 class TestAgentLoaderParsing:
-    @pytest.fixture
-    def shared_llm(self):
-        return LLMConfig(provider="test", model="test-model", api_key="test-key")
-
-    @pytest.fixture
-    def temp_agents_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
-
     def test_parse_simple_agent(self, temp_agents_dir, shared_llm):
         """Parse agent with name and prompt only."""
         agent_dir = temp_agents_dir / "pickle"
@@ -108,15 +97,6 @@ class TestAgentLoaderParsing:
 
 
 class TestAgentLoaderErrors:
-    @pytest.fixture
-    def shared_llm(self):
-        return LLMConfig(provider="test", model="test-model", api_key="test-key")
-
-    @pytest.fixture
-    def temp_agents_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
-
     def test_raises_not_found_when_folder_missing(self, temp_agents_dir, shared_llm):
         """Raise DefNotFoundError when folder doesn't exist."""
         loader = AgentLoader(temp_agents_dir, shared_llm)
@@ -154,15 +134,6 @@ class TestAgentLoaderErrors:
 
 
 class TestAgentLoaderDiscover:
-    @pytest.fixture
-    def shared_llm(self):
-        return LLMConfig(provider="openai", model="gpt-4", api_key="test-key")
-
-    @pytest.fixture
-    def temp_agents_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
-
     def test_discover_agents_returns_all_agents(self, temp_agents_dir, shared_llm):
         """discover_agents should return list of all valid AgentDef."""
         # Create multiple agents
