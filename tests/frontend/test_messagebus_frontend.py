@@ -48,7 +48,9 @@ class TestMessageBusFrontend:
             pass  # Should not raise
 
     @pytest.mark.anyio
-    async def test_show_dispatch_start_creates_task(self, frontend, mock_bus, mock_context):
+    async def test_show_dispatch_start_creates_task(
+        self, frontend, mock_bus, mock_context
+    ):
         """show_dispatch_start should create async task with correct message."""
         frontend.show_dispatch_start("Pickle", "Cookie", "Remember this")
 
@@ -62,7 +64,9 @@ class TestMessageBusFrontend:
         assert call_args[0][1] == mock_context
 
     @pytest.mark.anyio
-    async def test_show_dispatch_start_lowercase_target(self, frontend, mock_bus, mock_context):
+    async def test_show_dispatch_start_lowercase_target(
+        self, frontend, mock_bus, mock_context
+    ):
         """show_dispatch_start should lowercase target agent name."""
         frontend.show_dispatch_start("Agent", "MySubAgent", "Do task")
 
@@ -75,7 +79,9 @@ class TestMessageBusFrontend:
         assert "@mysubagent" in message.lower()
 
     @pytest.mark.anyio
-    async def test_show_dispatch_result_truncates_long_results(self, frontend, mock_bus, mock_context):
+    async def test_show_dispatch_result_truncates_long_results(
+        self, frontend, mock_bus, mock_context
+    ):
         """show_dispatch_result should truncate results longer than 200 chars."""
         long_result = "x" * 300  # 300 chars
 
@@ -94,7 +100,9 @@ class TestMessageBusFrontend:
         assert len(message) < 250  # message + prefix should be short
 
     @pytest.mark.anyio
-    async def test_show_dispatch_result_keeps_short_results(self, frontend, mock_bus, mock_context):
+    async def test_show_dispatch_result_keeps_short_results(
+        self, frontend, mock_bus, mock_context
+    ):
         """show_dispatch_result should not truncate results 200 chars or less."""
         short_result = "Task completed successfully"
 
@@ -113,7 +121,9 @@ class TestMessageBusFrontend:
         assert "..." not in message
 
     @pytest.mark.anyio
-    async def test_show_dispatch_result_formats_correctly(self, frontend, mock_bus, mock_context):
+    async def test_show_dispatch_result_formats_correctly(
+        self, frontend, mock_bus, mock_context
+    ):
         """show_dispatch_result should format message as 'Agent: - result'."""
         result = "Done"
 
@@ -128,7 +138,9 @@ class TestMessageBusFrontend:
         assert message == "Target: - Done"
 
     @pytest.mark.anyio
-    async def test_error_handling_when_reply_fails(self, frontend, mock_bus, mock_context, caplog):
+    async def test_error_handling_when_reply_fails(
+        self, frontend, mock_bus, mock_context, caplog
+    ):
         """_post_safe should catch exceptions and log warnings, not raise."""
         # Make reply raise an exception
         mock_bus.reply.side_effect = Exception("Network error")
@@ -138,11 +150,15 @@ class TestMessageBusFrontend:
             await frontend._post_safe("test message")
 
         # Verify warning was logged
-        assert any("Failed to post message" in record.message for record in caplog.records)
+        assert any(
+            "Failed to post message" in record.message for record in caplog.records
+        )
         assert any("Network error" in record.message for record in caplog.records)
 
     @pytest.mark.anyio
-    async def test_show_dispatch_start_continues_on_error(self, frontend, mock_bus, mock_context, caplog):
+    async def test_show_dispatch_start_continues_on_error(
+        self, frontend, mock_bus, mock_context, caplog
+    ):
         """show_dispatch_start should continue execution even if reply fails."""
         # Make reply raise an exception
         mock_bus.reply.side_effect = Exception("API error")
@@ -154,10 +170,14 @@ class TestMessageBusFrontend:
             await asyncio.sleep(0.2)
 
         # Should have logged warning, not raised
-        assert any("Failed to post message" in record.message for record in caplog.records)
+        assert any(
+            "Failed to post message" in record.message for record in caplog.records
+        )
 
     @pytest.mark.anyio
-    async def test_show_dispatch_result_continues_on_error(self, frontend, mock_bus, mock_context, caplog):
+    async def test_show_dispatch_result_continues_on_error(
+        self, frontend, mock_bus, mock_context, caplog
+    ):
         """show_dispatch_result should continue execution even if reply fails."""
         # Make reply raise an exception
         mock_bus.reply.side_effect = Exception("API error")
@@ -169,4 +189,6 @@ class TestMessageBusFrontend:
             await asyncio.sleep(0.2)
 
         # Should have logged warning, not raised
-        assert any("Failed to post message" in record.message for record in caplog.records)
+        assert any(
+            "Failed to post message" in record.message for record in caplog.records
+        )

@@ -116,25 +116,28 @@ class TestToMessage:
 class TestRoundTripConversion:
     """Tests for bidirectional conversion consistency."""
 
-    @pytest.mark.parametrize("message", [
-        {"role": "user", "content": "Test message"},
-        {
-            "role": "assistant",
-            "content": "Response",
-            "tool_calls": [
-                {
-                    "id": "call_123",
-                    "type": "function",
-                    "function": {"name": "test", "arguments": "{}"},
-                }
-            ],
-        },
-        {
-            "role": "tool",
-            "content": "Tool output",
-            "tool_call_id": "call_456",
-        },
-    ])
+    @pytest.mark.parametrize(
+        "message",
+        [
+            {"role": "user", "content": "Test message"},
+            {
+                "role": "assistant",
+                "content": "Response",
+                "tool_calls": [
+                    {
+                        "id": "call_123",
+                        "type": "function",
+                        "function": {"name": "test", "arguments": "{}"},
+                    }
+                ],
+            },
+            {
+                "role": "tool",
+                "content": "Tool output",
+                "tool_call_id": "call_456",
+            },
+        ],
+    )
     def test_round_trip_conversion(self, message):
         """Verify message survives round-trip conversion."""
         history_msg = HistoryMessage.from_message(message)
@@ -270,7 +273,9 @@ class TestGetMessages:
         """get_messages should return all messages in order."""
         history_store.create_session("agent", "session-1")
 
-        history_store.save_message("session-1", HistoryMessage(role="user", content="Hello"))
+        history_store.save_message(
+            "session-1", HistoryMessage(role="user", content="Hello")
+        )
         history_store.save_message(
             "session-1", HistoryMessage(role="assistant", content="Hi there")
         )
@@ -304,7 +309,9 @@ class TestListSessions:
         history_store.create_session("agent", "session-2")
 
         # Update session-1
-        history_store.save_message("session-1", HistoryMessage(role="user", content="Hi"))
+        history_store.save_message(
+            "session-1", HistoryMessage(role="user", content="Hi")
+        )
 
         sessions = history_store.list_sessions()
         assert sessions[0].id == "session-1"  # Most recently updated

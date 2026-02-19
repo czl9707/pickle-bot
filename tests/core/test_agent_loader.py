@@ -242,7 +242,9 @@ class TestAgentLoaderTemplateSubstitution:
         loader = AgentLoader(test_config)
         agent_def = loader.load("test-agent")
 
-        expected = f"Workspace: {test_config.workspace}, Skills: {test_config.skills_path}"
+        expected = (
+            f"Workspace: {test_config.workspace}, Skills: {test_config.skills_path}"
+        )
         assert agent_def.system_prompt == expected
 
     def test_no_template_variables_unchanged(self, test_config):
@@ -251,9 +253,7 @@ class TestAgentLoaderTemplateSubstitution:
         agents_dir.mkdir()
         agent_dir = agents_dir / "test-agent"
         agent_dir.mkdir()
-        (agent_dir / "AGENT.md").write_text(
-            "---\nname: Test\n---\nNo templates here."
-        )
+        (agent_dir / "AGENT.md").write_text("---\nname: Test\n---\nNo templates here.")
 
         loader = AgentLoader(test_config)
         agent_def = loader.load("test-agent")

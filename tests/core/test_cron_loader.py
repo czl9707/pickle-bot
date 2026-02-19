@@ -14,7 +14,7 @@ class TestCronLoader:
         return Config(
             workspace=tmp_path,
             llm=LLMConfig(provider="test", model="test-model", api_key="test-key"),
-            default_agent="test"
+            default_agent="test",
         )
 
     def test_load_simple_cron(self, test_config):

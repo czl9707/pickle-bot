@@ -35,7 +35,10 @@ class TestSubstituteTemplate:
 
         result = substitute_template(body, variables)
 
-        assert result == "Workspace: /home/user/.pickle-bot, Memories: /home/user/.pickle-bot/memories"
+        assert (
+            result
+            == "Workspace: /home/user/.pickle-bot, Memories: /home/user/.pickle-bot/memories"
+        )
 
     def test_substitute_same_variable_multiple_times(self):
         """Replace same placeholder appearing multiple times."""
@@ -44,7 +47,10 @@ class TestSubstituteTemplate:
 
         result = substitute_template(body, variables)
 
-        assert result == "/home/user/.pickle-bot/memories/topics and /home/user/.pickle-bot/memories/projects"
+        assert (
+            result
+            == "/home/user/.pickle-bot/memories/topics and /home/user/.pickle-bot/memories/projects"
+        )
 
     def test_missing_variable_passes_through_unchanged(self):
         """Leave unknown placeholders unchanged."""

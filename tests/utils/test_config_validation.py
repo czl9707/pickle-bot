@@ -40,7 +40,7 @@ def test_messagebus_valid_config():
     config = MessageBusConfig(
         enabled=True,
         default_platform="telegram",
-        telegram=TelegramConfig(bot_token="test_token")
+        telegram=TelegramConfig(bot_token="test_token"),
     )
     assert config.enabled
     assert config.default_platform == "telegram"
@@ -57,7 +57,7 @@ def test_messagebus_valid_discord_config():
     config = MessageBusConfig(
         enabled=True,
         default_platform="discord",
-        discord=DiscordConfig(bot_token="test_token", channel_id="12345")
+        discord=DiscordConfig(bot_token="test_token", channel_id="12345"),
     )
     assert config.enabled
     assert config.default_platform == "discord"
@@ -85,8 +85,8 @@ def test_messagebus_integration_with_config(llm_config):
         messagebus=MessageBusConfig(
             enabled=True,
             default_platform="telegram",
-            telegram=TelegramConfig(bot_token="test_token")
-        )
+            telegram=TelegramConfig(bot_token="test_token"),
+        ),
     )
     assert config.messagebus.enabled
     assert config.messagebus.default_platform == "telegram"

@@ -1,6 +1,5 @@
 """Tests for SkillLoader."""
 
-
 import pytest
 
 from picklebot.core.skill_loader import SkillDef, SkillLoader

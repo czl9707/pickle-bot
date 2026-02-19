@@ -61,13 +61,19 @@ class MessageBusConfig(BaseModel):
         if self.enabled:
             # default_platform is required when enabled
             if not self.default_platform:
-                raise ValueError("default_platform is required when messagebus is enabled")
+                raise ValueError(
+                    "default_platform is required when messagebus is enabled"
+                )
 
             # Verify default_platform has valid config
             if self.default_platform == "telegram" and not self.telegram:
-                raise ValueError("default_platform is 'telegram' but telegram config is missing")
+                raise ValueError(
+                    "default_platform is 'telegram' but telegram config is missing"
+                )
             if self.default_platform == "discord" and not self.discord:
-                raise ValueError("default_platform is 'discord' but discord config is missing")
+                raise ValueError(
+                    "default_platform is 'discord' but discord config is missing"
+                )
             if self.default_platform not in ["telegram", "discord"]:
                 raise ValueError(f"Invalid default_platform: {self.default_platform}")
 

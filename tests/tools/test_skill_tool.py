@@ -158,7 +158,9 @@ description: An existing skill
         assert tool_func is not None
         # Execute - try to load a skill that doesn't exist
         frontend = SilentFrontend()
-        result = await tool_func.execute(frontend=frontend, skill_name="nonexistent-skill")
+        result = await tool_func.execute(
+            frontend=frontend, skill_name="nonexistent-skill"
+        )
 
         # Verify - should return error message
         assert "Error:" in result

@@ -128,13 +128,15 @@ def test_agent_registers_subagent_dispatch_tool(test_config, test_agent_def):
     other_agent_dir = test_config.agents_path / "other-agent"
     other_agent_dir.mkdir(parents=True)
     other_agent_file = other_agent_dir / "AGENT.md"
-    other_agent_file.write_text("""---
+    other_agent_file.write_text(
+        """---
 name: Other Agent
 description: Another agent for testing
 ---
 
 You are another agent.
-""")
+"""
+    )
 
     test_agent_def.description = "Test agent"
     context = SharedContext(config=test_config)
@@ -147,7 +149,9 @@ You are another agent.
     assert "subagent_dispatch" in tool_names
 
 
-def test_agent_skips_subagent_dispatch_when_no_other_agents(test_config, test_agent_def):
+def test_agent_skips_subagent_dispatch_when_no_other_agents(
+    test_config, test_agent_def
+):
     """Agent should NOT register subagent_dispatch tool when no other agents exist."""
     # Don't create any other agents
     test_agent_def.description = "Test agent"

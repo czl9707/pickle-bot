@@ -81,7 +81,9 @@ async def write_file(frontend: "Frontend", path: str, content: str) -> str:
         "required": ["path", "old_text", "new_text"],
     },
 )
-async def edit_file(frontend: "Frontend", path: str, old_text: str, new_text: str) -> str:
+async def edit_file(
+    frontend: "Frontend", path: str, old_text: str, new_text: str
+) -> str:
     """Edit a file by replacing old_text with new_text."""
     try:
         content = Path(path).read_text()
