@@ -1,7 +1,6 @@
 """Tests for CronLoader and related components."""
 
 from pathlib import Path
-import tempfile
 
 import pytest
 
@@ -11,12 +10,7 @@ from picklebot.core.cron_loader import CronLoader
 class TestCronLoader:
     """Test CronLoader class."""
 
-    @pytest.fixture
-    def temp_crons_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
-
-    def test_load_simple_cron(self, temp_crons_dir):
+    def test_load_simple_cron(self, temp_crons_dir: Path):
         """Parse cron with required fields."""
         cron_dir = temp_crons_dir / "inbox-check"
         cron_dir.mkdir()
@@ -38,7 +32,7 @@ class TestCronLoader:
         assert cron_def.schedule == "*/15 * * * *"
         assert cron_def.prompt == "Check my inbox and summarize."
 
-    def test_discover_crons(self, temp_crons_dir):
+    def test_discover_crons(self, temp_crons_dir: Path):
         """Discover all valid cron jobs."""
         # Create two valid cron jobs
         for name, schedule in [("job-a", "*/5 * * * *"), ("job-b", "0 * * * *")]:
