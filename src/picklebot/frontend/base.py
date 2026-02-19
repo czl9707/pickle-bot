@@ -26,6 +26,18 @@ class Frontend(ABC):
         """Display transient message (tool calls, intermediate steps)."""
         yield
 
+    @abstractmethod
+    def show_dispatch_start(
+        self, calling_agent: str, target_agent: str, task: str
+    ) -> None:
+        """Display subagent dispatch start."""
+
+    @abstractmethod
+    def show_dispatch_result(
+        self, calling_agent: str, target_agent: str, result: str
+    ) -> None:
+        """Display subagent dispatch result."""
+
 
 class SilentFrontend(Frontend):
     """No-op frontend for unattended execution (e.g., cron jobs)."""
@@ -42,3 +54,13 @@ class SilentFrontend(Frontend):
     @contextlib.contextmanager
     def show_transient(self, content: str) -> Iterator[None]:
         yield
+
+    def show_dispatch_start(
+        self, calling_agent: str, target_agent: str, task: str
+    ) -> None:
+        pass
+
+    def show_dispatch_result(
+        self, calling_agent: str, target_agent: str, result: str
+    ) -> None:
+        pass
