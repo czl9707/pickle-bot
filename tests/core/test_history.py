@@ -1,7 +1,6 @@
 """Tests for message conversion methods."""
 
 import json
-from pathlib import Path
 
 import pytest
 
