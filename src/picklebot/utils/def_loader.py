@@ -41,7 +41,9 @@ def substitute_template(body: str, variables: dict[str, str]) -> str:
         Body with all matching placeholders replaced
     """
     result = body
-    for key, value in variables.items():
+    # Sort by key length descending to handle overlapping names correctly
+    for key in sorted(variables.keys(), key=len, reverse=True):
+        value = variables[key]
         result = result.replace(f"{{{{{key}}}}}", value)
     return result
 

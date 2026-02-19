@@ -72,6 +72,15 @@ class TestSubstituteTemplate:
 
         assert result == "Path: {{memories_path}}"
 
+    def test_substitute_overlapping_variable_names(self):
+        """Handle overlapping variable names correctly (longer names first)."""
+        body = "{{path}} and {{path_extra}}"
+        variables = {"path": "/home", "path_extra": "/extra"}
+
+        result = substitute_template(body, variables)
+
+        assert result == "/home and /extra"
+
 
 class TestParseDefinition:
     def test_parse_basic_frontmatter(self):
