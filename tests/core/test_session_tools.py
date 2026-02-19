@@ -16,3 +16,12 @@ def test_session_has_mode_attribute(test_agent):
     session = test_agent.new_session(SessionMode.CHAT)
 
     assert session.mode == SessionMode.CHAT
+
+
+def test_session_has_own_tool_registry(test_agent):
+    """Session should have its own ToolRegistry instance."""
+    session1 = test_agent.new_session(SessionMode.CHAT)
+    session2 = test_agent.new_session(SessionMode.CHAT)
+
+    # Each session should have its own registry
+    assert session1.tools is not session2.tools
