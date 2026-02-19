@@ -3,7 +3,7 @@
 import pytest
 from typing import Any
 
-from picklebot.messagebus.base import MessageBus
+from picklebot.messagebus.base import MessageBus, TelegramContext, DiscordContext
 from picklebot.messagebus.telegram_bus import TelegramBus
 from picklebot.messagebus.discord_bus import DiscordBus
 from picklebot.utils.config import (
@@ -36,6 +36,62 @@ class MockBus(MessageBus[Any]):
 
     async def stop(self) -> None:
         pass
+
+
+@pytest.mark.parametrize("bus_type,config_factory,context_factory", [
+    (
+        "telegram",
+        lambda: TelegramConfig(bot_token="test-token", allowed_user_ids=["whitelisted"]),
+        lambda user_id: TelegramContext(user_id=user_id, chat_id="123"),
+    ),
+    (
+        "discord",
+        lambda: DiscordConfig(bot_token="test-token", allowed_user_ids=["whitelisted"]),
+        lambda user_id: DiscordContext(user_id=user_id, channel_id="123"),
+    ),
+])
+class TestMessageBusIsAllowed:
+    """Shared tests for is_allowed across all bus implementations."""
+
+    def test_is_allowed_returns_true_for_whitelisted_user(
+        self, bus_type, config_factory, context_factory
+    ):
+        """is_allowed should return True for whitelisted user."""
+        config = config_factory()
+        if bus_type == "telegram":
+            bus = TelegramBus(config)
+        else:
+            bus = DiscordBus(config)
+
+        ctx = context_factory("whitelisted")
+        assert bus.is_allowed(ctx) is True
+
+    def test_is_allowed_returns_false_for_non_whitelisted_user(
+        self, bus_type, config_factory, context_factory
+    ):
+        """is_allowed should return False for non-whitelisted user."""
+        config = config_factory()
+        if bus_type == "telegram":
+            bus = TelegramBus(config)
+        else:
+            bus = DiscordBus(config)
+
+        ctx = context_factory("unknown")
+        assert bus.is_allowed(ctx) is False
+
+    def test_is_allowed_returns_true_when_whitelist_empty(
+        self, bus_type, config_factory, context_factory
+    ):
+        """is_allowed should return True when whitelist is empty."""
+        if bus_type == "telegram":
+            config = TelegramConfig(bot_token="test-token", allowed_user_ids=[])
+            bus = TelegramBus(config)
+        else:
+            config = DiscordConfig(bot_token="test-token", allowed_user_ids=[])
+            bus = DiscordBus(config)
+
+        ctx = context_factory("anyone")
+        assert bus.is_allowed(ctx) is True
 
 
 def test_messagebus_has_platform_name():
