@@ -44,7 +44,16 @@ class MessageBusFrontend(Frontend):
         """No-op for messagebus."""
         yield
 
-    def show_dispatch_start(self, calling_agent: str, target_agent: str, task: str) -> None:
+    async def _post_safe(self, msg: str) -> None:
+        """Post message with error handling."""
+        try:
+            await self.bus.reply(msg, self.context)
+        except Exception as e:
+            logger.warning(f"Failed to post message: {e}")
+
+    def show_dispatch_start(
+        self, calling_agent: str, target_agent: str, task: str
+    ) -> None:
         """
         Post dispatch start message to messagebus.
 
@@ -53,13 +62,12 @@ class MessageBusFrontend(Frontend):
             target_agent: Name of the target agent
             task: Task description
         """
-        try:
-            msg = f"{calling_agent}: @{target_agent.lower()} {task}"
-            asyncio.create_task(self.bus.reply(msg, self.context))
-        except Exception as e:
-            logger.warning(f"Failed to post dispatch message: {e}")
+        msg = f"{calling_agent}: @{target_agent.lower()} {task}"
+        asyncio.create_task(self._post_safe(msg))
 
-    def show_dispatch_result(self, calling_agent: str, target_agent: str, result: str) -> None:
+    def show_dispatch_result(
+        self, calling_agent: str, target_agent: str, result: str
+    ) -> None:
         """
         Post dispatch result message to messagebus.
 
@@ -68,9 +76,6 @@ class MessageBusFrontend(Frontend):
             target_agent: Name of the target agent
             result: Result from subagent
         """
-        try:
-            truncated = result[:200] + "..." if len(result) > 200 else result
-            msg = f"{target_agent}: - {truncated}"
-            asyncio.create_task(self.bus.reply(msg, self.context))
-        except Exception as e:
-            logger.warning(f"Failed to post dispatch result: {e}")
+        truncated = result[:200] + "..." if len(result) > 200 else result
+        msg = f"{target_agent}: - {truncated}"
+        asyncio.create_task(self._post_safe(msg))
