@@ -4,21 +4,33 @@ import pytest
 
 from picklebot.core.skill_loader import SkillLoader
 from picklebot.tools.skill_tool import create_skill_tool
+from picklebot.utils.config import Config, LLMConfig
 
 
 class TestCreateSkillTool:
     """Tests for create_skill_tool factory function."""
 
-    def test_create_skill_tool_returns_none_when_no_skills(self, tmp_path):
+    @pytest.fixture
+    def test_config(self, tmp_path):
+        return Config(
+            workspace=tmp_path,
+            llm=LLMConfig(provider="test", model="test-model", api_key="test-key"),
+            default_agent="test",
+        )
+
+    def test_create_skill_tool_returns_none_when_no_skills(self, test_config):
         """create_skill_tool should return None when no skills available."""
-        loader = SkillLoader(tmp_path)
+        loader = SkillLoader(test_config)
         tool_func = create_skill_tool(loader)
         assert tool_func is None
 
-    def test_create_skill_tool_returns_callable(self, tmp_path):
+    def test_create_skill_tool_returns_callable(self, test_config):
         """create_skill_tool should return a callable tool function."""
         # Setup - create a valid skill
-        skill_dir = tmp_path / "test-skill"
+        skills_dir = test_config.skills_path
+        skills_dir.mkdir(parents=True, exist_ok=True)
+
+        skill_dir = skills_dir / "test-skill"
         skill_dir.mkdir()
         skill_file = skill_dir / "SKILL.md"
         skill_file.write_text(
@@ -31,7 +43,7 @@ description: A test skill
 """
         )
 
-        loader = SkillLoader(tmp_path)
+        loader = SkillLoader(test_config)
         tool_func = create_skill_tool(loader)
 
         # Should be a FunctionTool with execute method
@@ -39,14 +51,17 @@ description: A test skill
         assert hasattr(tool_func, "execute")
         assert callable(tool_func.execute)
 
-    def test_skill_tool_has_correct_schema(self, tmp_path):
+    def test_skill_tool_has_correct_schema(self, test_config):
         """Skill tool should have correct name, description, and parameters."""
         # Setup - create skills
+        skills_dir = test_config.skills_path
+        skills_dir.mkdir(parents=True, exist_ok=True)
+
         for skill_id, name, desc in [
             ("code-review", "Code Review", "Review code for best practices"),
             ("commit", "Commit", "Create git commits"),
         ]:
-            skill_dir = tmp_path / skill_id
+            skill_dir = skills_dir / skill_id
             skill_dir.mkdir()
             skill_file = skill_dir / "SKILL.md"
             skill_file.write_text(
@@ -59,7 +74,7 @@ description: {desc}
 """
             )
 
-        loader = SkillLoader(tmp_path)
+        loader = SkillLoader(test_config)
         tool_func = create_skill_tool(loader)
 
         assert tool_func is not None
@@ -83,10 +98,13 @@ description: {desc}
         assert params["required"] == ["skill_name"]
 
     @pytest.mark.anyio
-    async def test_skill_tool_loads_content(self, tmp_path):
+    async def test_skill_tool_loads_content(self, test_config):
         """Skill tool should load and return skill content."""
         # Setup - create a valid skill
-        skill_dir = tmp_path / "test-skill"
+        skills_dir = test_config.skills_path
+        skills_dir.mkdir(parents=True, exist_ok=True)
+
+        skill_dir = skills_dir / "test-skill"
         skill_dir.mkdir()
         skill_file = skill_dir / "SKILL.md"
         skill_file.write_text(
@@ -101,7 +119,7 @@ This is the skill content.
 """
         )
 
-        loader = SkillLoader(tmp_path)
+        loader = SkillLoader(test_config)
         tool_func = create_skill_tool(loader)
 
         assert tool_func is not None
@@ -113,10 +131,13 @@ This is the skill content.
         assert "This is the skill content." in result
 
     @pytest.mark.anyio
-    async def test_skill_tool_handles_missing_skill(self, tmp_path):
+    async def test_skill_tool_handles_missing_skill(self, test_config):
         """Skill tool should return error message for missing skill."""
         # Setup - create one skill
-        skill_dir = tmp_path / "existing-skill"
+        skills_dir = test_config.skills_path
+        skills_dir.mkdir(parents=True, exist_ok=True)
+
+        skill_dir = skills_dir / "existing-skill"
         skill_dir.mkdir()
         skill_file = skill_dir / "SKILL.md"
         skill_file.write_text(
@@ -129,7 +150,7 @@ description: An existing skill
 """
         )
 
-        loader = SkillLoader(tmp_path)
+        loader = SkillLoader(test_config)
         tool_func = create_skill_tool(loader)
 
         assert tool_func is not None

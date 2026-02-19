@@ -1,12 +1,16 @@
 """Skill loader for discovering and loading skills."""
 
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from picklebot.utils.def_loader import DefNotFoundError, discover_definitions
+from picklebot.utils.def_loader import (
+    DefNotFoundError,
+    discover_definitions,
+    get_template_variables,
+    substitute_template,
+)
 
 if TYPE_CHECKING:
     from picklebot.utils.config import Config
@@ -34,21 +38,24 @@ class SkillLoader:
     @staticmethod
     def from_config(config: "Config") -> "SkillLoader":
         """Create SkillLoader from config."""
-        return SkillLoader(config.skills_path)
+        return SkillLoader(config)
 
-    def __init__(self, skills_path: Path):
-        self.skills_path = skills_path
+    def __init__(self, config: "Config"):
+        self.config = config
 
     def discover_skills(self) -> list[SkillDef]:
         """Scan skills directory and return list of valid SkillDef."""
         return discover_definitions(
-            self.skills_path, "SKILL.md", self._parse_skill_def
+            self.config.skills_path, "SKILL.md", self._parse_skill_def
         )
 
     def _parse_skill_def(
         self, def_id: str, frontmatter: dict[str, Any], body: str
     ) -> SkillDef | None:
         """Parse skill definition from frontmatter (callback for discover_definitions)."""
+        # Substitute template variables in body
+        body = substitute_template(body, get_template_variables(self.config))
+
         try:
             return SkillDef(
                 id=def_id,
