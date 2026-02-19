@@ -68,7 +68,7 @@ def create_subagent_dispatch_tool(
     async def subagent_dispatch(agent_id: str, task: str, context: str = "") -> str:
         """Dispatch task to subagent, return result + session_id."""
         # Import here to avoid circular dependency
-        from picklebot.core.agent import Agent
+        from picklebot.core.agent import Agent, SessionMode
 
         try:
             target_def = shared_context.agent_loader.load(agent_id)
@@ -81,7 +81,7 @@ def create_subagent_dispatch_tool(
         if context:
             user_message = f"{task}\n\nContext:\n{context}"
 
-        session = subagent.new_session()
+        session = subagent.new_session(SessionMode.JOB)
         response = await session.chat(user_message, SilentFrontend())
 
         # Return result + session_id as JSON
