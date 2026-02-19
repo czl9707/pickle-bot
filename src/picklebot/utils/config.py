@@ -100,6 +100,8 @@ class Config(BaseModel):
     crons_path: Path = Field(default=Path("crons"))
     memories_path: Path = Field(default=Path("memories"))
     messagebus: MessageBusConfig = Field(default_factory=MessageBusConfig)
+    chat_max_history: int = Field(default=50, gt=0)
+    job_max_history: int = Field(default=500, gt=0)
 
     @model_validator(mode="after")
     def resolve_paths(self) -> "Config":

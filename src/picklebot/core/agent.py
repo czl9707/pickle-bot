@@ -3,6 +3,7 @@ import json
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 
 from typing import TYPE_CHECKING
 
@@ -24,6 +25,13 @@ if TYPE_CHECKING:
     from picklebot.core.agent_loader import AgentDef
     from picklebot.frontend import Frontend
     from picklebot.provider import LLMToolCall
+
+
+class SessionMode(str, Enum):
+    """Session mode determines history limit behavior."""
+
+    CHAT = "chat"
+    JOB = "job"
 
 
 class Agent:

@@ -122,3 +122,41 @@ class TestConfigDefaultChatId:
             default_chat_id="789012",
         )
         assert config.default_chat_id == "789012"
+
+
+class TestSessionHistoryLimits:
+    """Tests for session history config fields."""
+
+    def test_config_default_history_limits(self, llm_config):
+        """Config should have default history limits."""
+        config = Config(
+            workspace=Path("/workspace"),
+            llm=llm_config,
+            default_agent="test",
+        )
+
+        assert config.chat_max_history == 50
+        assert config.job_max_history == 500
+
+    def test_config_custom_history_limits(self, llm_config):
+        """Config should allow custom history limits."""
+        config = Config(
+            workspace=Path("/workspace"),
+            llm=llm_config,
+            default_agent="test",
+            chat_max_history=100,
+            job_max_history=1000,
+        )
+
+        assert config.chat_max_history == 100
+        assert config.job_max_history == 1000
+
+    def test_config_history_limits_must_be_positive(self, llm_config):
+        """Config should reject non-positive history limits."""
+        with pytest.raises(ValidationError):
+            Config(
+                workspace=Path("/workspace"),
+                llm=llm_config,
+                default_agent="test",
+                chat_max_history=0,
+            )
