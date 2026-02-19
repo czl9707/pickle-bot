@@ -116,20 +116,9 @@ class TestToMessage:
 class TestRoundTripConversion:
     """Tests for bidirectional conversion consistency."""
 
-    def test_round_trip_simple_user(self):
-        """Verify user message survives round-trip conversion."""
-        original = {"role": "user", "content": "Test message"}
-
-        # Message -> HistoryMessage -> Message
-        history_msg = HistoryMessage.from_message(original)
-        result = history_msg.to_message()
-
-        assert result["role"] == original["role"]
-        assert result["content"] == original["content"]
-
-    def test_round_trip_assistant_with_tools(self):
-        """Verify assistant message with tools survives round-trip."""
-        original = {
+    @pytest.mark.parametrize("message", [
+        {"role": "user", "content": "Test message"},
+        {
             "role": "assistant",
             "content": "Response",
             "tool_calls": [
@@ -139,29 +128,20 @@ class TestRoundTripConversion:
                     "function": {"name": "test", "arguments": "{}"},
                 }
             ],
-        }
-
-        history_msg = HistoryMessage.from_message(original)
-        result = history_msg.to_message()
-
-        assert result["role"] == original["role"]
-        assert result["content"] == original["content"]
-        assert result["tool_calls"] == original["tool_calls"]
-
-    def test_round_trip_tool_response(self):
-        """Verify tool response survives round-trip conversion."""
-        original = {
+        },
+        {
             "role": "tool",
             "content": "Tool output",
             "tool_call_id": "call_456",
-        }
-
-        history_msg = HistoryMessage.from_message(original)
+        },
+    ])
+    def test_round_trip_conversion(self, message):
+        """Verify message survives round-trip conversion."""
+        history_msg = HistoryMessage.from_message(message)
         result = history_msg.to_message()
 
-        assert result["role"] == original["role"]
-        assert result["content"] == original["content"]
-        assert result["tool_call_id"] == original["tool_call_id"]
+        for key, value in message.items():
+            assert result[key] == value
 
 
 class TestHistoryStoreInit:
