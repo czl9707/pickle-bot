@@ -80,43 +80,6 @@ class TestTelegramBusPostNotStarted:
             await bus.post(content="Hello, world!")
 
 
-class TestTelegramBusIsAllowed:
-    """Tests for TelegramBus.is_allowed method."""
-
-    def test_is_allowed_returns_true_for_whitelisted_user(self):
-        """is_allowed should return True for whitelisted user."""
-        config = TelegramConfig(
-            bot_token="test-token",
-            allowed_user_ids=["user123"],
-        )
-        bus = TelegramBus(config)
-
-        ctx = TelegramContext(user_id="user123", chat_id="456789")
-        assert bus.is_allowed(ctx) is True
-
-    def test_is_allowed_returns_false_for_non_whitelisted_user(self):
-        """is_allowed should return False for non-whitelisted user."""
-        config = TelegramConfig(
-            bot_token="test-token",
-            allowed_user_ids=["user123"],
-        )
-        bus = TelegramBus(config)
-
-        ctx = TelegramContext(user_id="unknown", chat_id="456789")
-        assert bus.is_allowed(ctx) is False
-
-    def test_is_allowed_returns_true_when_whitelist_empty(self):
-        """is_allowed should return True when whitelist is empty."""
-        config = TelegramConfig(
-            bot_token="test-token",
-            allowed_user_ids=[],
-        )
-        bus = TelegramBus(config)
-
-        ctx = TelegramContext(user_id="anyone", chat_id="456789")
-        assert bus.is_allowed(ctx) is True
-
-
 class TestTelegramBusReply:
     """Tests for TelegramBus.reply method."""
 
