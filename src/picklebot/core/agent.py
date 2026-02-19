@@ -201,7 +201,7 @@ class AgentSession:
         user_msg: Message = {"role": "user", "content": message}
         self.add_message(user_msg)
 
-        tool_schemas = self.agent.tools.get_tool_schemas()
+        tool_schemas = self.tools.get_tool_schemas()
         tool_count = 0
         display_content = "Thinking"
 
@@ -310,7 +310,7 @@ class AgentSession:
 
         with frontend.show_transient(tool_display):
             try:
-                result = await self.agent.tools.execute_tool(tool_call.name, **args)
+                result = await self.tools.execute_tool(tool_call.name, **args)
             except Exception as e:
                 result = f"Error executing tool: {e}"
 
