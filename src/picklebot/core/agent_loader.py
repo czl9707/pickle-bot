@@ -11,6 +11,7 @@ from picklebot.utils.def_loader import (
     InvalidDefError,
     discover_definitions,
     parse_definition,
+    substitute_template,
 )
 
 
@@ -38,18 +39,31 @@ class AgentLoader:
 
     @staticmethod
     def from_config(config: Config) -> "AgentLoader":
-        return AgentLoader(config.agents_path, config.llm)
+        return AgentLoader(config.agents_path, config.llm, config.workspace)
 
-    def __init__(self, agents_path: Path, shared_llm: LLMConfig):
+    def __init__(self, agents_path: Path, shared_llm: LLMConfig, workspace: Path):
         """
         Initialize AgentLoader.
 
         Args:
             agents_path: Directory containing agent folders
             shared_llm: Shared LLM config to fall back to
+            workspace: Workspace directory for resolving template variables
         """
         self.agents_path = agents_path
         self.shared_llm = shared_llm
+        self.workspace = workspace
+
+    def _get_template_variables(self) -> dict[str, str]:
+        """Get template variables for agent definitions."""
+        return {
+            "workspace": str(self.workspace),
+            "agents_path": str(self.agents_path),
+            "skills_path": str(self.workspace / "skills"),
+            "crons_path": str(self.workspace / "crons"),
+            "memories_path": str(self.workspace / "memories"),
+            "history_path": str(self.workspace / ".history"),
+        }
 
     def load(self, agent_id: str) -> AgentDef:
         """
@@ -93,6 +107,10 @@ class AgentLoader:
         self, def_id: str, frontmatter: dict[str, Any], body: str
     ) -> AgentDef:
         """Parse agent definition from frontmatter (callback for parse_definition)."""
+        # Substitute template variables in body
+        variables = self._get_template_variables()
+        body = substitute_template(body, variables)
+
         merged_llm = self._merge_llm_config(frontmatter)
 
         try:
