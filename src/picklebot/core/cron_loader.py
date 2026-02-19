@@ -1,7 +1,6 @@
 """Cron job definition loader."""
 
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from datetime import datetime
 
@@ -12,7 +11,9 @@ from picklebot.utils.def_loader import (
     DefNotFoundError,
     InvalidDefError,
     discover_definitions,
+    get_template_variables,
     parse_definition,
+    substitute_template,
 )
 
 if TYPE_CHECKING:
@@ -59,42 +60,30 @@ class CronLoader:
     @staticmethod
     def from_config(config: "Config") -> "CronLoader":
         """Create CronLoader from config."""
-        return CronLoader(config.crons_path)
+        return CronLoader(config)
 
-    def __init__(self, crons_path: Path):
+    def __init__(self, config: "Config"):
         """
         Initialize CronLoader.
 
         Args:
-            crons_path: Directory containing cron folders
+            config: Config object containing crons_path, workspace, etc.
         """
-        self.crons_path = crons_path
+        self.config = config
 
     def discover_crons(self) -> list[CronDef]:
-        """
-        Scan crons directory, return definitions for all valid jobs.
-
-        Returns:
-            List of CronDef for valid cron jobs.
-        """
+        """Scan crons directory, return definitions for all valid jobs."""
         return discover_definitions(
-            self.crons_path, "CRON.md", self._parse_cron_def
+            self.config.crons_path, "CRON.md", self._parse_cron_def
         )
 
     def _parse_cron_def(
         self, def_id: str, frontmatter: dict[str, Any], body: str
     ) -> CronDef | None:
-        """
-        Parse cron definition from frontmatter (callback for discover_definitions).
+        """Parse cron definition from frontmatter (callback for discover_definitions)."""
+        # Substitute template variables in body
+        body = substitute_template(body, get_template_variables(self.config))
 
-        Args:
-            def_id: Cron ID (folder name)
-            frontmatter: Parsed frontmatter dict
-            body: Markdown body content
-
-        Returns:
-            CronDef instance or None on validation failure
-        """
         try:
             return CronDef(
                 id=def_id,
@@ -108,44 +97,20 @@ class CronLoader:
             return None
 
     def load(self, cron_id: str) -> CronDef:
-        """
-        Load cron by ID.
-
-        Args:
-            cron_id: Cron folder name
-
-        Returns:
-            CronDef with full definition
-
-        Raises:
-            DefNotFoundError: Cron folder or file doesn't exist
-            InvalidDefError: Cron file is malformed
-        """
-        cron_file = self.crons_path / cron_id / "CRON.md"
+        """Load cron by ID."""
+        cron_file = self.config.crons_path / cron_id / "CRON.md"
         if not cron_file.exists():
             raise DefNotFoundError("cron", cron_id)
 
         try:
             content = cron_file.read_text()
-            cron_def = parse_definition(content, cron_id, self._parse_cron_def_strict)
+            cron_def = parse_definition(content, cron_id, self._parse_cron_def)
         except InvalidDefError:
             raise
         except Exception as e:
             raise InvalidDefError("cron", cron_id, str(e))
 
-        return cron_def
+        if cron_def is None:
+            raise InvalidDefError("cron", cron_id, "validation failed")
 
-    def _parse_cron_def_strict(
-        self, def_id: str, frontmatter: dict[str, Any], body: str
-    ) -> CronDef:
-        """Parse cron definition with strict validation (raises on error)."""
-        try:
-            return CronDef(
-                id=def_id,
-                name=frontmatter["name"],  # type: ignore[misc]
-                agent=frontmatter["agent"],  # type: ignore[misc]
-                schedule=frontmatter["schedule"],  # type: ignore[misc]
-                prompt=body.strip(),
-            )
-        except ValidationError as e:
-            raise InvalidDefError("cron", def_id, str(e))
+        return cron_def

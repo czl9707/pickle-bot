@@ -2,9 +2,12 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
 import yaml
+
+if TYPE_CHECKING:
+    from picklebot.utils.config import Config
 
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
@@ -27,6 +30,45 @@ class InvalidDefError(Exception):
         self.kind = kind
         self.def_id = def_id
         self.reason = reason
+
+
+def get_template_variables(config: "Config") -> dict[str, str]:
+    """
+    Get template variables from config for definition file substitution.
+
+    Args:
+        config: Config object with workspace and path settings
+
+    Returns:
+        Dict of variable names to path strings
+    """
+    return {
+        "workspace": str(config.workspace),
+        "agents_path": str(config.agents_path),
+        "skills_path": str(config.skills_path),
+        "crons_path": str(config.crons_path),
+        "memories_path": str(config.memories_path),
+        "history_path": str(config.history_path),
+    }
+
+
+def substitute_template(body: str, variables: dict[str, str]) -> str:
+    """
+    Replace {{variable}} placeholders in template body.
+
+    Args:
+        body: Template string with {{variable}} placeholders
+        variables: Dict of variable names to values
+
+    Returns:
+        Body with all matching placeholders replaced
+    """
+    result = body
+    # Sort by key length descending to handle overlapping names correctly
+    for key in sorted(variables.keys(), key=len, reverse=True):
+        value = variables[key]
+        result = result.replace(f"{{{{{key}}}}}", value)
+    return result
 
 
 def parse_definition[T](

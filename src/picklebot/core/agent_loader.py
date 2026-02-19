@@ -1,6 +1,5 @@
 """Agent definition loader."""
 
-from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError
@@ -10,7 +9,9 @@ from picklebot.utils.def_loader import (
     DefNotFoundError,
     InvalidDefError,
     discover_definitions,
+    get_template_variables,
     parse_definition,
+    substitute_template,
 )
 
 
@@ -38,18 +39,16 @@ class AgentLoader:
 
     @staticmethod
     def from_config(config: Config) -> "AgentLoader":
-        return AgentLoader(config.agents_path, config.llm)
+        return AgentLoader(config)
 
-    def __init__(self, agents_path: Path, shared_llm: LLMConfig):
+    def __init__(self, config: Config):
         """
         Initialize AgentLoader.
 
         Args:
-            agents_path: Directory containing agent folders
-            shared_llm: Shared LLM config to fall back to
+            config: Config object containing agents_path, llm, workspace, etc.
         """
-        self.agents_path = agents_path
-        self.shared_llm = shared_llm
+        self.config = config
 
     def load(self, agent_id: str) -> AgentDef:
         """
@@ -65,7 +64,7 @@ class AgentLoader:
             DefNotFoundError: Agent folder or file doesn't exist
             InvalidDefError: Agent file is malformed
         """
-        agent_file = self.agents_path / agent_id / "AGENT.md"
+        agent_file = self.config.agents_path / agent_id / "AGENT.md"
         if not agent_file.exists():
             raise DefNotFoundError("agent", agent_id)
 
@@ -86,13 +85,16 @@ class AgentLoader:
             List of AgentDef objects for all valid agents
         """
         return discover_definitions(
-            self.agents_path, "AGENT.md", self._parse_agent_def
+            self.config.agents_path, "AGENT.md", self._parse_agent_def
         )
 
     def _parse_agent_def(
         self, def_id: str, frontmatter: dict[str, Any], body: str
     ) -> AgentDef:
         """Parse agent definition from frontmatter (callback for parse_definition)."""
+        # Substitute template variables in body
+        body = substitute_template(body, get_template_variables(self.config))
+
         merged_llm = self._merge_llm_config(frontmatter)
 
         try:
@@ -122,8 +124,8 @@ class AgentLoader:
             LLMConfig with merged settings
         """
         return LLMConfig(
-            provider=frontmatter.get("provider", self.shared_llm.provider),
-            model=frontmatter.get("model", self.shared_llm.model),
-            api_key=frontmatter.get("api_key", self.shared_llm.api_key),
-            api_base=frontmatter.get("api_base", self.shared_llm.api_base),
+            provider=frontmatter.get("provider", self.config.llm.provider),
+            model=frontmatter.get("model", self.config.llm.model),
+            api_key=frontmatter.get("api_key", self.config.llm.api_key),
+            api_base=frontmatter.get("api_base", self.config.llm.api_base),
         )
