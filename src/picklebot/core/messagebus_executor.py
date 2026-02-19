@@ -5,7 +5,7 @@ import logging
 from typing import Any, Callable, Awaitable
 
 from picklebot.core.context import SharedContext
-from picklebot.core.agent import Agent
+from picklebot.core.agent import Agent, SessionMode
 from picklebot.messagebus.base import MessageBus
 from picklebot.frontend.base import SilentFrontend
 
@@ -29,7 +29,7 @@ class MessageBusExecutor:
         # Single shared session for all platforms
         agent_def = context.agent_loader.load(context.config.default_agent)
         agent = Agent(agent_def=agent_def, context=context)
-        self.session = agent.new_session()
+        self.session = agent.new_session(SessionMode.CHAT)
 
         # Message queue for sequential processing
         # Stores (message, platform, context) - context is platform-specific
