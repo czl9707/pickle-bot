@@ -101,6 +101,8 @@ class Agent:
             agent_id=self.agent_def.id,
             context=self.context,
             agent=self,
+            tools=self.tools,
+            mode=mode,
             max_history=max_history,
         )
 
@@ -136,8 +138,10 @@ class Agent:
             agent_id=session_info.agent_id,
             context=self.context,
             agent=self,
+            tools=self.tools,
+            mode=SessionMode.CHAT,  # Default to CHAT mode for resumed sessions
             messages=messages,
-            max_history=self.context.config.chat_max_history,  # Default to CHAT mode for resumed sessions
+            max_history=self.context.config.chat_max_history,
         )
 
 
@@ -148,7 +152,9 @@ class AgentSession:
     session_id: str
     agent_id: str
     context: SharedContext
-    agent: Agent  # Reference to parent agent for LLM/tools access
+    agent: Agent  # Reference to parent agent for LLM access
+    tools: ToolRegistry  # Session's own tool registry
+    mode: SessionMode  # Session mode (CHAT or JOB)
     max_history: int  # Max messages to include in LLM context
 
     messages: list[Message] = field(default_factory=list)
