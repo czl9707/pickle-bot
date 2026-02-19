@@ -11,7 +11,66 @@ from picklebot.utils.def_loader import (
     InvalidDefError,
     discover_definitions,
     parse_definition,
+    substitute_template,
 )
+
+
+class TestSubstituteTemplate:
+    def test_substitute_single_variable(self):
+        """Replace a single {{variable}} placeholder."""
+        body = "Path is: {{memories_path}}"
+        variables = {"memories_path": "/home/user/.pickle-bot/memories"}
+
+        result = substitute_template(body, variables)
+
+        assert result == "Path is: /home/user/.pickle-bot/memories"
+
+    def test_substitute_multiple_variables(self):
+        """Replace multiple different placeholders."""
+        body = "Workspace: {{workspace}}, Memories: {{memories_path}}"
+        variables = {
+            "workspace": "/home/user/.pickle-bot",
+            "memories_path": "/home/user/.pickle-bot/memories",
+        }
+
+        result = substitute_template(body, variables)
+
+        assert result == "Workspace: /home/user/.pickle-bot, Memories: /home/user/.pickle-bot/memories"
+
+    def test_substitute_same_variable_multiple_times(self):
+        """Replace same placeholder appearing multiple times."""
+        body = "{{memories_path}}/topics and {{memories_path}}/projects"
+        variables = {"memories_path": "/home/user/.pickle-bot/memories"}
+
+        result = substitute_template(body, variables)
+
+        assert result == "/home/user/.pickle-bot/memories/topics and /home/user/.pickle-bot/memories/projects"
+
+    def test_missing_variable_passes_through_unchanged(self):
+        """Leave unknown placeholders unchanged."""
+        body = "Path: {{unknown_var}}"
+        variables = {"memories_path": "/home/user/.pickle-bot/memories"}
+
+        result = substitute_template(body, variables)
+
+        assert result == "Path: {{unknown_var}}"
+
+    def test_no_variables_returns_body_unchanged(self):
+        """Return body as-is when no placeholders present."""
+        body = "No templates here!"
+        variables = {"memories_path": "/home/user/.pickle-bot/memories"}
+
+        result = substitute_template(body, variables)
+
+        assert result == "No templates here!"
+
+    def test_empty_variables_dict(self):
+        """Handle empty variables dict."""
+        body = "Path: {{memories_path}}"
+
+        result = substitute_template(body, {})
+
+        assert result == "Path: {{memories_path}}"
 
 
 class TestParseDefinition:

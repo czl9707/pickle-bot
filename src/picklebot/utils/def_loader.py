@@ -29,6 +29,23 @@ class InvalidDefError(Exception):
         self.reason = reason
 
 
+def substitute_template(body: str, variables: dict[str, str]) -> str:
+    """
+    Replace {{variable}} placeholders in template body.
+
+    Args:
+        body: Template string with {{variable}} placeholders
+        variables: Dict of variable names to values
+
+    Returns:
+        Body with all matching placeholders replaced
+    """
+    result = body
+    for key, value in variables.items():
+        result = result.replace(f"{{{{{key}}}}}", value)
+    return result
+
+
 def parse_definition[T](
     content: str,
     def_id: str,
