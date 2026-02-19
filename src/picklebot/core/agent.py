@@ -296,7 +296,9 @@ class AgentSession:
 
         with frontend.show_transient(tool_display):
             try:
-                result = await self.agent.tools.execute_tool(tool_call.name, **args)
+                result = await self.agent.tools.execute_tool(
+                    tool_call.name, frontend=frontend, **args
+                )
             except Exception as e:
                 result = f"Error executing tool: {e}"
 

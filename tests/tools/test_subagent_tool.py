@@ -6,6 +6,7 @@ from unittest.mock import ANY, AsyncMock, patch
 import pytest
 
 from picklebot.core.context import SharedContext
+from picklebot.frontend.base import SilentFrontend
 from picklebot.tools.subagent_tool import create_subagent_dispatch_tool
 
 
@@ -29,13 +30,15 @@ class TestCreateSubagentDispatchTool:
             agent_dir = test_config.agents_path / agent_id
             agent_dir.mkdir(parents=True)
             agent_file = agent_dir / "AGENT.md"
-            agent_file.write_text(f"""---
+            agent_file.write_text(
+                f"""---
 name: {name}
 description: {desc}
 ---
 
 You are {name}.
-""")
+"""
+            )
 
         context = SharedContext(config=test_config)
 
@@ -71,13 +74,15 @@ You are {name}.
             agent_dir = test_config.agents_path / agent_id
             agent_dir.mkdir(parents=True)
             agent_file = agent_dir / "AGENT.md"
-            agent_file.write_text(f"""---
+            agent_file.write_text(
+                f"""---
 name: {name}
 description: {desc}
 ---
 
 You are {name}.
-""")
+"""
+            )
 
         context = SharedContext(config=test_config)
 
@@ -97,13 +102,15 @@ You are {name}.
         agent_dir = test_config.agents_path / "target-agent"
         agent_dir.mkdir(parents=True)
         agent_file = agent_dir / "AGENT.md"
-        agent_file.write_text("""---
+        agent_file.write_text(
+            """---
 name: Target Agent
 description: A target for dispatch testing
 ---
 
 You are the target agent.
-""")
+"""
+        )
 
         context = SharedContext(config=test_config)
 
@@ -120,8 +127,9 @@ You are the target agent.
             mock_session.chat = AsyncMock(return_value=mock_response)
 
             # Execute
+            frontend = SilentFrontend()
             result = await tool_func.execute(
-                agent_id="target-agent", task="Do something"
+                frontend=frontend, agent_id="target-agent", task="Do something"
             )
 
             # Verify
@@ -139,13 +147,15 @@ You are the target agent.
         agent_dir = test_config.agents_path / "target-agent"
         agent_dir.mkdir(parents=True)
         agent_file = agent_dir / "AGENT.md"
-        agent_file.write_text("""---
+        agent_file.write_text(
+            """---
 name: Target Agent
 description: A target for dispatch testing
 ---
 
 You are the target agent.
-""")
+"""
+        )
 
         context = SharedContext(config=test_config)
 
@@ -159,7 +169,9 @@ You are the target agent.
             mock_session.chat = AsyncMock(return_value="Done")
 
             # Execute with context
+            frontend = SilentFrontend()
             await tool_func.execute(
+                frontend=frontend,
                 agent_id="target-agent",
                 task="Review this",
                 context="The code is in src/main.py",

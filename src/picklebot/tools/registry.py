@@ -1,9 +1,12 @@
 """Tool registry for managing available tools."""
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from picklebot.tools.base import BaseTool
 from picklebot.tools.builtin_tools import bash, edit_file, read_file, write_file
+
+if TYPE_CHECKING:
+    from picklebot.frontend import Frontend
 
 
 class ToolRegistry:
@@ -34,9 +37,14 @@ class ToolRegistry:
         """Get tool schemas for all registered tools."""
         return [tool.get_tool_schema() for tool in self._tools.values()]
 
-    async def execute_tool(self, name: str, **kwargs: Any) -> str:
+    async def execute_tool(self, name: str, frontend: "Frontend", **kwargs: Any) -> str:
         """
         Execute a tool by name.
+
+        Args:
+            name: Name of the tool to execute
+            frontend: Frontend for displaying output
+            **kwargs: Tool-specific arguments
 
         Raises:
             ValueError: If tool is not found
@@ -45,7 +53,7 @@ class ToolRegistry:
         if tool is None:
             raise ValueError(f"Tool not found: {name}")
 
-        return await tool.execute(**kwargs)
+        return await tool.execute(frontend=frontend, **kwargs)
 
     @classmethod
     def with_builtins(cls) -> "ToolRegistry":

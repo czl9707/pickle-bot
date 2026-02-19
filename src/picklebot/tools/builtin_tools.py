@@ -2,8 +2,12 @@
 
 import asyncio
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from picklebot.tools.base import tool
+
+if TYPE_CHECKING:
+    from picklebot.frontend import Frontend
 
 # Filesystem tools
 
@@ -19,7 +23,7 @@ from picklebot.tools.base import tool
         "required": ["path"],
     },
 )
-async def read_file(path: str) -> str:
+async def read_file(frontend: "Frontend", path: str) -> str:
     """Read and return the contents of a file at the given path."""
     try:
         return Path(path).read_text()
@@ -48,7 +52,7 @@ async def read_file(path: str) -> str:
         "required": ["path", "content"],
     },
 )
-async def write_file(path: str, content: str) -> str:
+async def write_file(frontend: "Frontend", path: str, content: str) -> str:
     """Write content to a file at the given path."""
     try:
         Path(path).write_text(content)
@@ -77,7 +81,7 @@ async def write_file(path: str, content: str) -> str:
         "required": ["path", "old_text", "new_text"],
     },
 )
-async def edit_file(path: str, old_text: str, new_text: str) -> str:
+async def edit_file(frontend: "Frontend", path: str, old_text: str, new_text: str) -> str:
     """Edit a file by replacing old_text with new_text."""
     try:
         content = Path(path).read_text()
@@ -108,7 +112,7 @@ async def edit_file(path: str, old_text: str, new_text: str) -> str:
         "required": ["command"],
     },
 )
-async def bash(command: str) -> str:
+async def bash(frontend: "Frontend", command: str) -> str:
     """Execute a bash command and return the output."""
     try:
         process = await asyncio.create_subprocess_shell(

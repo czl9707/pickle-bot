@@ -9,6 +9,7 @@ from picklebot.utils.def_loader import DefNotFoundError
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
+    from picklebot.frontend import Frontend
 
 
 def create_subagent_dispatch_tool(
@@ -42,6 +43,16 @@ def create_subagent_dispatch_tool(
 
     dispatchable_ids = [a.id for a in dispatchable_agents]
 
+    # Create a lookup for agent names
+    agent_name_map = {a.id: a.name for a in dispatchable_agents}
+
+    # Get calling agent name
+    try:
+        calling_agent_def = shared_context.agent_loader.load(current_agent_id)
+        calling_agent_name = calling_agent_def.name
+    except DefNotFoundError:
+        calling_agent_name = current_agent_id
+
     @tool(
         name="subagent_dispatch",
         description=f"Dispatch a task to a specialized subagent.\n{agents_desc}",
@@ -65,8 +76,20 @@ def create_subagent_dispatch_tool(
             "required": ["agent_id", "task"],
         },
     )
-    async def subagent_dispatch(agent_id: str, task: str, context: str = "") -> str:
-        """Dispatch task to subagent, return result + session_id."""
+    async def subagent_dispatch(
+        frontend: "Frontend", agent_id: str, task: str, context: str = ""
+    ) -> str:
+        """Dispatch task to subagent, return result + session_id.
+
+        Args:
+            frontend: Frontend for displaying dispatch status
+            agent_id: ID of the target agent
+            task: Task for the subagent to perform
+            context: Optional context information
+
+        Returns:
+            JSON with result and session_id
+        """
         # Import here to avoid circular dependency
         from picklebot.core.agent import Agent, SessionMode
 
@@ -74,6 +97,12 @@ def create_subagent_dispatch_tool(
             target_def = shared_context.agent_loader.load(agent_id)
         except DefNotFoundError:
             raise ValueError(f"Agent '{agent_id}' not found")
+
+        # Get target agent name for display
+        target_agent_name = agent_name_map.get(agent_id, agent_id)
+
+        # Show dispatch start
+        frontend.show_dispatch_start(calling_agent_name, target_agent_name, task)
 
         subagent = Agent(target_def, shared_context)
 
@@ -83,6 +112,9 @@ def create_subagent_dispatch_tool(
 
         session = subagent.new_session(SessionMode.JOB)
         response = await session.chat(user_message, SilentFrontend())
+
+        # Show dispatch result
+        frontend.show_dispatch_result(calling_agent_name, target_agent_name, response)
 
         # Return result + session_id as JSON
         result = {

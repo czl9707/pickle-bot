@@ -2,7 +2,10 @@
 
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
+
+if TYPE_CHECKING:
+    from picklebot.frontend import Frontend
 
 
 class BaseTool(ABC):
@@ -13,8 +16,13 @@ class BaseTool(ABC):
     parameters: dict[str, Any]  # JSON Schema for function calling
 
     @abstractmethod
-    async def execute(self, **kwargs: Any) -> str:
-        """Execute the tool."""
+    async def execute(self, frontend: "Frontend", **kwargs: Any) -> str:
+        """Execute the tool.
+
+        Args:
+            frontend: Frontend for displaying output
+            **kwargs: Tool-specific arguments
+        """
 
     def get_tool_schema(self) -> dict[str, Any]:
         """Get the tool/function schema for LiteLLM."""
@@ -52,9 +60,14 @@ class FunctionTool(BaseTool):
         self.parameters = parameters
         self._func = func
 
-    async def execute(self, **kwargs: Any) -> str:
-        """Execute the underlying function."""
-        result = self._func(**kwargs)
+    async def execute(self, frontend: "Frontend", **kwargs: Any) -> str:
+        """Execute the underlying function.
+
+        Args:
+            frontend: Frontend for displaying output
+            **kwargs: Tool-specific arguments
+        """
+        result = self._func(frontend=frontend, **kwargs)
         if asyncio.iscoroutine(result):
             result = await result
         return str(result)
