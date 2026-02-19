@@ -104,28 +104,13 @@ class CronLoader:
 
         try:
             content = cron_file.read_text()
-            cron_def = parse_definition(content, cron_id, self._parse_cron_def_strict)
+            cron_def = parse_definition(content, cron_id, self._parse_cron_def)
         except InvalidDefError:
             raise
         except Exception as e:
             raise InvalidDefError("cron", cron_id, str(e))
 
+        if cron_def is None:
+            raise InvalidDefError("cron", cron_id, "validation failed")
+
         return cron_def
-
-    def _parse_cron_def_strict(
-        self, def_id: str, frontmatter: dict[str, Any], body: str
-    ) -> CronDef:
-        """Parse cron definition with strict validation (raises on error)."""
-        # Substitute template variables in body
-        body = substitute_template(body, get_template_variables(self.config))
-
-        try:
-            return CronDef(
-                id=def_id,
-                name=frontmatter["name"],  # type: ignore[misc]
-                agent=frontmatter["agent"],  # type: ignore[misc]
-                schedule=frontmatter["schedule"],  # type: ignore[misc]
-                prompt=body.strip(),
-            )
-        except ValidationError as e:
-            raise InvalidDefError("cron", def_id, str(e))
