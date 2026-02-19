@@ -1,6 +1,6 @@
 """Tests for the Agent class."""
 
-from picklebot.core.agent import Agent
+from picklebot.core.agent import Agent, SessionMode
 from picklebot.core.agent_loader import AgentBehaviorConfig, AgentDef
 from picklebot.core.context import SharedContext
 from picklebot.utils.config import LLMConfig
@@ -14,11 +14,34 @@ def test_agent_creation_with_new_structure(test_agent, test_agent_def, test_cont
 
 def test_agent_new_session(test_agent, test_agent_def):
     """Agent should create new session with self reference."""
-    session = test_agent.new_session()
+    session = test_agent.new_session(SessionMode.CHAT)
 
     assert session.session_id is not None
     assert session.agent_id == test_agent_def.id
     assert session.agent is test_agent
+
+
+def test_agent_new_session_requires_mode(test_agent):
+    """Agent.new_session should require explicit mode."""
+    # This will fail at runtime if mode is not provided
+    session = test_agent.new_session(SessionMode.CHAT)
+
+    assert session.session_id is not None
+    assert session.max_history == 50  # chat default
+
+
+def test_agent_new_session_job_mode(test_agent, test_config):
+    """Agent.new_session with JOB mode should use job_max_history."""
+    session = test_agent.new_session(SessionMode.JOB)
+
+    assert session.max_history == test_config.job_max_history
+
+
+def test_agent_new_session_chat_mode(test_agent, test_config):
+    """Agent.new_session with CHAT mode should use chat_max_history."""
+    session = test_agent.new_session(SessionMode.CHAT)
+
+    assert session.max_history == test_config.chat_max_history
 
 
 def test_agent_registers_skill_tool_when_allowed(test_config):

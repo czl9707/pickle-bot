@@ -78,19 +78,30 @@ class Agent:
         if post_tool:
             self.tools.register(post_tool)
 
-    def new_session(self) -> "AgentSession":
+    def new_session(self, mode: SessionMode) -> "AgentSession":
         """
         Create a new conversation session.
+
+        Args:
+            mode: Session mode (CHAT or JOB) determines history limit
 
         Returns:
             A new Session instance with self as the agent reference.
         """
         session_id = str(uuid.uuid4())
+
+        # Determine max_history based on mode
+        if mode == SessionMode.CHAT:
+            max_history = self.context.config.chat_max_history
+        else:
+            max_history = self.context.config.job_max_history
+
         session = AgentSession(
             session_id=session_id,
             agent_id=self.agent_def.id,
             context=self.context,
             agent=self,
+            max_history=max_history,
         )
 
         self.context.history_store.create_session(self.agent_def.id, session_id)
@@ -126,6 +137,7 @@ class Agent:
             context=self.context,
             agent=self,
             messages=messages,
+            max_history=self.context.config.chat_max_history,  # Default to CHAT mode for resumed sessions
         )
 
 
@@ -137,6 +149,7 @@ class AgentSession:
     agent_id: str
     context: SharedContext
     agent: Agent  # Reference to parent agent for LLM/tools access
+    max_history: int  # Max messages to include in LLM context
 
     messages: list[Message] = field(default_factory=list)
     started_at: datetime = field(default_factory=datetime.now)
@@ -146,9 +159,14 @@ class AgentSession:
         self.messages.append(message)
         self._persist_message(message)
 
-    def get_history(self, max_messages: int = 50) -> list[Message]:
-        """Get recent messages for LLM context."""
-        return self.messages[-max_messages:]
+    def get_history(self, max_messages: int | None = None) -> list[Message]:
+        """Get recent messages for LLM context.
+
+        Args:
+            max_messages: Override for max messages (uses self.max_history if None)
+        """
+        limit = max_messages if max_messages is not None else self.max_history
+        return self.messages[-limit:]
 
     def _persist_message(self, message: Message) -> None:
         """Save to HistoryStore."""
@@ -216,7 +234,7 @@ class AgentSession:
         messages: list[Message] = [
             {"role": "system", "content": self.agent.agent_def.system_prompt}
         ]
-        messages.extend(self.get_history(50))
+        messages.extend(self.get_history())
 
         return messages
 
