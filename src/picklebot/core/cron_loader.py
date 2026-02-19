@@ -1,7 +1,6 @@
 """Cron job definition loader."""
 
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from datetime import datetime
 

@@ -1,6 +1,5 @@
 """Tests for CronLoader and related components."""
 
-from pathlib import Path
 
 import pytest
 

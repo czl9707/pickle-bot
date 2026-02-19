@@ -1,7 +1,5 @@
 """Tests for AgentLoader."""
 
-from pathlib import Path
-import tempfile
 
 import pytest
 
