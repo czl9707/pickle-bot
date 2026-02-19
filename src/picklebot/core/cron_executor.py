@@ -8,7 +8,7 @@ from croniter import croniter
 
 from picklebot.core.context import SharedContext
 from picklebot.core.cron_loader import CronDef
-from picklebot.core.agent import Agent
+from picklebot.core.agent import Agent, SessionMode
 from picklebot.frontend.base import SilentFrontend
 
 logger = logging.getLogger(__name__)
@@ -98,7 +98,7 @@ class CronExecutor:
             agent_def = self.context.agent_loader.load(cron_def.agent)
             agent = Agent(agent_def, self.context)
 
-            session = agent.new_session()
+            session = agent.new_session(SessionMode.JOB)
 
             await session.chat(cron_def.prompt, SilentFrontend())
 
