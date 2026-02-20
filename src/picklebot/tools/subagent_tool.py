@@ -96,6 +96,7 @@ def create_subagent_dispatch_tool(
 
         async with frontend.show_dispatch(current_agent_id, agent_id, task):
             session = subagent.new_session(SessionMode.JOB)
+            # Might need revisit this piece later to find out a more flexible way of communicating with ouside.
             response = await session.chat(user_message, SilentFrontend())
 
         result = {
