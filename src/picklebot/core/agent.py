@@ -38,55 +38,57 @@ class Agent:
     """
     A configured agent that creates and manages conversation sessions.
 
-    Agent is a factory for sessions and holds the LLM, tools, and config
+    Agent is a factory for sessions and holds the LLM and config
     that sessions use for chatting.
     """
 
     def __init__(self, agent_def: "AgentDef", context: SharedContext) -> None:
         self.agent_def = agent_def
         self.context = context
-        # tools currently is initialized within Agent class.
-        # This is intentional, in case agent will have its own tool regitry config later.
-        self.tools = ToolRegistry.with_builtins()
         self.llm = LLMProvider.from_config(agent_def.llm)
 
-        # Add skill tool if allowed
-        if agent_def.allow_skills:
-            self._register_skill_tool()
+    def _build_tools(self, mode: SessionMode) -> ToolRegistry:
+        """
+        Build a ToolRegistry with tools appropriate for the session mode.
 
-        # Add subagent dispatch tool
-        self._register_subagent_tool()
+        Args:
+            mode: Session mode (CHAT or JOB)
 
-        # Add post_message tool
-        self._register_post_message_tool()
+        Returns:
+            ToolRegistry with base tools + mode-appropriate optional tools
+        """
+        registry = ToolRegistry.with_builtins()
 
-    def _register_skill_tool(self) -> None:
-        """Register the skill tool if skills are available."""
-        skill_tool = create_skill_tool(self.context.skill_loader)
-        if skill_tool:
-            self.tools.register(skill_tool)
+        # Register skill tool if allowed
+        if self.agent_def.allow_skills:
+            skill_tool = create_skill_tool(self.context.skill_loader)
+            if skill_tool:
+                registry.register(skill_tool)
 
-    def _register_subagent_tool(self) -> None:
-        """Register the subagent dispatch tool if agents are available."""
-        subagent_tool = create_subagent_dispatch_tool(self.agent_def.id, self.context)
+        # Register subagent dispatch tool if other agents exist
+        subagent_tool = create_subagent_dispatch_tool(
+            self.agent_def.id, self.context
+        )
         if subagent_tool:
-            self.tools.register(subagent_tool)
+            registry.register(subagent_tool)
 
-    def _register_post_message_tool(self) -> None:
-        """Register the post_message tool if messagebus is enabled."""
-        post_tool = create_post_message_tool(self.context)
-        if post_tool:
-            self.tools.register(post_tool)
+        # Register post_message tool only in JOB mode
+        if mode == SessionMode.JOB:
+            post_tool = create_post_message_tool(self.context)
+            if post_tool:
+                registry.register(post_tool)
+
+        return registry
 
     def new_session(self, mode: SessionMode) -> "AgentSession":
         """
         Create a new conversation session.
 
         Args:
-            mode: Session mode (CHAT or JOB) determines history limit
+            mode: Session mode (CHAT or JOB) determines history limit and tool availability
 
         Returns:
-            A new Session instance with self as the agent reference.
+            A new Session instance with mode-appropriate tools.
         """
         session_id = str(uuid.uuid4())
 
@@ -96,11 +98,16 @@ class Agent:
         else:
             max_history = self.context.config.job_max_history
 
+        # Build tools for this session
+        tools = self._build_tools(mode)
+
         session = AgentSession(
             session_id=session_id,
             agent_id=self.agent_def.id,
             context=self.context,
             agent=self,
+            tools=tools,
+            mode=mode,
             max_history=max_history,
         )
 
@@ -131,13 +138,18 @@ class Agent:
         # Convert HistoryMessage to litellm Message format
         messages: list[Message] = [msg.to_message() for msg in history_messages]
 
+        # Build tools for resumed session (default to CHAT mode)
+        tools = self._build_tools(SessionMode.CHAT)
+
         return AgentSession(
             session_id=session_info.id,
             agent_id=session_info.agent_id,
             context=self.context,
             agent=self,
+            tools=tools,
+            mode=SessionMode.CHAT,  # Default to CHAT mode for resumed sessions
             messages=messages,
-            max_history=self.context.config.chat_max_history,  # Default to CHAT mode for resumed sessions
+            max_history=self.context.config.chat_max_history,
         )
 
 
@@ -148,7 +160,9 @@ class AgentSession:
     session_id: str
     agent_id: str
     context: SharedContext
-    agent: Agent  # Reference to parent agent for LLM/tools access
+    agent: Agent  # Reference to parent agent for LLM access
+    tools: ToolRegistry  # Session's own tool registry
+    mode: SessionMode  # Session mode (CHAT or JOB)
     max_history: int  # Max messages to include in LLM context
 
     messages: list[Message] = field(default_factory=list)
@@ -187,7 +201,7 @@ class AgentSession:
         user_msg: Message = {"role": "user", "content": message}
         self.add_message(user_msg)
 
-        tool_schemas = self.agent.tools.get_tool_schemas()
+        tool_schemas = self.tools.get_tool_schemas()
         tool_count = 0
         display_content = "Thinking"
 
@@ -296,7 +310,7 @@ class AgentSession:
 
         with frontend.show_transient(tool_display):
             try:
-                result = await self.agent.tools.execute_tool(tool_call.name, **args)
+                result = await self.tools.execute_tool(tool_call.name, **args)
             except Exception as e:
                 result = f"Error executing tool: {e}"
 
