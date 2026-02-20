@@ -1,9 +1,8 @@
-"""MessageBusFrontend for posting dispatch messages to messagebus platform."""
+"""MessageBusFrontend for posting messages to messagebus platform."""
 
-import asyncio
-import contextlib
 import logging
-from typing import TYPE_CHECKING, Any, Iterator
+from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from picklebot.frontend.base import Frontend
 
@@ -14,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class MessageBusFrontend(Frontend):
-    """Frontend that posts dispatch messages to messagebus platform."""
+    """Frontend that posts messages to messagebus platform."""
 
     def __init__(self, bus: "MessageBus", context: Any):
         """
@@ -27,55 +26,41 @@ class MessageBusFrontend(Frontend):
         self.bus = bus
         self.context = context
 
-    def show_welcome(self) -> None:
-        """No-op for messagebus."""
+    async def show_welcome(self) -> None:
+        """No-op for messagebus - no welcome on incoming messages."""
         pass
 
-    def show_message(self, content: str) -> None:
-        """No-op for messagebus (messages are handled separately)."""
-        pass
+    async def show_message(
+        self, content: str, agent_id: str | None = None
+    ) -> None:
+        """Send message via bus.reply() with error isolation."""
+        if agent_id:
+            content = f"[{agent_id}]: {content}"
+        try:
+            await self.bus.reply(content, self.context)
+        except Exception as e:
+            logger.warning(f"Failed to send message: {e}")
 
-    def show_system_message(self, content: str) -> None:
-        """No-op for messagebus."""
-        pass
+    async def show_system_message(self, content: str) -> None:
+        """Send system message via bus.reply() with error isolation."""
+        try:
+            await self.bus.reply(content, self.context)
+        except Exception as e:
+            logger.warning(f"Failed to send system message: {e}")
 
-    @contextlib.contextmanager
-    def show_transient(self, content: str) -> Iterator[None]:
-        """No-op for messagebus."""
+    @asynccontextmanager
+    async def show_transient(self, content: str) -> AsyncIterator[None]:
+        """No-op for messagebus - no transient display."""
         yield
 
-    async def _post_safe(self, msg: str) -> None:
-        """Post message with error handling."""
+    @asynccontextmanager
+    async def show_dispatch(
+        self, calling_agent: str, target_agent: str, task: str
+    ) -> AsyncIterator[None]:
+        """Send dispatch start notification."""
+        msg = f"{calling_agent}: @{target_agent.lower()} {task}"
         try:
             await self.bus.reply(msg, self.context)
         except Exception as e:
-            logger.warning(f"Failed to post message: {e}")
-
-    def show_dispatch_start(
-        self, calling_agent: str, target_agent: str, task: str
-    ) -> None:
-        """
-        Post dispatch start message to messagebus.
-
-        Args:
-            calling_agent: Name of the calling agent
-            target_agent: Name of the target agent
-            task: Task description
-        """
-        msg = f"{calling_agent}: @{target_agent.lower()} {task}"
-        asyncio.create_task(self._post_safe(msg))
-
-    def show_dispatch_result(
-        self, calling_agent: str, target_agent: str, result: str
-    ) -> None:
-        """
-        Post dispatch result message to messagebus.
-
-        Args:
-            calling_agent: Name of the calling agent
-            target_agent: Name of the target agent
-            result: Result from subagent
-        """
-        truncated = result[:200] + "..." if len(result) > 200 else result
-        msg = f"{target_agent}: - {truncated}"
-        asyncio.create_task(self._post_safe(msg))
+            logger.warning(f"Failed to send dispatch notification: {e}")
+        yield
