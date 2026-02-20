@@ -3,7 +3,7 @@
 import asyncio
 from dataclasses import dataclass
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -200,14 +200,16 @@ class TestMessageProcessing:
 
     @pytest.mark.anyio
     async def test_processes_queue(self, executor_with_mock_bus):
-        """Test that messages are processed from queue."""
+        """Test that messages are processed from queue and routed via frontend."""
         executor, bus = executor_with_mock_bus
 
-        with patch.object(
-            executor.session, "chat", new_callable=AsyncMock
-        ) as mock_chat:
-            mock_chat.return_value = "Test response"
+        async def mock_chat_with_frontend(message: str, frontend) -> None:
+            """Mock chat that calls frontend.show_message like real Agent."""
+            await frontend.show_message("Test response")
 
+        with patch.object(
+            executor.session, "chat", side_effect=mock_chat_with_frontend
+        ):
             ctx = MockContext(user_id="user123", chat_id="chat456")
             await executor._enqueue_message("Hello", "mock", ctx)
 
@@ -227,11 +229,13 @@ class TestMessageProcessing:
         """Test that errors during processing are handled gracefully."""
         executor, bus = executor_with_mock_bus
 
-        with patch.object(
-            executor.session, "chat", new_callable=AsyncMock
-        ) as mock_chat:
-            mock_chat.side_effect = Exception("LLM error")
+        async def mock_chat_error(message: str, frontend) -> None:
+            """Mock chat that raises an error."""
+            raise Exception("LLM error")
 
+        with patch.object(
+            executor.session, "chat", side_effect=mock_chat_error
+        ):
             ctx = MockContext(user_id="user123", chat_id="chat456")
             await executor._enqueue_message("Hello", "mock", ctx)
 
@@ -252,7 +256,7 @@ class TestMultiPlatform:
 
     @pytest.mark.anyio
     async def test_routes_to_correct_platform(self, test_config):
-        """Test that executor routes messages to correct platforms."""
+        """Test that executor routes messages to correct platforms via frontend."""
         _create_test_agent(test_config.agents_path)
 
         context = SharedContext(test_config)
@@ -261,11 +265,13 @@ class TestMultiPlatform:
         bus2 = MockBus("discord")
         executor = MessageBusExecutor(context, [bus1, bus2])
 
-        with patch.object(
-            executor.session, "chat", new_callable=AsyncMock
-        ) as mock_chat:
-            mock_chat.return_value = "Test response"
+        async def mock_chat_with_frontend(message: str, frontend) -> None:
+            """Mock chat that calls frontend.show_message like real Agent."""
+            await frontend.show_message("Test response")
 
+        with patch.object(
+            executor.session, "chat", side_effect=mock_chat_with_frontend
+        ):
             ctx1 = MockContext(user_id="user1", chat_id="chat1")
             ctx2 = MockContext(user_id="user2", chat_id="chat2")
             await executor._enqueue_message("Hello Telegram", "telegram", ctx1)
