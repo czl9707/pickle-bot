@@ -25,39 +25,33 @@ class ChatLoop:
     async def run(self) -> None:
         """Run the interactive chat loop."""
         session = self.agent.new_session(SessionMode.CHAT)
-        self.frontend.show_welcome()
+        await self.frontend.show_welcome()
 
         while True:
             try:
-                # Get input directly (no longer in Frontend)
                 user_input = self.frontend.console.input(
                     "[bold green]You:[/bold green] "
                 )
 
                 if user_input.lower() in ["quit", "exit", "q"]:
-                    self.frontend.show_system_message("[yellow]Goodbye![/yellow]")
+                    await self.frontend.show_system_message("[yellow]Goodbye![/yellow]")
                     break
 
                 if not user_input.strip():
                     continue
 
-                # Show user message
-                self.frontend.show_message(
+                # Show user message (raw, no agent_id)
+                await self.frontend.show_message(
                     f"[bold green]You:[/bold green] {user_input}"
                 )
 
-                # Get response
-                response = await session.chat(user_input, self.frontend)
-
-                # Show agent response
-                self.frontend.show_message(
-                    f"[bold cyan]{self.agent_def.name}:[/bold cyan] {response}"
-                )
+                # Get response (chat() calls show_message internally)
+                await session.chat(user_input, self.frontend)
 
             except KeyboardInterrupt:
-                self.frontend.show_system_message(
+                await self.frontend.show_system_message(
                     "\n[yellow]Session interrupted.[/yellow]"
                 )
                 break
             except Exception as e:
-                self.frontend.show_system_message(f"[red]Error: {e}[/red]")
+                await self.frontend.show_system_message(f"[red]Error: {e}[/red]")
