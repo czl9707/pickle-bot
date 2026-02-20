@@ -2,41 +2,40 @@
 
 from abc import ABC, abstractmethod
 import contextlib
-from typing import Iterator
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
 
 
 class Frontend(ABC):
     """Abstract interface for frontend implementations."""
 
     @abstractmethod
-    def show_welcome(self) -> None:
+    async def show_welcome(self) -> None:
         """Display welcome message."""
 
     @abstractmethod
-    def show_message(self, content: str) -> None:
-        """Display a message (user or agent)."""
+    async def show_message(
+        self, content: str, agent_id: str | None = None
+    ) -> None:
+        """Display a message with optional agent context."""
 
     @abstractmethod
-    def show_system_message(self, content: str) -> None:
+    async def show_system_message(self, content: str) -> None:
         """Display system-level message (goodbye, errors, interrupts)."""
 
     @abstractmethod
-    @contextlib.contextmanager
-    def show_transient(self, content: str) -> Iterator[None]:
+    @asynccontextmanager
+    async def show_transient(self, content: str) -> AsyncIterator[None]:
         """Display transient message (tool calls, intermediate steps)."""
         yield
 
     @abstractmethod
-    def show_dispatch_start(
+    @asynccontextmanager
+    async def show_dispatch(
         self, calling_agent: str, target_agent: str, task: str
-    ) -> None:
-        """Display subagent dispatch start."""
-
-    @abstractmethod
-    def show_dispatch_result(
-        self, calling_agent: str, target_agent: str, result: str
-    ) -> None:
-        """Display subagent dispatch result."""
+    ) -> AsyncIterator[None]:
+        """Display subagent dispatch notification."""
+        yield
 
 
 class SilentFrontend(Frontend):
