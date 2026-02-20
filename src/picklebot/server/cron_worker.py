@@ -15,6 +15,8 @@ if TYPE_CHECKING:
     from picklebot.core.cron_loader import CronDef
     from picklebot.core.context import SharedContext
 
+logger = logging.getLogger(__name__)
+
 
 def find_due_jobs(
     jobs: list["CronDef"], now: datetime | None = None
@@ -43,7 +45,7 @@ def find_due_jobs(
             if croniter.match(job.schedule, now_minute):
                 due_jobs.append(job)
         except Exception as e:
-            logging.warning(f"Error checking schedule for {job.id}: {e}")
+            logger.warning(f"Error checking schedule for {job.id}: {e}")
             continue
 
     return due_jobs
