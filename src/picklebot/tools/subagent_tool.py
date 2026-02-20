@@ -88,20 +88,19 @@ def create_subagent_dispatch_tool(
         except DefNotFoundError:
             raise ValueError(f"Agent '{agent_id}' not found")
 
-        # Show dispatch start
-        frontend.show_dispatch_start(current_agent_id, agent_id, task)
-
         subagent = Agent(target_def, shared_context)
 
         user_message = task
         if context:
             user_message = f"{task}\n\nContext:\n{context}"
 
-        session = subagent.new_session(SessionMode.JOB)
-        response = await session.chat(user_message, SilentFrontend())
+        # Use dispatch context manager for notification
+        async with frontend.show_dispatch(current_agent_id, agent_id, task):
+            session = subagent.new_session(SessionMode.JOB)
+            response = await session.chat(user_message, SilentFrontend())
 
-        # Show dispatch result
-        frontend.show_dispatch_result(current_agent_id, agent_id, response)
+        # Show result via show_message with subagent's agent_id
+        await frontend.show_message(response, agent_id=agent_id)
 
         # Return result + session_id as JSON
         result = {
