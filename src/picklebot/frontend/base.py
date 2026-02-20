@@ -1,7 +1,6 @@
 """Abstract base class for frontend implementations."""
 
 from abc import ABC, abstractmethod
-import contextlib
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
@@ -41,25 +40,23 @@ class Frontend(ABC):
 class SilentFrontend(Frontend):
     """No-op frontend for unattended execution (e.g., cron jobs)."""
 
-    def show_welcome(self) -> None:
+    async def show_welcome(self) -> None:
         pass
 
-    def show_message(self, content: str) -> None:
+    async def show_message(
+        self, content: str, agent_id: str | None = None
+    ) -> None:
         pass
 
-    def show_system_message(self, content: str) -> None:
+    async def show_system_message(self, content: str) -> None:
         pass
 
-    @contextlib.contextmanager
-    def show_transient(self, content: str) -> Iterator[None]:
+    @asynccontextmanager
+    async def show_transient(self, content: str) -> AsyncIterator[None]:
         yield
 
-    def show_dispatch_start(
+    @asynccontextmanager
+    async def show_dispatch(
         self, calling_agent: str, target_agent: str, task: str
-    ) -> None:
-        pass
-
-    def show_dispatch_result(
-        self, calling_agent: str, target_agent: str, result: str
-    ) -> None:
-        pass
+    ) -> AsyncIterator[None]:
+        yield
