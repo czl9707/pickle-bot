@@ -97,3 +97,65 @@ class TestCronLoader:
 
         expected = f"Check memories at {test_config.memories_path}"
         assert cron_def.prompt == expected
+
+    def test_load_cron_with_one_off(self, test_config):
+        """Parse cron with one_off field."""
+        crons_dir = test_config.crons_path
+        crons_dir.mkdir(parents=True, exist_ok=True)
+
+        cron_dir = crons_dir / "one-time"
+        cron_dir.mkdir()
+        (cron_dir / "CRON.md").write_text(
+            "---\n"
+            "name: One Time\n"
+            "agent: pickle\n"
+            "schedule: '0 10 18 2 *'\n"
+            "one_off: true\n"
+            "---\n"
+            "Remind me once."
+        )
+
+        loader = CronLoader(test_config)
+        cron_def = loader.load("one-time")
+
+        assert cron_def.one_off is True
+
+    def test_discover_crons_with_one_off(self, test_config):
+        """Discover crons includes one_off field."""
+        crons_dir = test_config.crons_path
+        crons_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create a one-off cron
+        cron_dir = crons_dir / "one-off-job"
+        cron_dir.mkdir()
+        (cron_dir / "CRON.md").write_text(
+            "---\n"
+            "name: One Off Job\n"
+            "agent: pickle\n"
+            "schedule: '*/5 * * * *'\n"
+            "one_off: true\n"
+            "---\n"
+            "Do once."
+        )
+
+        # Create a recurring cron (no one_off field)
+        cron_dir2 = crons_dir / "recurring-job"
+        cron_dir2.mkdir()
+        (cron_dir2 / "CRON.md").write_text(
+            "---\n"
+            "name: Recurring Job\n"
+            "agent: pickle\n"
+            "schedule: '0 * * * *'\n"
+            "---\n"
+            "Do repeatedly."
+        )
+
+        loader = CronLoader(test_config)
+        defs = loader.discover_crons()
+
+        assert len(defs) == 2
+        one_off = next(d for d in defs if d.id == "one-off-job")
+        recurring = next(d for d in defs if d.id == "recurring-job")
+
+        assert one_off.one_off is True
+        assert recurring.one_off is False

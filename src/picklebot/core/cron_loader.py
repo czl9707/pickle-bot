@@ -30,6 +30,7 @@ class CronDef(BaseModel):
     agent: str
     schedule: str
     prompt: str
+    one_off: bool = False
 
     @field_validator("schedule")
     @classmethod
@@ -92,6 +93,7 @@ class CronLoader:
                 agent=frontmatter["agent"],  # type: ignore[misc]
                 schedule=frontmatter["schedule"],  # type: ignore[misc]
                 prompt=body.strip(),
+                one_off=frontmatter.get("one_off", False),
             )
         except ValidationError as e:
             logger.warning(f"Invalid cron '{def_id}': {e}")

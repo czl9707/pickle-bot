@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import shutil
 from datetime import datetime
 
 from croniter import croniter
@@ -101,6 +102,13 @@ class CronExecutor:
             await session.chat(cron_def.prompt, SilentFrontend())
 
             logger.info(f"Cron job {cron_def.id} completed successfully")
+
+            # Delete one-off crons after successful execution
+            if cron_def.one_off:
+                cron_path = self.context.cron_loader.config.crons_path / cron_def.id
+                shutil.rmtree(cron_path)
+                logger.info(f"Deleted one-off cron job: {cron_def.id}")
+
         except Exception as e:
             logger.error(f"Error executing cron job {cron_def.id}: {e}")
             raise
