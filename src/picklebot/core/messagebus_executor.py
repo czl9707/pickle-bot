@@ -99,12 +99,10 @@ class MessageBusExecutor:
             frontend = MessageBusFrontend(bus, context)
 
             try:
-                # chat() handles sending response via frontend
                 await self.session.chat(message, frontend)
                 logger.info(f"Processed message from {platform}")
             except Exception as e:
                 logger.error(f"Error processing message from {platform}: {e}")
-                # Send error message via frontend
                 try:
                     await frontend.show_system_message(
                         "Sorry, I encountered an error processing your message."

@@ -40,12 +40,6 @@ class ChatLoop:
                 if not user_input.strip():
                     continue
 
-                # Show user message (raw, no agent_id)
-                await self.frontend.show_message(
-                    f"[bold green]You:[/bold green] {user_input}"
-                )
-
-                # Get response (chat() calls show_message internally)
                 await session.chat(user_input, self.frontend)
 
             except KeyboardInterrupt:

@@ -94,15 +94,10 @@ def create_subagent_dispatch_tool(
         if context:
             user_message = f"{task}\n\nContext:\n{context}"
 
-        # Use dispatch context manager for notification
         async with frontend.show_dispatch(current_agent_id, agent_id, task):
             session = subagent.new_session(SessionMode.JOB)
             response = await session.chat(user_message, SilentFrontend())
 
-        # Show result via show_message with subagent's agent_id
-        await frontend.show_message(response, agent_id=agent_id)
-
-        # Return result + session_id as JSON
         result = {
             "result": response,
             "session_id": session.session_id,
