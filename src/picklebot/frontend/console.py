@@ -48,3 +48,16 @@ class ConsoleFrontend(Frontend):
         """Display transient message (tool calls, intermediate steps)."""
         with self.console.status(f"[grey30]{content}[/grey30]"):
             yield
+
+    def show_dispatch_start(
+        self, calling_agent: str, target_agent: str, task: str
+    ) -> None:
+        """Display subagent dispatch start."""
+        self.console.print(f"[dim]{calling_agent} → @{target_agent}: {task}[/dim]")
+
+    def show_dispatch_result(
+        self, calling_agent: str, target_agent: str, result: str
+    ) -> None:
+        """Display subagent dispatch result."""
+        truncated = result[:200] + "..." if len(result) > 200 else result
+        self.console.print(f"[dim]{target_agent}: {truncated}[/dim]")

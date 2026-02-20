@@ -38,18 +38,25 @@ class MockBus(MessageBus[Any]):
         pass
 
 
-@pytest.mark.parametrize("bus_type,config_factory,context_factory", [
-    (
-        "telegram",
-        lambda: TelegramConfig(bot_token="test-token", allowed_user_ids=["whitelisted"]),
-        lambda user_id: TelegramContext(user_id=user_id, chat_id="123"),
-    ),
-    (
-        "discord",
-        lambda: DiscordConfig(bot_token="test-token", allowed_user_ids=["whitelisted"]),
-        lambda user_id: DiscordContext(user_id=user_id, channel_id="123"),
-    ),
-])
+@pytest.mark.parametrize(
+    "bus_type,config_factory,context_factory",
+    [
+        (
+            "telegram",
+            lambda: TelegramConfig(
+                bot_token="test-token", allowed_user_ids=["whitelisted"]
+            ),
+            lambda user_id: TelegramContext(user_id=user_id, chat_id="123"),
+        ),
+        (
+            "discord",
+            lambda: DiscordConfig(
+                bot_token="test-token", allowed_user_ids=["whitelisted"]
+            ),
+            lambda user_id: DiscordContext(user_id=user_id, channel_id="123"),
+        ),
+    ],
+)
 class TestMessageBusIsAllowed:
     """Shared tests for is_allowed across all bus implementations."""
 

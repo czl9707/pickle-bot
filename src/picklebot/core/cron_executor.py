@@ -14,9 +14,7 @@ from picklebot.frontend.base import SilentFrontend
 logger = logging.getLogger(__name__)
 
 
-def find_due_jobs(
-    jobs: list[CronDef], now: datetime | None = None
-) -> list[CronDef]:
+def find_due_jobs(jobs: list[CronDef], now: datetime | None = None) -> list[CronDef]:
     """
     Find all jobs that are due to run.
 

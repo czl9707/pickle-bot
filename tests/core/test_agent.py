@@ -130,13 +130,15 @@ def test_session_registers_subagent_dispatch_tool(test_config, test_agent_def):
     other_agent_dir = test_config.agents_path / "other-agent"
     other_agent_dir.mkdir(parents=True)
     other_agent_file = other_agent_dir / "AGENT.md"
-    other_agent_file.write_text("""---
+    other_agent_file.write_text(
+        """---
 name: Other Agent
 description: Another agent for testing
 ---
 
 You are another agent.
-""")
+"""
+    )
 
     test_agent_def.description = "Test agent"
     context = SharedContext(config=test_config)

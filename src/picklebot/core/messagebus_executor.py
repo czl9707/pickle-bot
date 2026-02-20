@@ -7,7 +7,7 @@ from typing import Any, Callable, Awaitable
 from picklebot.core.context import SharedContext
 from picklebot.core.agent import Agent, SessionMode
 from picklebot.messagebus.base import MessageBus
-from picklebot.frontend.base import SilentFrontend
+from picklebot.frontend.messagebus_frontend import MessageBusFrontend
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,6 @@ class MessageBusExecutor:
         # Message queue for sequential processing
         # Stores (message, platform, context) - context is platform-specific
         self.message_queue: asyncio.Queue[tuple[str, str, Any]] = asyncio.Queue()
-        self.frontend = SilentFrontend()
 
     async def run(self) -> None:
         """Start message processing loop and all buses."""
@@ -95,14 +94,18 @@ class MessageBusExecutor:
 
             logger.info(f"Processing message from {platform}")
 
+            # Create MessageBusFrontend for this message
+            bus = self.bus_map[platform]
+            frontend = MessageBusFrontend(bus, context)
+
             try:
-                response = await self.session.chat(message, self.frontend)
-                await self.bus_map[platform].reply(content=response, context=context)
+                response = await self.session.chat(message, frontend)
+                await bus.reply(content=response, context=context)
                 logger.info(f"Sent response to {platform}")
             except Exception as e:
                 logger.error(f"Error processing message from {platform}: {e}")
                 try:
-                    await self.bus_map[platform].reply(
+                    await bus.reply(
                         content="Sorry, I encountered an error processing your message.",
                         context=context,
                     )

@@ -6,6 +6,7 @@ from picklebot.tools.base import BaseTool, tool
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
+    from picklebot.frontend import Frontend
 
 
 def create_post_message_tool(context: "SharedContext") -> BaseTool | None:
@@ -48,11 +49,12 @@ def create_post_message_tool(context: "SharedContext") -> BaseTool | None:
             "required": ["content"],
         },
     )
-    async def post_message(content: str) -> str:
+    async def post_message(frontend: "Frontend", content: str) -> str:
         """
         Send a message to the default user on the default platform.
 
         Args:
+            frontend: Frontend for displaying output
             content: Message content to send
 
         Returns:

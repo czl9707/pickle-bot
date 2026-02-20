@@ -5,34 +5,41 @@ from unittest.mock import AsyncMock
 from pathlib import Path
 
 from picklebot.tools.post_message_tool import create_post_message_tool
+from picklebot.frontend.base import SilentFrontend
 from picklebot.utils.config import Config, MessageBusConfig, TelegramConfig
 
 
-def _make_context_with_messagebus(enabled: bool = True, default_platform: str = "telegram"):
+def _make_context_with_messagebus(
+    enabled: bool = True, default_platform: str = "telegram"
+):
     """Helper to create a mock context with messagebus config."""
     from picklebot.core.context import SharedContext
 
     # Create minimal config
     tmp_path = Path("/tmp/test-picklebot")
     tmp_path.mkdir(exist_ok=True)
-    (tmp_path / "config.system.yaml").write_text("""
+    (tmp_path / "config.system.yaml").write_text(
+        """
 llm:
   provider: openai
   model: gpt-4
   api_key: test-key
 default_agent: test-agent
-""")
+"""
+    )
 
     # Create test agent
     agents_path = tmp_path / "agents"
     test_agent_dir = agents_path / "test-agent"
     test_agent_dir.mkdir(parents=True, exist_ok=True)
-    (test_agent_dir / "AGENT.md").write_text("""---
+    (test_agent_dir / "AGENT.md").write_text(
+        """---
 name: Test Agent
 description: A test agent
 ---
 You are a test assistant.
-""")
+"""
+    )
 
     config = Config.load(tmp_path)
 
@@ -87,7 +94,9 @@ class TestPostMessageToolExecution:
     async def test_sends_message_to_default_platform(self):
         """Should send message to default_platform using post()."""
 
-        context = _make_context_with_messagebus(enabled=True, default_platform="telegram")
+        context = _make_context_with_messagebus(
+            enabled=True, default_platform="telegram"
+        )
 
         # Find the telegram bus and mock its post method
         telegram_bus = next(
@@ -102,9 +111,12 @@ class TestPostMessageToolExecution:
         tool = create_post_message_tool(context)
         assert tool is not None
 
-        result = await tool.execute(content="Hello from agent!")
+        frontend = SilentFrontend()
+        result = await tool.execute(frontend=frontend, content="Hello from agent!")
 
-        telegram_bus.post.assert_called_once_with(content="Hello from agent!", target=None)
+        telegram_bus.post.assert_called_once_with(
+            content="Hello from agent!", target=None
+        )
         assert "sent" in result.lower() or "success" in result.lower()
 
         # Restore

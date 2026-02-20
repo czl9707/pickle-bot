@@ -101,7 +101,7 @@ def parse_definition[T](
         return parse_fn(def_id, {}, body)
 
     frontmatter_text = content[4:end_delimiter]
-    body = content[end_delimiter + 5:]
+    body = content[end_delimiter + 5 :]
 
     raw_dict = yaml.safe_load(frontmatter_text) or {}
     return parse_fn(def_id, raw_dict, body)

@@ -66,7 +66,9 @@ class DiscordBus(MessageBus[DiscordContext]):
             channel_id = str(message.channel.id)
             content = message.content
 
-            logger.info(f"Received Discord message from user {user_id} in channel {channel_id}")
+            logger.info(
+                f"Received Discord message from user {user_id} in channel {channel_id}"
+            )
 
             ctx = DiscordContext(user_id=user_id, channel_id=channel_id)
 

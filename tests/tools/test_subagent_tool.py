@@ -1,11 +1,12 @@
 """Tests for subagent dispatch tool factory."""
 
 import json
-from unittest.mock import ANY, AsyncMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 
 from picklebot.core.context import SharedContext
+from picklebot.frontend.base import SilentFrontend
 from picklebot.tools.subagent_tool import create_subagent_dispatch_tool
 
 
@@ -29,13 +30,15 @@ class TestCreateSubagentDispatchTool:
             agent_dir = test_config.agents_path / agent_id
             agent_dir.mkdir(parents=True)
             agent_file = agent_dir / "AGENT.md"
-            agent_file.write_text(f"""---
+            agent_file.write_text(
+                f"""---
 name: {name}
 description: {desc}
 ---
 
 You are {name}.
-""")
+"""
+            )
 
         context = SharedContext(config=test_config)
 
@@ -71,13 +74,15 @@ You are {name}.
             agent_dir = test_config.agents_path / agent_id
             agent_dir.mkdir(parents=True)
             agent_file = agent_dir / "AGENT.md"
-            agent_file.write_text(f"""---
+            agent_file.write_text(
+                f"""---
 name: {name}
 description: {desc}
 ---
 
 You are {name}.
-""")
+"""
+            )
 
         context = SharedContext(config=test_config)
 
@@ -97,13 +102,15 @@ You are {name}.
         agent_dir = test_config.agents_path / "target-agent"
         agent_dir.mkdir(parents=True)
         agent_file = agent_dir / "AGENT.md"
-        agent_file.write_text("""---
+        agent_file.write_text(
+            """---
 name: Target Agent
 description: A target for dispatch testing
 ---
 
 You are the target agent.
-""")
+"""
+        )
 
         context = SharedContext(config=test_config)
 
@@ -120,8 +127,9 @@ You are the target agent.
             mock_session.chat = AsyncMock(return_value=mock_response)
 
             # Execute
+            frontend = SilentFrontend()
             result = await tool_func.execute(
-                agent_id="target-agent", task="Do something"
+                frontend=frontend, agent_id="target-agent", task="Do something"
             )
 
             # Verify
@@ -139,13 +147,15 @@ You are the target agent.
         agent_dir = test_config.agents_path / "target-agent"
         agent_dir.mkdir(parents=True)
         agent_file = agent_dir / "AGENT.md"
-        agent_file.write_text("""---
+        agent_file.write_text(
+            """---
 name: Target Agent
 description: A target for dispatch testing
 ---
 
 You are the target agent.
-""")
+"""
+        )
 
         context = SharedContext(config=test_config)
 
@@ -159,7 +169,9 @@ You are the target agent.
             mock_session.chat = AsyncMock(return_value="Done")
 
             # Execute with context
+            frontend = SilentFrontend()
             await tool_func.execute(
+                frontend=frontend,
                 agent_id="target-agent",
                 task="Review this",
                 context="The code is in src/main.py",
@@ -172,3 +184,95 @@ You are the target agent.
             assert "Review this" in message
             assert "Context:" in message
             assert "The code is in src/main.py" in message
+
+
+class TestSubagentDispatchFrontendCalls:
+    """Tests for subagent dispatch frontend method calls."""
+
+    @pytest.mark.anyio
+    async def test_subagent_dispatch_calls_show_dispatch_start(self, test_config):
+        """Subagent dispatch tool should call frontend.show_dispatch_start()."""
+        # Create target agent
+        agent_dir = test_config.agents_path / "target-agent"
+        agent_dir.mkdir(parents=True)
+        agent_file = agent_dir / "AGENT.md"
+        agent_file.write_text(
+            """---
+name: Target Agent
+description: A target for dispatch testing
+---
+
+You are the target agent.
+"""
+        )
+
+        context = SharedContext(config=test_config)
+
+        tool_func = create_subagent_dispatch_tool("caller", context)
+        assert tool_func is not None
+
+        # Use a mock frontend to track calls
+        mock_frontend = MagicMock(spec=SilentFrontend)
+
+        with patch("picklebot.core.agent.Agent") as mock_agent_class:
+            mock_agent = mock_agent_class.return_value
+            mock_session = mock_agent.new_session.return_value
+            mock_session.session_id = "test-session-789"
+            mock_session.chat = AsyncMock(return_value="Task done")
+
+            # Execute
+            await tool_func.execute(
+                frontend=mock_frontend,
+                agent_id="target-agent",
+                task="Do something",
+            )
+
+            # Verify show_dispatch_start was called
+            mock_frontend.show_dispatch_start.assert_called_once()
+            call_args = mock_frontend.show_dispatch_start.call_args
+            # Verify calling agent, target agent, and task are passed
+            assert call_args[0][2] == "Do something"  # task
+
+    @pytest.mark.anyio
+    async def test_subagent_dispatch_calls_show_dispatch_result(self, test_config):
+        """Subagent dispatch tool should call frontend.show_dispatch_result()."""
+        # Create target agent
+        agent_dir = test_config.agents_path / "target-agent"
+        agent_dir.mkdir(parents=True)
+        agent_file = agent_dir / "AGENT.md"
+        agent_file.write_text(
+            """---
+name: Target Agent
+description: A target for dispatch testing
+---
+
+You are the target agent.
+"""
+        )
+
+        context = SharedContext(config=test_config)
+
+        tool_func = create_subagent_dispatch_tool("caller", context)
+        assert tool_func is not None
+
+        # Use a mock frontend to track calls
+        mock_frontend = MagicMock(spec=SilentFrontend)
+
+        with patch("picklebot.core.agent.Agent") as mock_agent_class:
+            mock_agent = mock_agent_class.return_value
+            mock_session = mock_agent.new_session.return_value
+            mock_session.session_id = "test-session-999"
+            mock_session.chat = AsyncMock(return_value="Result from subagent")
+
+            # Execute
+            await tool_func.execute(
+                frontend=mock_frontend,
+                agent_id="target-agent",
+                task="Do something",
+            )
+
+            # Verify show_dispatch_result was called
+            mock_frontend.show_dispatch_result.assert_called_once()
+            call_args = mock_frontend.show_dispatch_result.call_args
+            # Verify result is passed
+            assert "Result from subagent" in call_args[0][2]
