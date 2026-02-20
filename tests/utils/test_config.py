@@ -1,11 +1,16 @@
-"""Tests for config path resolution."""
+"""Tests for config validation and path resolution."""
 
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
-from picklebot.utils.config import Config
+from picklebot.utils.config import (
+    Config,
+    MessageBusConfig,
+    TelegramConfig,
+    DiscordConfig,
+)
 
 
 class TestPathResolution:
@@ -63,8 +68,6 @@ class TestConfigValidation:
 
     def test_telegram_config_allows_user_fields(self, llm_config):
         """TelegramConfig should accept allowed_user_ids and default_chat_id."""
-        from picklebot.utils.config import TelegramConfig
-
         telegram = TelegramConfig(
             enabled=True,
             bot_token="test-token",
@@ -76,8 +79,6 @@ class TestConfigValidation:
 
     def test_discord_config_allows_user_fields(self, llm_config):
         """DiscordConfig should accept allowed_user_ids and default_chat_id."""
-        from picklebot.utils.config import DiscordConfig
-
         discord = DiscordConfig(
             enabled=True,
             bot_token="test-token",
@@ -89,8 +90,6 @@ class TestConfigValidation:
 
     def test_messagebus_user_fields_default_to_empty(self, llm_config):
         """User fields should have sensible defaults."""
-        from picklebot.utils.config import TelegramConfig, DiscordConfig
-
         telegram = TelegramConfig(enabled=True, bot_token="test-token")
         assert telegram.allowed_user_ids == []
         assert telegram.default_chat_id is None
@@ -98,30 +97,6 @@ class TestConfigValidation:
         discord = DiscordConfig(enabled=True, bot_token="test-token")
         assert discord.allowed_user_ids == []
         assert discord.default_chat_id is None
-
-
-class TestConfigDefaultChatId:
-    """Tests for default_chat_id config field."""
-
-    def test_telegram_config_has_default_chat_id(self):
-        """TelegramConfig should have default_chat_id field."""
-        from picklebot.utils.config import TelegramConfig
-
-        config = TelegramConfig(
-            bot_token="test-token",
-            default_chat_id="123456",
-        )
-        assert config.default_chat_id == "123456"
-
-    def test_discord_config_has_default_chat_id(self):
-        """DiscordConfig should have default_chat_id field."""
-        from picklebot.utils.config import DiscordConfig
-
-        config = DiscordConfig(
-            bot_token="test-token",
-            default_chat_id="789012",
-        )
-        assert config.default_chat_id == "789012"
 
 
 class TestSessionHistoryLimits:
@@ -160,3 +135,78 @@ class TestSessionHistoryLimits:
                 default_agent="test",
                 chat_max_history=0,
             )
+
+
+class TestMessageBusConfig:
+    """Tests for messagebus configuration."""
+
+    def test_messagebus_disabled_by_default(self, llm_config):
+        """Test that messagebus is disabled by default."""
+        config = Config(
+            workspace=Path("/workspace"),
+            llm=llm_config,
+            default_agent="pickle",
+        )
+        assert not config.messagebus.enabled
+
+    def test_messagebus_enabled_requires_default_platform(self):
+        """Test that enabled messagebus requires default_platform."""
+        with pytest.raises(ValidationError, match="default_platform is required"):
+            MessageBusConfig(enabled=True)
+
+    def test_messagebus_validates_platform_config(self):
+        """Test that default_platform must have valid config."""
+        with pytest.raises(ValidationError, match="telegram config is missing"):
+            MessageBusConfig(enabled=True, default_platform="telegram")
+
+    def test_messagebus_valid_config(self):
+        """Test valid messagebus configuration."""
+        config = MessageBusConfig(
+            enabled=True,
+            default_platform="telegram",
+            telegram=TelegramConfig(bot_token="test_token"),
+        )
+        assert config.enabled
+        assert config.default_platform == "telegram"
+
+    def test_messagebus_validates_discord_platform(self):
+        """Test that discord platform requires discord config."""
+        with pytest.raises(ValidationError, match="discord config is missing"):
+            MessageBusConfig(enabled=True, default_platform="discord")
+
+    def test_messagebus_valid_discord_config(self):
+        """Test valid discord configuration."""
+        config = MessageBusConfig(
+            enabled=True,
+            default_platform="discord",
+            discord=DiscordConfig(bot_token="test_token", channel_id="12345"),
+        )
+        assert config.enabled
+        assert config.default_platform == "discord"
+        assert config.discord.channel_id == "12345"
+
+    def test_messagebus_validates_invalid_platform(self):
+        """Test that invalid platform is rejected."""
+        with pytest.raises(ValidationError, match="Invalid default_platform"):
+            MessageBusConfig(enabled=True, default_platform="invalid")
+
+    def test_messagebus_can_be_disabled(self):
+        """Test that messagebus can be explicitly disabled."""
+        config = MessageBusConfig(enabled=False)
+        assert not config.enabled
+
+    def test_messagebus_integration_with_config(self, llm_config):
+        """Test messagebus integration with full config."""
+        config = Config(
+            workspace=Path("/workspace"),
+            llm=llm_config,
+            default_agent="pickle",
+            messagebus=MessageBusConfig(
+                enabled=True,
+                default_platform="telegram",
+                telegram=TelegramConfig(bot_token="test_token"),
+            ),
+        )
+        assert config.messagebus.enabled
+        assert config.messagebus.default_platform == "telegram"
+        assert config.messagebus.telegram.bot_token == "test_token"

@@ -43,16 +43,6 @@ def create_subagent_dispatch_tool(
 
     dispatchable_ids = [a.id for a in dispatchable_agents]
 
-    # Create a lookup for agent names
-    agent_name_map = {a.id: a.name for a in dispatchable_agents}
-
-    # Get calling agent name
-    try:
-        calling_agent_def = shared_context.agent_loader.load(current_agent_id)
-        calling_agent_name = calling_agent_def.name
-    except DefNotFoundError:
-        calling_agent_name = current_agent_id
-
     @tool(
         name="subagent_dispatch",
         description=f"Dispatch a task to a specialized subagent.\n{agents_desc}",
@@ -98,11 +88,8 @@ def create_subagent_dispatch_tool(
         except DefNotFoundError:
             raise ValueError(f"Agent '{agent_id}' not found")
 
-        # Get target agent name for display
-        target_agent_name = agent_name_map.get(agent_id, agent_id)
-
         # Show dispatch start
-        frontend.show_dispatch_start(calling_agent_name, target_agent_name, task)
+        frontend.show_dispatch_start(current_agent_id, agent_id, task)
 
         subagent = Agent(target_def, shared_context)
 
@@ -114,7 +101,7 @@ def create_subagent_dispatch_tool(
         response = await session.chat(user_message, SilentFrontend())
 
         # Show dispatch result
-        frontend.show_dispatch_result(calling_agent_name, target_agent_name, response)
+        frontend.show_dispatch_result(current_agent_id, agent_id, response)
 
         # Return result + session_id as JSON
         result = {

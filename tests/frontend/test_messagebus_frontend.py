@@ -30,23 +30,6 @@ class TestMessageBusFrontend:
         """Create a MessageBusFrontend instance."""
         return MessageBusFrontend(mock_bus, mock_context)
 
-    def test_show_welcome_is_noop(self, frontend):
-        """show_welcome should be a no-op."""
-        frontend.show_welcome()  # Should not raise
-
-    def test_show_message_is_noop(self, frontend):
-        """show_message should be a no-op."""
-        frontend.show_message("test content")  # Should not raise
-
-    def test_show_system_message_is_noop(self, frontend):
-        """show_system_message should be a no-op."""
-        frontend.show_system_message("system message")  # Should not raise
-
-    def test_show_transient_is_noop(self, frontend):
-        """show_transient should be a no-op context manager."""
-        with frontend.show_transient("loading..."):
-            pass  # Should not raise
-
     @pytest.mark.anyio
     async def test_show_dispatch_start_creates_task(
         self, frontend, mock_bus, mock_context

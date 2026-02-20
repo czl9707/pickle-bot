@@ -1,12 +1,8 @@
 """Skill tool factory for creating dynamic skill tool."""
 
-from typing import TYPE_CHECKING
-
+from picklebot.frontend.base import Frontend
 from picklebot.tools.base import tool
 from picklebot.core.skill_loader import SkillLoader
-
-if TYPE_CHECKING:
-    from picklebot.frontend import Frontend
 
 
 def create_skill_tool(skill_loader: SkillLoader):
@@ -47,11 +43,11 @@ def create_skill_tool(skill_loader: SkillLoader):
             "required": ["skill_name"],
         },
     )
-    async def skill_tool(frontend: "Frontend", skill_name: str) -> str:
+    async def skill_tool(frontend: Frontend, skill_name: str) -> str:
         """Load and return skill content.
 
         Args:
-            frontend: Frontend for displaying output
+            frontend: Frontend instance (unused but required by tool framework)
             skill_name: The ID of the skill to load
 
         Returns:

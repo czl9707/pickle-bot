@@ -3,7 +3,7 @@
 from picklebot.core.agent import Agent, SessionMode
 from picklebot.core.agent_loader import AgentBehaviorConfig, AgentDef
 from picklebot.core.context import SharedContext
-from picklebot.utils.config import LLMConfig
+from picklebot.utils.config import LLMConfig, MessageBusConfig, TelegramConfig
 
 
 def test_agent_creation_with_new_structure(test_agent, test_agent_def, test_context):
@@ -165,3 +165,65 @@ def test_session_skips_subagent_dispatch_when_no_other_agents(test_config, test_
     tool_names = [schema["function"]["name"] for schema in tool_schemas]
 
     assert "subagent_dispatch" not in tool_names
+
+
+def test_post_message_not_available_in_chat_mode(test_config):
+    """post_message tool should NOT be available in CHAT mode."""
+    # Enable messagebus to make post_message tool possible
+    test_config.messagebus = MessageBusConfig(
+        enabled=True,
+        default_platform="telegram",
+        telegram=TelegramConfig(
+            enabled=True,
+            bot_token="test-token",
+            allowed_user_ids=["123"],
+            default_chat_id="123",
+        ),
+    )
+
+    agent_def = AgentDef(
+        id="test-agent",
+        name="Test Agent",
+        system_prompt="You are a test assistant.",
+        llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
+        behavior=AgentBehaviorConfig(),
+    )
+    context = SharedContext(config=test_config)
+    agent = Agent(agent_def=agent_def, context=context)
+
+    session = agent.new_session(SessionMode.CHAT)
+    tool_schemas = session.tools.get_tool_schemas()
+    tool_names = [schema["function"]["name"] for schema in tool_schemas]
+
+    assert "post_message" not in tool_names
+
+
+def test_post_message_available_in_job_mode(test_config):
+    """post_message tool should be available in JOB mode."""
+    # Enable messagebus to make post_message tool possible
+    test_config.messagebus = MessageBusConfig(
+        enabled=True,
+        default_platform="telegram",
+        telegram=TelegramConfig(
+            enabled=True,
+            bot_token="test-token",
+            allowed_user_ids=["123"],
+            default_chat_id="123",
+        ),
+    )
+
+    agent_def = AgentDef(
+        id="test-agent",
+        name="Test Agent",
+        system_prompt="You are a test assistant.",
+        llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
+        behavior=AgentBehaviorConfig(),
+    )
+    context = SharedContext(config=test_config)
+    agent = Agent(agent_def=agent_def, context=context)
+
+    session = agent.new_session(SessionMode.JOB)
+    tool_schemas = session.tools.get_tool_schemas()
+    tool_names = [schema["function"]["name"] for schema in tool_schemas]
+
+    assert "post_message" in tool_names
