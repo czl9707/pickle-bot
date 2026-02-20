@@ -3,9 +3,12 @@
 import asyncio
 import pytest
 from datetime import datetime
+from unittest.mock import patch
 
 from picklebot.server.cron_worker import CronWorker, find_due_jobs
+from picklebot.server.base import Job
 from picklebot.core.cron_loader import CronDef
+from picklebot.core.agent import SessionMode
 
 
 def test_find_due_jobs_returns_matching():
@@ -48,12 +51,32 @@ def test_find_due_jobs_empty_when_no_match():
 @pytest.mark.asyncio
 async def test_cron_worker_dispatches_due_job(test_context):
     """CronWorker dispatches due jobs to the queue."""
-    queue: asyncio.Queue = asyncio.Queue()
+    queue: asyncio.Queue[Job] = asyncio.Queue()
     worker = CronWorker(test_context, queue)
 
-    # Manually call _tick and check queue
-    await worker._tick()
+    # Create a mock cron job that is due
+    mock_cron = CronDef(
+        id="test-cron",
+        name="Test Cron",
+        agent="pickle",
+        schedule="*/5 * * * *",  # Every 5 minutes
+        prompt="Test prompt from cron",
+    )
 
-    # Queue might have jobs if crons exist
-    # Just verify no exception
-    assert True
+    # Mock discover_crons to return our known cron job
+    with patch.object(
+        test_context.cron_loader, "discover_crons", return_value=[mock_cron]
+    ):
+        # Patch find_due_jobs to return our mock (ensures it's considered due)
+        with patch(
+            "picklebot.server.cron_worker.find_due_jobs", return_value=[mock_cron]
+        ):
+            await worker._tick()
+
+    # Verify job was dispatched to queue
+    assert not queue.empty()
+    job = queue.get_nowait()
+    assert job.session_id is None
+    assert job.agent_id == "pickle"
+    assert job.message == "Test prompt from cron"
+    assert job.mode == SessionMode.JOB
