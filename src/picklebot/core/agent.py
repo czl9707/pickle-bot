@@ -206,7 +206,7 @@ class AgentSession:
         display_content = "Thinking"
 
         while True:
-            with frontend.show_transient(display_content):
+            async with frontend.show_transient(display_content):
                 messages = self._build_messages()
                 content, tool_calls = await self.agent.llm.chat(messages, tool_schemas)
 
@@ -236,6 +236,8 @@ class AgentSession:
 
                 continue
 
+        # Show response via frontend
+        await frontend.show_message(content, agent_id=self.agent_id)
         return content
 
     def _build_messages(self) -> list[Message]:
@@ -308,7 +310,7 @@ class AgentSession:
         if len(tool_display) > 40:
             tool_display = tool_display[:40] + "..."
 
-        with frontend.show_transient(tool_display):
+        async with frontend.show_transient(tool_display):
             try:
                 result = await self.tools.execute_tool(
                     tool_call.name, frontend=frontend, **args
