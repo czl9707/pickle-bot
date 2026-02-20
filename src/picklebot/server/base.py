@@ -1,0 +1,54 @@
+"""Base classes for worker architecture."""
+
+import asyncio
+import logging
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+from picklebot.core.agent import SessionMode
+
+if TYPE_CHECKING:
+    from picklebot.core.context import SharedContext
+    from picklebot.frontend.base import Frontend
+
+
+@dataclass
+class Job:
+    """A unit of work for the AgentWorker."""
+
+    session_id: str | None  # None = new session, set after first pickup
+    agent_id: str  # Which agent to run
+    message: str  # User prompt (set to "." after consumed)
+    frontend: "Frontend"  # Live frontend object for responses
+    mode: SessionMode  # CHAT or JOB
+
+
+class Worker(ABC):
+    """Base class for all workers."""
+
+    def __init__(self, context: "SharedContext"):
+        self.context = context
+        self.logger = logging.getLogger(
+            f"picklebot.server.{self.__class__.__name__}"
+        )
+        self._task: asyncio.Task | None = None
+
+    @abstractmethod
+    async def run(self) -> None:
+        """Main worker loop. Runs until cancelled."""
+        pass
+
+    def start(self) -> asyncio.Task:
+        """Start the worker as an asyncio Task."""
+        self._task = asyncio.create_task(self.run())
+        return self._task
+
+    async def stop(self) -> None:
+        """Gracefully stop the worker."""
+        if self._task:
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
