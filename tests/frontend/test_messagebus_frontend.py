@@ -1,12 +1,11 @@
 """Tests for MessageBusFrontend."""
 
-import asyncio
 import logging
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from picklebot.frontend.messagebus_frontend import MessageBusFrontend
+from picklebot.frontend.messagebus import MessageBusFrontend
 from picklebot.messagebus.base import TelegramContext
 
 
@@ -31,147 +30,82 @@ class TestMessageBusFrontend:
         return MessageBusFrontend(mock_bus, mock_context)
 
     @pytest.mark.anyio
-    async def test_show_dispatch_start_creates_task(
+    async def test_show_message_sends_via_bus(self, frontend, mock_bus, mock_context):
+        """show_message should call bus.reply with content."""
+        await frontend.show_message("Hello world")
+
+        mock_bus.reply.assert_called_once_with("Hello world", mock_context)
+
+    @pytest.mark.anyio
+    async def test_show_message_with_agent_id_prefixes_content(
         self, frontend, mock_bus, mock_context
     ):
-        """show_dispatch_start should create async task with correct message."""
-        frontend.show_dispatch_start("Pickle", "Cookie", "Remember this")
+        """show_message should prefix with agent_id when provided."""
+        await frontend.show_message("Hello", agent_id="pickle")
 
-        # Give the task a moment to run
-        await asyncio.sleep(0.1)
+        mock_bus.reply.assert_called_once_with("[pickle]: Hello", mock_context)
 
-        # Verify reply was called with formatted message
+    @pytest.mark.anyio
+    async def test_show_system_message_sends_via_bus(
+        self, frontend, mock_bus, mock_context
+    ):
+        """show_system_message should call bus.reply with content."""
+        await frontend.show_system_message("Goodbye!")
+
+        mock_bus.reply.assert_called_once_with("Goodbye!", mock_context)
+
+    @pytest.mark.anyio
+    async def test_show_dispatch_sends_notification(
+        self, frontend, mock_bus, mock_context
+    ):
+        """show_dispatch context manager should send notification on enter."""
+        async with frontend.show_dispatch("Pickle", "Cookie", "Remember this"):
+            pass
+
         mock_bus.reply.assert_called_once()
         call_args = mock_bus.reply.call_args
         assert call_args[0][0] == "Pickle: @cookie Remember this"
         assert call_args[0][1] == mock_context
 
     @pytest.mark.anyio
-    async def test_show_dispatch_start_lowercase_target(
+    async def test_show_dispatch_lowercases_target(
         self, frontend, mock_bus, mock_context
     ):
-        """show_dispatch_start should lowercase target agent name."""
-        frontend.show_dispatch_start("Agent", "MySubAgent", "Do task")
+        """show_dispatch should lowercase target agent name."""
+        async with frontend.show_dispatch("Agent", "MySubAgent", "Do task"):
+            pass
 
-        # Give the task a moment to run
-        await asyncio.sleep(0.1)
-
-        # Verify target agent is lowercased
         call_args = mock_bus.reply.call_args
         message = call_args[0][0]
         assert "@mysubagent" in message.lower()
 
     @pytest.mark.anyio
-    async def test_show_dispatch_result_truncates_long_results(
-        self, frontend, mock_bus, mock_context
-    ):
-        """show_dispatch_result should truncate results longer than 200 chars."""
-        long_result = "x" * 300  # 300 chars
-
-        frontend.show_dispatch_result("Pickle", "Cookie", long_result)
-
-        # Give the task a moment to run
-        await asyncio.sleep(0.1)
-
-        # Verify reply was called with truncated message
-        mock_bus.reply.assert_called_once()
-        call_args = mock_bus.reply.call_args
-        message = call_args[0][0]
-
-        # Should contain truncated result (200 chars + "...")
-        assert "xxx..." in message
-        assert len(message) < 250  # message + prefix should be short
-
-    @pytest.mark.anyio
-    async def test_show_dispatch_result_keeps_short_results(
-        self, frontend, mock_bus, mock_context
-    ):
-        """show_dispatch_result should not truncate results 200 chars or less."""
-        short_result = "Task completed successfully"
-
-        frontend.show_dispatch_result("Pickle", "Cookie", short_result)
-
-        # Give the task a moment to run
-        await asyncio.sleep(0.1)
-
-        # Verify reply was called with full message
-        mock_bus.reply.assert_called_once()
-        call_args = mock_bus.reply.call_args
-        message = call_args[0][0]
-
-        # Should contain full result without truncation
-        assert short_result in message
-        assert "..." not in message
-
-    @pytest.mark.anyio
-    async def test_show_dispatch_result_formats_correctly(
-        self, frontend, mock_bus, mock_context
-    ):
-        """show_dispatch_result should format message as 'Agent: - result'."""
-        result = "Done"
-
-        frontend.show_dispatch_result("Caller", "Target", result)
-
-        # Give the task a moment to run
-        await asyncio.sleep(0.1)
-
-        call_args = mock_bus.reply.call_args
-        message = call_args[0][0]
-
-        assert message == "Target: - Done"
-
-    @pytest.mark.anyio
-    async def test_error_handling_when_reply_fails(
+    async def test_show_message_error_isolation(
         self, frontend, mock_bus, mock_context, caplog
     ):
-        """_post_safe should catch exceptions and log warnings, not raise."""
-        # Make reply raise an exception
+        """show_message should catch exceptions and log warnings, not raise."""
         mock_bus.reply.side_effect = Exception("Network error")
 
-        # This should not raise, just log a warning
         with caplog.at_level(logging.WARNING):
-            await frontend._post_safe("test message")
+            await frontend.show_message("test message")
 
-        # Verify warning was logged
         assert any(
-            "Failed to post message" in record.message for record in caplog.records
+            "Failed to send message" in record.message for record in caplog.records
         )
         assert any("Network error" in record.message for record in caplog.records)
 
     @pytest.mark.anyio
-    async def test_show_dispatch_start_continues_on_error(
+    async def test_show_dispatch_error_isolation(
         self, frontend, mock_bus, mock_context, caplog
     ):
-        """show_dispatch_start should continue execution even if reply fails."""
-        # Make reply raise an exception
+        """show_dispatch should catch exceptions and log warnings, not raise."""
         mock_bus.reply.side_effect = Exception("API error")
 
         with caplog.at_level(logging.WARNING):
-            frontend.show_dispatch_start("Pickle", "Cookie", "task")
+            async with frontend.show_dispatch("Pickle", "Cookie", "task"):
+                pass
 
-            # Give the task time to complete
-            await asyncio.sleep(0.2)
-
-        # Should have logged warning, not raised
         assert any(
-            "Failed to post message" in record.message for record in caplog.records
-        )
-
-    @pytest.mark.anyio
-    async def test_show_dispatch_result_continues_on_error(
-        self, frontend, mock_bus, mock_context, caplog
-    ):
-        """show_dispatch_result should continue execution even if reply fails."""
-        # Make reply raise an exception
-        mock_bus.reply.side_effect = Exception("API error")
-
-        with caplog.at_level(logging.WARNING):
-            frontend.show_dispatch_result("Pickle", "Cookie", "result")
-
-            # Give the task time to complete
-            await asyncio.sleep(0.2)
-
-        # Should have logged warning, not raised
-        assert any(
-            "Failed to post message" in record.message for record in caplog.records
+            "Failed to send dispatch notification" in record.message
+            for record in caplog.records
         )
