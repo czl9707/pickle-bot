@@ -7,7 +7,7 @@ from typing import Any, Callable, Awaitable
 from picklebot.core.context import SharedContext
 from picklebot.core.agent import Agent, SessionMode
 from picklebot.messagebus.base import MessageBus
-from picklebot.frontend.messagebus_frontend import MessageBusFrontend
+from picklebot.frontend.messagebus import MessageBusFrontend
 
 logger = logging.getLogger(__name__)
 
@@ -99,15 +99,15 @@ class MessageBusExecutor:
             frontend = MessageBusFrontend(bus, context)
 
             try:
-                response = await self.session.chat(message, frontend)
-                await bus.reply(content=response, context=context)
-                logger.info(f"Sent response to {platform}")
+                # chat() handles sending response via frontend
+                await self.session.chat(message, frontend)
+                logger.info(f"Processed message from {platform}")
             except Exception as e:
                 logger.error(f"Error processing message from {platform}: {e}")
+                # Send error message via frontend
                 try:
-                    await bus.reply(
-                        content="Sorry, I encountered an error processing your message.",
-                        context=context,
+                    await frontend.show_system_message(
+                        "Sorry, I encountered an error processing your message."
                     )
                 except Exception as send_error:
                     logger.error(f"Failed to send error message: {send_error}")
