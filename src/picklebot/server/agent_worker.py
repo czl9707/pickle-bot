@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from picklebot.server.base import Worker, Job
 from picklebot.core.agent import Agent
+from picklebot.utils.def_loader import DefNotFoundError
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
@@ -45,8 +46,11 @@ class AgentWorker(Worker):
 
             self.logger.info(f"Job completed: session={job.session_id}")
 
+        except DefNotFoundError as e:
+            self.logger.error(f"Agent not found: {job.agent_id}: {e}")
+            # Don't requeue - agent doesn't exist
         except Exception as e:
             self.logger.error(f"Job failed: {e}")
-            # Update job for resume and requeue
+            # Update job for resume and requeue (for transient errors)
             job.message = "."
             await self.agent_queue.put(job)

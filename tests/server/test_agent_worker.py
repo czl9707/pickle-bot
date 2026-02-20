@@ -82,12 +82,12 @@ You are a test assistant. Respond briefly.
 
 
 @pytest.mark.asyncio
-async def test_agent_worker_requeues_on_error(test_context):
-    """AgentWorker requeues job with '.' message on error."""
+async def test_agent_worker_does_not_requeue_nonexistent_agent(test_context):
+    """AgentWorker does not requeue job when agent doesn't exist (DefNotFoundError)."""
     queue: asyncio.Queue[Job] = asyncio.Queue()
     worker = AgentWorker(test_context, queue)
 
-    # Create a job with invalid agent (will error)
+    # Create a job with invalid agent (will raise DefNotFoundError)
     job = Job(
         session_id=None,
         agent_id="nonexistent",
@@ -97,12 +97,55 @@ async def test_agent_worker_requeues_on_error(test_context):
     )
     await queue.put(job)
 
-    # Process should fail and requeue
+    # Process should fail but NOT requeue (DefNotFoundError is non-recoverable)
+    await queue.get()
+    await worker._process_job(job)
+
+    # Job should NOT be modified or requeued
+    assert job.message == "Test"  # Original message unchanged
+    assert queue.empty()  # Job was not put back in queue
+
+
+@pytest.mark.asyncio
+async def test_agent_worker_requeues_on_transient_error(test_context, tmp_path):
+    """AgentWorker requeues job with '.' message on transient errors."""
+    # Create a test agent definition
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir(parents=True)
+    test_agent_dir = agents_dir / "test-agent"
+    test_agent_dir.mkdir(parents=True)
+
+    agent_md = test_agent_dir / "AGENT.md"
+    agent_md.write_text(
+        """---
+name: Test Agent
+description: A test agent
+---
+You are a test assistant.
+"""
+    )
+
+    queue: asyncio.Queue[Job] = asyncio.Queue()
+    worker = AgentWorker(test_context, queue)
+
+    # Create a job with a frontend that raises a transient error
+    class ErrorFrontend(FakeFrontend):
+        async def show_message(self, content: str, agent_id: str | None = None) -> None:
+            raise RuntimeError("Transient error")
+
+    job = Job(
+        session_id=None,
+        agent_id="test-agent",
+        message="Test",
+        frontend=ErrorFrontend(),
+        mode=SessionMode.CHAT,
+    )
+    await queue.put(job)
+
+    # Process should fail and requeue (transient error)
     await queue.get()
     await worker._process_job(job)
 
     # Job should be requeued with message = "."
     assert job.message == "."
-
-    # Check that job was put back in queue
-    assert not queue.empty()
+    assert not queue.empty()  # Job was put back in queue
