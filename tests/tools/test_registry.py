@@ -1,7 +1,6 @@
 """Tests for ToolRegistry."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from picklebot.tools.registry import ToolRegistry
 from picklebot.tools.base import BaseTool

@@ -233,9 +233,7 @@ class TestMessageProcessing:
             """Mock chat that raises an error."""
             raise Exception("LLM error")
 
-        with patch.object(
-            executor.session, "chat", side_effect=mock_chat_error
-        ):
+        with patch.object(executor.session, "chat", side_effect=mock_chat_error):
             ctx = MockContext(user_id="user123", chat_id="chat456")
             await executor._enqueue_message("Hello", "mock", ctx)
 

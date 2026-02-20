@@ -66,9 +66,7 @@ class Agent:
                 registry.register(skill_tool)
 
         # Register subagent dispatch tool if other agents exist
-        subagent_tool = create_subagent_dispatch_tool(
-            self.agent_def.id, self.context
-        )
+        subagent_tool = create_subagent_dispatch_tool(self.agent_def.id, self.context)
         if subagent_tool:
             registry.register(subagent_tool)
 

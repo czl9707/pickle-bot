@@ -13,9 +13,7 @@ class Frontend(ABC):
         """Display welcome message."""
 
     @abstractmethod
-    async def show_message(
-        self, content: str, agent_id: str | None = None
-    ) -> None:
+    async def show_message(self, content: str, agent_id: str | None = None) -> None:
         """Display a message with optional agent context."""
 
     @abstractmethod
@@ -43,9 +41,7 @@ class SilentFrontend(Frontend):
     async def show_welcome(self) -> None:
         pass
 
-    async def show_message(
-        self, content: str, agent_id: str | None = None
-    ) -> None:
+    async def show_message(self, content: str, agent_id: str | None = None) -> None:
         pass
 
     async def show_system_message(self, content: str) -> None:

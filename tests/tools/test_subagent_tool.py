@@ -190,8 +190,8 @@ class TestSubagentDispatchFrontendCalls:
     """Tests for subagent dispatch frontend method calls."""
 
     @pytest.mark.anyio
-    async def test_subagent_dispatch_calls_show_dispatch_start(self, test_config):
-        """Subagent dispatch tool should call frontend.show_dispatch_start()."""
+    async def test_subagent_dispatch_calls_show_dispatch(self, test_config):
+        """Subagent dispatch tool should call frontend.show_dispatch() context manager."""
         # Create target agent
         agent_dir = test_config.agents_path / "target-agent"
         agent_dir.mkdir(parents=True)
@@ -213,6 +213,11 @@ You are the target agent.
 
         # Use a mock frontend to track calls
         mock_frontend = MagicMock(spec=SilentFrontend)
+        # Setup async context manager mock
+        mock_dispatch_context = AsyncMock()
+        mock_dispatch_context.__aenter__ = AsyncMock(return_value=None)
+        mock_dispatch_context.__aexit__ = AsyncMock(return_value=None)
+        mock_frontend.show_dispatch.return_value = mock_dispatch_context
 
         with patch("picklebot.core.agent.Agent") as mock_agent_class:
             mock_agent = mock_agent_class.return_value
@@ -227,15 +232,19 @@ You are the target agent.
                 task="Do something",
             )
 
-            # Verify show_dispatch_start was called
-            mock_frontend.show_dispatch_start.assert_called_once()
-            call_args = mock_frontend.show_dispatch_start.call_args
+            # Verify show_dispatch was called with correct args
+            mock_frontend.show_dispatch.assert_called_once()
+            call_args = mock_frontend.show_dispatch.call_args
             # Verify calling agent, target agent, and task are passed
+            assert call_args[0][0] == "caller"  # calling agent
+            assert call_args[0][1] == "target-agent"  # target agent
             assert call_args[0][2] == "Do something"  # task
 
     @pytest.mark.anyio
-    async def test_subagent_dispatch_calls_show_dispatch_result(self, test_config):
-        """Subagent dispatch tool should call frontend.show_dispatch_result()."""
+    async def test_subagent_dispatch_calls_show_message_with_agent_id(
+        self, test_config
+    ):
+        """Subagent dispatch tool should call frontend.show_message() with agent_id."""
         # Create target agent
         agent_dir = test_config.agents_path / "target-agent"
         agent_dir.mkdir(parents=True)
@@ -257,6 +266,12 @@ You are the target agent.
 
         # Use a mock frontend to track calls
         mock_frontend = MagicMock(spec=SilentFrontend)
+        mock_frontend.show_message = AsyncMock()
+        # Setup async context manager mock
+        mock_dispatch_context = AsyncMock()
+        mock_dispatch_context.__aenter__ = AsyncMock(return_value=None)
+        mock_dispatch_context.__aexit__ = AsyncMock(return_value=None)
+        mock_frontend.show_dispatch.return_value = mock_dispatch_context
 
         with patch("picklebot.core.agent.Agent") as mock_agent_class:
             mock_agent = mock_agent_class.return_value
@@ -271,8 +286,10 @@ You are the target agent.
                 task="Do something",
             )
 
-            # Verify show_dispatch_result was called
-            mock_frontend.show_dispatch_result.assert_called_once()
-            call_args = mock_frontend.show_dispatch_result.call_args
+            # Verify show_message was called with result and agent_id
+            mock_frontend.show_message.assert_called_once()
+            call_args = mock_frontend.show_message.call_args
             # Verify result is passed
-            assert "Result from subagent" in call_args[0][2]
+            assert "Result from subagent" in call_args[0][0]
+            # Verify agent_id kwarg
+            assert call_args[1].get("agent_id") == "target-agent"

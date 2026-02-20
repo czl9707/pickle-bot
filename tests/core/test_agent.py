@@ -152,7 +152,9 @@ You are another agent.
     assert "subagent_dispatch" in tool_names
 
 
-def test_session_skips_subagent_dispatch_when_no_other_agents(test_config, test_agent_def):
+def test_session_skips_subagent_dispatch_when_no_other_agents(
+    test_config, test_agent_def
+):
     """Session should NOT register subagent_dispatch tool when no other agents exist."""
     # Don't create any other agents
     test_agent_def.description = "Test agent"

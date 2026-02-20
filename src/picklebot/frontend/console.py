@@ -29,9 +29,7 @@ class ConsoleFrontend(Frontend):
         )
         self.console.print("Type 'quit' or 'exit' to end the session.\n")
 
-    async def show_message(
-        self, content: str, agent_id: str | None = None
-    ) -> None:
+    async def show_message(self, content: str, agent_id: str | None = None) -> None:
         """Display a message with optional agent context."""
         if agent_id:
             self.console.print(f"[bold cyan]{agent_id}:[/bold cyan] {content}")

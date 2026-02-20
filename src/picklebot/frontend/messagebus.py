@@ -30,9 +30,7 @@ class MessageBusFrontend(Frontend):
         """No-op for messagebus - no welcome on incoming messages."""
         pass
 
-    async def show_message(
-        self, content: str, agent_id: str | None = None
-    ) -> None:
+    async def show_message(self, content: str, agent_id: str | None = None) -> None:
         """Send message via bus.reply() with error isolation."""
         if agent_id:
             content = f"[{agent_id}]: {content}"
