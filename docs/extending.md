@@ -31,8 +31,9 @@ from picklebot.tools.base import tool
         "required": ["input"]
     },
 )
-async def my_tool(input: str, count: int = 1) -> str:
+async def my_tool(frontend, input: str, count: int = 1) -> str:
     """Process input text and return result."""
+    # Use frontend.show_transient() for status updates during execution
     result = input * count
     return f"Processed: {result}"
 ```
@@ -56,6 +57,7 @@ parameters={
 
 ### Tool Function Requirements
 
+- **First parameter: frontend** - All tool functions receive `frontend` as first parameter
 - **Async function** - Must be `async def`
 - **Type hints** - Help with validation
 - **Return string** - All tools return string responses
@@ -89,8 +91,8 @@ class MyTool(BaseTool):
     description = "Does something useful"
     parameters = {...}
 
-    async def execute(self, **kwargs) -> str:
-        # Custom logic here
+    async def execute(self, frontend, **kwargs) -> str:
+        # Custom logic here - frontend available for status updates
         return "result"
 ```
 
@@ -145,6 +147,8 @@ llm:
 Override `chat()` for custom behavior:
 
 ```python
+from picklebot.provider.base import LLMProvider, LLMToolCall
+
 class MyProvider(LLMProvider):
     provider_config_name = ["myprovider"]
 
@@ -152,10 +156,10 @@ class MyProvider(LLMProvider):
         self,
         messages: list[Message],
         tools: list[dict] | None = None
-    ) -> Message:
+    ) -> tuple[str, list[LLMToolCall]]:
         # Custom implementation
-        # Must return Message object
-        return Message(...)
+        # Must return tuple of (content, tool_calls)
+        return "response text", []
 ```
 
 ## Creating Skills
@@ -396,17 +400,25 @@ Create custom frontends for different output modes.
 from picklebot.frontend.base import Frontend
 
 class MyFrontend(Frontend):
-    async def show(self, content: str) -> None:
-        """Display agent message."""
+    async def show_welcome(self) -> None:
+        """Display welcome message."""
+        # Your implementation
+
+    async def show_message(self, content: str, agent_id: str | None = None) -> None:
+        """Display a message with optional agent context."""
+        # Your implementation
+
+    async def show_system_message(self, content: str) -> None:
+        """Display system-level message (goodbye, errors, interrupts)."""
         # Your implementation
 
     async def show_transient(self, content: str) -> None:
-        """Display temporary status."""
-        # Your implementation
+        """Display transient message (tool calls, intermediate steps)."""
+        # Note: This is an async context manager
 
-    async def reply(self, content: str) -> None:
-        """Send reply to user."""
-        # Your implementation
+    async def show_dispatch(self, calling_agent: str, target_agent: str, task: str) -> None:
+        """Display subagent dispatch notification."""
+        # Note: This is an async context manager
 ```
 
 ### Frontend Types
@@ -427,20 +439,37 @@ class MyFrontend(Frontend):
 ### Custom Frontend Example
 
 ```python
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
+
 class LoggingFrontend(Frontend):
     def __init__(self, log_file: str):
         self.log_file = log_file
 
-    async def show(self, content: str) -> None:
+    async def show_welcome(self) -> None:
         with open(self.log_file, 'a') as f:
-            f.write(f"AGENT: {content}\n")
+            f.write("=== Session started ===\n")
 
-    async def show_transient(self, content: str) -> None:
+    async def show_message(self, content: str, agent_id: str | None = None) -> None:
+        with open(self.log_file, 'a') as f:
+            agent = f"[{agent_id}] " if agent_id else ""
+            f.write(f"{agent}{content}\n")
+
+    async def show_system_message(self, content: str) -> None:
+        with open(self.log_file, 'a') as f:
+            f.write(f"SYSTEM: {content}\n")
+
+    @asynccontextmanager
+    async def show_transient(self, content: str) -> AsyncIterator[None]:
         with open(self.log_file, 'a') as f:
             f.write(f"STATUS: {content}\n")
+        yield
 
-    async def reply(self, content: str) -> None:
+    @asynccontextmanager
+    async def show_dispatch(
+        self, calling_agent: str, target_agent: str, task: str
+    ) -> AsyncIterator[None]:
         with open(self.log_file, 'a') as f:
-            f.write(f"REPLY: {content}\n")
-        print(content)  # Also show in console
+            f.write(f"DISPATCH: {calling_agent} -> {target_agent}: {task}\n")
+        yield
 ```
