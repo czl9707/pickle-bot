@@ -170,3 +170,51 @@ class TestDiscordBusIdempotentStartStop:
             # Second cycle should work
             await bus.start(dummy_callback)
             mock_client.start.assert_called_once()
+
+
+class TestDiscordBusRunningTask:
+    """Tests for start() returning a running task."""
+
+    @pytest.mark.anyio
+    async def test_start_returns_task(self):
+        """start() should return an asyncio.Task."""
+        config = DiscordConfig(bot_token="test_token")
+        bus = DiscordBus(config)
+
+        mock_client = MagicMock()
+        mock_client.start = AsyncMock()
+        mock_client.close = AsyncMock()
+
+        async def dummy_callback(content: str, context: DiscordContext) -> None:
+            pass
+
+        with patch("picklebot.messagebus.discord_bus.discord.Client", return_value=mock_client):
+            import asyncio
+            task = await bus.start(dummy_callback)
+
+            assert isinstance(task, asyncio.Task)
+
+            # Clean up
+            await bus.stop()
+
+    @pytest.mark.anyio
+    async def test_start_returns_same_task_if_called_twice(self):
+        """Calling start() twice should return the same task."""
+        config = DiscordConfig(bot_token="test_token")
+        bus = DiscordBus(config)
+
+        mock_client = MagicMock()
+        mock_client.start = AsyncMock()
+        mock_client.close = AsyncMock()
+
+        async def dummy_callback(content: str, context: DiscordContext) -> None:
+            pass
+
+        with patch("picklebot.messagebus.discord_bus.discord.Client", return_value=mock_client):
+            task1 = await bus.start(dummy_callback)
+            task2 = await bus.start(dummy_callback)
+
+            assert task1 is task2
+
+            # Clean up
+            await bus.stop()
