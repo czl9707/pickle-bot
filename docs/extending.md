@@ -435,6 +435,10 @@ class LoggingFrontend(Frontend):
         with open(self.log_file, 'a') as f:
             f.write(f"AGENT: {content}\n")
 
+    async def show_transient(self, content: str) -> None:
+        with open(self.log_file, 'a') as f:
+            f.write(f"STATUS: {content}\n")
+
     async def reply(self, content: str) -> None:
         with open(self.log_file, 'a') as f:
             f.write(f"REPLY: {content}\n")
