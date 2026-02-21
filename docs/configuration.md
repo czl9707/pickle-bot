@@ -117,7 +117,7 @@ messagebus:
   telegram:
     enabled: true
     bot_token: "your-telegram-bot-token"
-    allowed_chat_ids: ["123456789"]  # Whitelist (empty = allow all)
+    allowed_user_ids: ["123456789"]  # Whitelist (empty = allow all)
     default_chat_id: "123456789"     # Target for proactive messages
 ```
 
@@ -138,7 +138,7 @@ messagebus:
     enabled: true
     bot_token: "your-discord-bot-token"
     channel_id: "optional-channel-id"
-    allowed_chat_ids: []             # Whitelist (empty = allow all)
+    allowed_user_ids: []             # Whitelist (empty = allow all)
     default_chat_id: ""              # Target for proactive messages
 ```
 
@@ -155,7 +155,7 @@ messagebus:
 
 ### User Whitelist
 
-The `allowed_chat_ids` array controls who can interact with the bot:
+The `allowed_user_ids` array controls who can interact with the bot:
 
 - **Empty array `[]`** - Allow all users (public bot)
 - **Non-empty `["123", "456"]`** - Only allow listed users
