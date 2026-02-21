@@ -3,9 +3,9 @@
 import pytest
 from typing import Any
 
-from picklebot.messagebus.base import MessageBus, TelegramContext, DiscordContext
-from picklebot.messagebus.telegram_bus import TelegramBus
-from picklebot.messagebus.discord_bus import DiscordBus
+from picklebot.messagebus.base import MessageBus
+from picklebot.messagebus.telegram_bus import TelegramBus, TelegramContext
+from picklebot.messagebus.discord_bus import DiscordBus, DiscordContext
 from picklebot.utils.config import (
     TelegramConfig,
     DiscordConfig,
@@ -141,16 +141,12 @@ class TestContextDataclasses:
 
     def test_telegram_context_fields(self):
         """TelegramContext should have user_id and chat_id."""
-        from picklebot.messagebus.base import TelegramContext
-
         ctx = TelegramContext(user_id="111", chat_id="222")
         assert ctx.user_id == "111"
         assert ctx.chat_id == "222"
 
     def test_discord_context_fields(self):
         """DiscordContext should have user_id and channel_id."""
-        from picklebot.messagebus.base import DiscordContext
-
         ctx = DiscordContext(user_id="333", channel_id="444")
         assert ctx.user_id == "333"
         assert ctx.channel_id == "444"

@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from picklebot.frontend.messagebus import MessageBusFrontend
-from picklebot.messagebus.base import TelegramContext
+from picklebot.messagebus.telegram_bus import TelegramContext
 
 
 class TestMessageBusFrontend:
