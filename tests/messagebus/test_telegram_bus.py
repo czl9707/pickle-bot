@@ -3,8 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from picklebot.messagebus.base import TelegramContext
-from picklebot.messagebus.telegram_bus import TelegramBus
+from picklebot.messagebus.telegram_bus import TelegramBus, TelegramContext
 from picklebot.utils.config import TelegramConfig
 
 
