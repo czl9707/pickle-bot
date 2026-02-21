@@ -3,7 +3,6 @@
 from pydantic import BaseModel, create_model
 
 from picklebot.core.cron_loader import CronDef
-from picklebot.core.history import HistoryMessage
 from picklebot.core.skill_loader import SkillDef
 
 
@@ -30,12 +29,14 @@ def make_create_model(
 # Derived models - reuse existing definitions
 SkillCreate = make_create_model(SkillDef)
 CronCreate = make_create_model(CronDef)
-MemoryCreate = make_create_model(
-    HistoryMessage, exclude={"timestamp", "tool_calls", "tool_call_id"}
-)
 
 
 # Hand-written models (need special handling)
+
+class MemoryCreate(BaseModel):
+    """Request body for creating/updating a memory."""
+
+    content: str
 
 class AgentCreate(BaseModel):
     """Request body for creating/updating an agent."""
