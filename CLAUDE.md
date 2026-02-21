@@ -1,275 +1,81 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Essential context for working in pickle-bot codebase.
 
 ## Commands
 
 ```bash
-# Install dependencies
-uv sync
-
-# Run the CLI
-uv run picklebot chat
-uv run picklebot --help
-
-# Development
-uv run pytest           # Run tests
-uv run black .          # Format code
-uv run ruff check .     # Lint
-uv run mypy .           # Type check
+uv run picklebot chat              # Interactive chat with default agent
+uv run picklebot chat -a cookie    # Use specific agent
+uv run picklebot server            # Start server (crons + messagebus)
+uv run pytest                      # Run tests
+uv run black . && uv run ruff check .  # Format + lint
 ```
 
-## Architecture
+## Architecture Overview
 
+**Entry Points:**
+- `cli/` - Typer commands (chat, server)
+- `workers/` - Server mode workers (AgentWorker, CronWorker, MessageBusWorker)
+
+**Core Flow:**
 ```
-src/picklebot/
-├── cli/           # Typer CLI (main.py, chat.py, server.py)
-├── core/          # Agent, AgentSession, AgentDef, loaders
-├── workers/       # AgentWorker, CronWorker, MessageBusWorker, Server
-├── messagebus/    # Message bus abstraction (base.py, telegram_bus.py, discord_bus.py)
-├── provider/      # LLM provider abstraction (base.py, providers.py)
-├── tools/         # Tool system (base.py, registry.py, builtin_tools.py, skill_tool.py, subagent_tool.py, post_message_tool.py)
-├── frontend/      # UI abstraction (base.py, console.py)
-└── utils/         # Config, logging, def_loader
+Agent receives message -> loads tools -> calls LLM -> executes tool calls -> response
 ```
 
-### Key Components
+**Key Files:**
+- `core/agent.py` - Main orchestrator
+- `core/session.py` - Runtime state + history
+- `workers/server.py` - Worker orchestration
+- `tools/registry.py` - Tool registration
+- `messagebus/base.py` - Platform abstraction
 
-**Agent** (`core/agent.py`): Main orchestrator that handles chat loops, tool calls, and LLM interaction. Receives `AgentDef`, builds context from session history, executes tool calls via ToolRegistry.
+## Critical Patterns
 
-**AgentDef** (`core/agent_def.py`): Loaded agent definition containing id, name, description, system_prompt, llm config, and `allow_skills` flag. Created by `AgentLoader` from AGENT.md files.
+### Worker Architecture
 
-**AgentLoader** (`core/agent_loader.py`): Parses AGENT.md files with YAML frontmatter using `def_loader` utilities. Has `load(agent_id)` and `discover_agents()` methods. Raises `DefNotFoundError` or `InvalidDefError` on failures.
+All workers inherit from `Worker` base class. Jobs flow through `asyncio.Queue` to AgentWorker for sequential execution.
 
-**AgentSession** (`core/session.py`): Runtime state for a conversation. Manages in-memory message list and persists to HistoryStore. Async context manager.
+```
+MessageBusWorker/CronWorker -> Queue -> AgentWorker -> Execute
+```
 
-**SharedContext** (`core/context.py`): Container for shared resources (config, frontend, tool registry) passed to Agent and workers.
+See [docs/architecture.md](docs/architecture.md) for details.
 
-**SkillLoader** (`core/skill_loader.py`): Discovers and loads SKILL.md files. Used by `create_skill_tool()` to build the skill tool.
+### Definition Loading
 
-**CronLoader** (`core/cron_loader.py`): Discovers and loads CRON.md files with schedule definitions.
+All definitions (agents, skills, crons) use `def_loader.py` utilities:
 
-**MessageBus** (`messagebus/base.py`): Abstract generic base with platform-specific context. Key methods: `is_allowed(context)`, `reply(content, context)`, `post(content, target=None)`. Implementations: `TelegramBus[TelegramContext]`, `DiscordBus[DiscordContext]`.
-
-**HistoryStore** (`core/history.py`): JSON file-based persistence. Directory: `~/.pickle-bot/history/sessions/` with an `index.json` for fast session listing. `HistoryMessage` has `from_message()` and `to_message()` methods for litellm Message conversion.
-
-**LLMProvider** (`provider/base.py`): Abstract base using litellm. Subclasses only need to set `provider_config_name` for auto-registration. Built-in: ZaiProvider, OpenAIProvider, AnthropicProvider.
-
-**ToolRegistry** (`tools/registry.py`): Registers tools and generates schemas for LiteLLM function calling. Use `@tool` decorator or inherit from `BaseTool`.
-
-**def_loader** (`utils/def_loader.py`): Shared utilities for parsing markdown files with YAML frontmatter. Provides `parse_definition()` and `discover_definitions()` functions used by all loaders.
-
-**Frontend** (`frontend/base.py`): Abstract UI interface. `ConsoleFrontend` uses Rich for terminal output. Key method: `show_transient()` displays temporary status during tool calls.
-
-### Error Classes
-
-All loaders use unified exceptions from `utils/def_loader.py`:
-
-- **DefNotFoundError**: Definition folder or file doesn't exist
-- **InvalidDefError**: Definition file is malformed
-
-### Server Architecture
-
-Worker-based architecture for `picklebot server` mode:
-
-- **AgentWorker** - Executes agent jobs sequentially from queue
-- **CronWorker** - Finds due cron jobs, dispatches to agent queue
-- **MessageBusWorker** - Ingests messages from platforms, dispatches to agent queue
-- **Server** - Orchestrates workers with health monitoring
-
-See `docs/plans/2026-02-20-worker-architecture-design.md` for details.
-
-### Configuration
-
-Stored in `~/.pickle-bot/`:
-
-- `config.system.yaml` - System defaults (default_agent, paths)
-- `config.user.yaml` - User overrides (llm settings, deep-merged)
-- `agents/` - Agent definitions (`[name]/AGENT.md`)
-- `skills/` - Skill definitions (`[name]/SKILL.md`)
-- `crons/` - Cron definitions (`[name]/CRON.md`)
-- `messagebus` - Message bus config (Telegram, Discord, default_platform)
-
-Pydantic models in `utils/config.py`. Load via `Config.load(workspace_dir)`.
-
-Config paths are relative to workspace and auto-resolved:
 ```python
-agents_path: Path = Path("agents")   # resolves to workspace/agents
-skills_path: Path = Path("skills")   # resolves to workspace/skills
-crons_path: Path = Path("crons")     # resolves to workspace/crons
-memories_path: Path = Path("memories")  # resolves to workspace/memories
+from picklebot.utils.def_loader import parse_definition, discover_definitions
+from picklebot.core.agent_def import AgentDef
+
+# Load single definition
+agent_def = parse_definition(path, AgentDef)
+
+# Discover all definitions
+agents = discover_definitions(agents_path, AgentDef)
 ```
 
-### Agent Definitions
+Raises:
+- `DefNotFoundError` - Definition folder/file doesn't exist
+- `InvalidDefError` - Definition file is malformed
 
-Agents are defined in `~/.pickle-bot/agents/[name]/AGENT.md`:
+### Message Conversion
 
-```markdown
----
-name: Agent Display Name
-description: Brief description shown in subagent_dispatch tool
-provider: openai        # Optional: override shared LLM
-model: gpt-4            # Optional: override shared LLM
-temperature: 0.7
-max_tokens: 4096
-allow_skills: true      # Optional: enable skill tool
----
+`HistoryMessage` <-> litellm `Message` conversion:
 
-You are a helpful assistant...
-```
-
-Load agents via `AgentLoader`:
 ```python
-loader = AgentLoader(config.agents_path, config.llm)
-agent_def = loader.load("agent-name")
+# Message -> HistoryMessage (for persistence)
+history_msg = HistoryMessage.from_message(message)
+
+# HistoryMessage -> Message (for LLM context)
+message = history_msg.to_message()
 ```
 
-### Skill System
+### Tool Registration
 
-Skills are user-defined capabilities loaded on-demand by the LLM. Defined in `~/.pickle-bot/skills/[name]/SKILL.md`:
-
-```markdown
----
-name: Skill Display Name
-description: Brief description for LLM to decide whether to load
----
-
-# Skill Name
-
-Instructions for the skill...
-```
-
-When `allow_skills: true` in an agent, a "skill" tool is registered that presents available skills and loads content on demand.
-
-### Cron System
-
-Cron jobs run scheduled agent invocations. Defined in `~/.pickle-bot/crons/[name]/CRON.md`:
-
-```markdown
----
-name: Inbox Check
-agent: pickle
-schedule: "*/15 * * * *"
----
-
-Check my inbox and summarize unread messages.
-```
-
-Start the server with `picklebot server`. Jobs run sequentially with fresh sessions (no memory between runs).
-
-### MessageBus System
-
-Message bus enables chat via Telegram and Discord with shared conversation history. Configuration in `~/.pickle-bot/config.user.yaml`:
-
-```yaml
-messagebus:
-  enabled: true
-  default_platform: telegram  # Required when enabled
-  telegram:
-    enabled: true
-    bot_token: "your-token"
-    allowed_chat_ids: ["123456789"]  # Whitelist for incoming messages
-    default_chat_id: "123456789"     # Target for agent-initiated messages
-  discord:
-    enabled: false
-    bot_token: "your-token"
-    channel_id: "optional-id"
-    allowed_chat_ids: []
-    default_chat_id: ""
-```
-
-**Architecture:**
-- Event-driven with `asyncio.Queue` for sequential message processing
-- Single shared `AgentSession` across all platforms
-- Platform routing: user messages → reply to sender's platform, cron messages → `default_platform`
-- `MessageBus.from_config()` factory creates bus instances with inline imports to avoid circular dependencies
-
-**Chat Whitelist:**
-- `allowed_chat_ids` filters incoming messages per platform
-- Empty list allows all chats; non-empty list restricts to listed IDs
-- Non-whitelisted messages are silently ignored (logged at INFO level)
-
-**Post Message Tool:**
-- `post_message_tool.py` provides `create_post_message_tool()` factory
-- Tool sends messages to `default_chat_id` on `default_platform`
-- Only registered when messagebus is enabled with valid config
-- Useful for cron job notifications and proactive alerts
-
-**Implementation:**
-- `MessageBusWorker` and `CronWorker` run under `Server` orchestration
-- Each platform implements `MessageBus` abstract interface with typed context
-- `reply(content, context)` sends to the context's originating chat
-- `post(content, target=None)` sends to `default_chat_id` if target not specified
-- Console logging enabled in server mode via `setup_logging(config, console_output=True)`
-
-### Memory System
-
-Long-term memories are managed by the Cookie agent (a subagent). Cookie stores memories in markdown files with three organizational axes:
-
-- **topics/** - Timeless facts about the user (preferences, identity, relationships)
-- **projects/** - Project state and context (status, progress, blockers, next steps)
-- **daily-notes/** - Day-specific events and decisions (YYYY-MM-DD.md)
-
-Memory flows:
-1. Real-time storage - Pickle dispatches to cookie during conversations
-2. Scheduled capture - Daily cron at 2AM extracts missed memories
-3. On-demand retrieval - Pickle dispatches to query relevant memories
-
-Cookie uses existing tools (read, write, edit) to manage memory files. No special tools required.
-
-### Heartbeat & Continuous Work
-
-Pickle-bot can work continuously on projects through the heartbeat cron (`~/.pickle-bot/crons/heartbeat/CRON.md`):
-
-```markdown
----
-name: Heartbeat
-agent: pickle
-schedule: "*/30 * * * *"  # Every 30 minutes
----
-
-## Active Tasks
-
-- [ ] Check on project X progress
-- [ ] Monitor build status for project Y
-
-## Completed
-
-<!-- Move completed tasks here -->
-```
-
-**Workflow:**
-1. User assigns project → Cookie creates `memories/projects/{name}.md`
-2. User asks for periodic check → Pickle adds task to heartbeat CRON.md body
-3. Heartbeat fires → Pickle reads active tasks, checks project state, acts if needed
-4. User asks to stop → Pickle removes task from heartbeat
-
-This enables agents to work on projects autonomously between user interactions.
-
-### Subagent Dispatch System
-
-Agents can delegate specialized work to other agents through the `subagent_dispatch` tool. The tool is automatically registered when other dispatchable agents exist.
-
-**How it works:**
-1. `create_subagent_dispatch_tool()` factory builds a tool with dynamic enum of dispatchable agents
-2. Calling agent is excluded from the enum (prevents recursive dispatch)
-3. Dispatch creates a new session that persists to history
-4. Returns JSON with `result` and `session_id` fields
-
-**Tool schema:**
-```python
-subagent_dispatch(
-    agent_id: str,      # ID of target agent (enum of available agents)
-    task: str,          # Task for the subagent to perform
-    context: str = ""   # Optional context information
-) -> str  # JSON: {"result": "...", "session_id": "..."}
-```
-
-Implementation in `tools/subagent_tool.py`. Uses `SilentFrontend` for subagent execution.
-
-## Patterns
-
-### Adding a Tool
+Use `@tool` decorator or inherit `BaseTool`. Registered in `ToolRegistry`, schemas auto-generated for LiteLLM.
 
 ```python
 from picklebot.tools.base import tool
@@ -283,24 +89,29 @@ async def my_tool(arg: str) -> str:
     return f"Result: {arg}"
 ```
 
-### Adding an LLM Provider
+### Config Loading
+
+Deep merge: `config.system.yaml` (defaults) <- `config.user.yaml` (overrides)
+
+Paths are relative to workspace and auto-resolved:
 
 ```python
-from picklebot.provider.base import LLMProvider
-
-class MyProvider(LLMProvider):
-    provider_config_name = ["myprovider", "my_provider"]
-    # Inherits default chat() via litellm
+agents_path: Path = Path("agents")   # resolves to workspace/agents
+skills_path: Path = Path("skills")   # resolves to workspace/skills
 ```
 
-### Message Conversion
+## Key Conventions
 
-`HistoryMessage` has bidirectional conversion with litellm `Message` format:
+- **Workers** - Single responsibility, communicate via queues, restart on crash
+- **Sessions** - One per conversation, persisted to `~/.pickle-bot/history/`
+- **Tools** - Async functions, return strings, registered at startup
+- **MessageBus** - Platform-agnostic with typed context (TelegramContext, DiscordContext)
+- **Errors** - Custom exceptions in `utils/def_loader.py`
+- **Frontend** - Abstract interface, platform-specific implementations
 
-```python
-# Message → HistoryMessage (for persistence)
-history_msg = HistoryMessage.from_message(message)
+## What Goes Where
 
-# HistoryMessage → Message (for LLM context)
-message = history_msg.to_message()
-```
+- **Configuration details** -> [docs/configuration.md](docs/configuration.md)
+- **Full feature docs** -> [docs/features.md](docs/features.md)
+- **Component details** -> [docs/architecture.md](docs/architecture.md)
+- **Extension guide** -> [docs/extending.md](docs/extending.md)
