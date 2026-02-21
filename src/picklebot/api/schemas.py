@@ -9,12 +9,9 @@ from picklebot.core.skill_loader import SkillDef
 
 
 def make_create_model(
-    model_cls: type[BaseModel], exclude: set[str] | None = None
+    model_cls: type[BaseModel], exclude: set[str]
 ) -> type[BaseModel]:
     """Derive a Create model from existing model, excluding specified fields."""
-    if exclude is None:
-        exclude = {"id"}
-
     fields: dict[str, Any] = {}
     for name, field in model_cls.model_fields.items():
         if name in exclude:
@@ -30,8 +27,8 @@ def make_create_model(
 
 # Derived models - reuse existing definitions
 # Note: These are created at runtime, so we use type: ignore for mypy
-SkillCreate: type[BaseModel] = make_create_model(SkillDef)  # type: ignore[assignment]
-CronCreate: type[BaseModel] = make_create_model(CronDef)  # type: ignore[assignment]
+SkillCreate: type[BaseModel] = make_create_model(SkillDef, exclude={"id"})  # type: ignore[assignment]
+CronCreate: type[BaseModel] = make_create_model(CronDef, exclude={"id"})  # type: ignore[assignment]
 
 
 # Hand-written models (need special handling)
