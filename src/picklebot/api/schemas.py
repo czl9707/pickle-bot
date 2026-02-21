@@ -18,10 +18,11 @@ def make_create_model(
     for name, field in model_cls.model_fields.items():
         if name in exclude:
             continue
-        fields[name] = (
-            field.annotation,
-            field.default if field.has_default else ...,
-        )
+        # Use is_required() to check if field has a default
+        if field.is_required():
+            fields[name] = (field.annotation, ...)
+        else:
+            fields[name] = (field.annotation, field.default)
 
     return create_model(f"{model_cls.__name__}Create", **fields)
 

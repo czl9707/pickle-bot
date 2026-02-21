@@ -6,6 +6,7 @@ from pathlib import Path
 import tempfile
 
 from picklebot.api import create_app
+from picklebot.api.schemas import AgentCreate
 from picklebot.core.context import SharedContext
 from picklebot.utils.config import Config, LLMConfig
 
@@ -89,3 +90,58 @@ class TestGetAgent:
         response = client.get("/agents/nonexistent")
 
         assert response.status_code == 404
+
+
+class TestCreateAgent:
+    def test_create_agent(self, client):
+        """POST /agents/{id} creates a new agent."""
+        agent_data = AgentCreate(
+            name="New Agent",
+            description="A new agent",
+            system_prompt="You are a new agent.",
+        )
+
+        response = client.post(
+            "/agents/new-agent",
+            json=agent_data.model_dump(),
+        )
+
+        assert response.status_code == 201
+        agent = response.json()
+        assert agent["id"] == "new-agent"
+        assert agent["name"] == "New Agent"
+
+        # Verify it was created
+        get_response = client.get("/agents/new-agent")
+        assert get_response.status_code == 200
+
+
+class TestUpdateAgent:
+    def test_update_agent(self, client):
+        """PUT /agents/{id} updates an existing agent."""
+        agent_data = AgentCreate(
+            name="Updated Agent",
+            description="Updated description",
+            system_prompt="You are updated.",
+        )
+
+        response = client.put(
+            "/agents/test-agent",
+            json=agent_data.model_dump(),
+        )
+
+        assert response.status_code == 200
+        agent = response.json()
+        assert agent["name"] == "Updated Agent"
+
+
+class TestDeleteAgent:
+    def test_delete_agent(self, client):
+        """DELETE /agents/{id} deletes an agent."""
+        response = client.delete("/agents/test-agent")
+
+        assert response.status_code == 204
+
+        # Verify it was deleted
+        get_response = client.get("/agents/test-agent")
+        assert get_response.status_code == 404
