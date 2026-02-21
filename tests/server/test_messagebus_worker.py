@@ -31,6 +31,13 @@ class FakeBus:
         self.messages.append(content)
 
 
+class BlockingBus(FakeBus):
+    """Fake bus that blocks all messages."""
+
+    def is_allowed(self, context):
+        return False
+
+
 @pytest.mark.asyncio
 async def test_messagebus_worker_creates_global_session(test_context, tmp_path):
     """MessageBusWorker creates a global session on init."""
@@ -98,3 +105,39 @@ You are a test assistant.
     job = await queue.get()
     assert job.message == "hello"
     assert job.session_id == worker.global_session.session_id
+
+
+@pytest.mark.asyncio
+async def test_messagebus_worker_ignores_non_whitelisted(test_context, tmp_path):
+    """MessageBusWorker ignores messages from non-whitelisted senders."""
+    # Create test agent
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir(parents=True)
+    test_agent_dir = agents_dir / "test"
+    test_agent_dir.mkdir(parents=True)
+
+    agent_md = test_agent_dir / "AGENT.md"
+    agent_md.write_text(
+        """---
+name: Test Agent
+description: A test agent
+---
+
+You are a test assistant.
+"""
+    )
+
+    queue: asyncio.Queue[Job] = asyncio.Queue()
+    bus = BlockingBus()
+    worker = MessageBusWorker(test_context, queue, [bus])
+
+    task = asyncio.create_task(worker.run())
+    await asyncio.sleep(0.1)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    # Queue should be empty - message was blocked
+    assert queue.empty()

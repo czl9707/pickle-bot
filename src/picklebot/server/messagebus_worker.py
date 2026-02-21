@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 from picklebot.server.base import Worker, Job
 from picklebot.core.agent import SessionMode, Agent
 from picklebot.frontend.messagebus import MessageBusFrontend
+from picklebot.utils.def_loader import DefNotFoundError
 
 if TYPE_CHECKING:
     from picklebot.messagebus.base import MessageBus
@@ -27,9 +28,13 @@ class MessageBusWorker(Worker):
         self.bus_map = {bus.platform_name: bus for bus in buses}
 
         # Create global session on startup
-        agent_def = context.agent_loader.load(context.config.default_agent)
-        agent = Agent(agent_def, context)
-        self.global_session = agent.new_session(SessionMode.CHAT)
+        try:
+            agent_def = context.agent_loader.load(context.config.default_agent)
+            agent = Agent(agent_def, context)
+            self.global_session = agent.new_session(SessionMode.CHAT)
+        except DefNotFoundError as e:
+            self.logger.error(f"Default agent not found: {context.config.default_agent}")
+            raise RuntimeError(f"Failed to initialize MessageBusWorker: {e}") from e
 
     async def run(self) -> None:
         """Start all buses and process incoming messages."""
@@ -49,24 +54,27 @@ class MessageBusWorker(Worker):
         """Create callback for a specific platform."""
 
         async def callback(message: str, context: Any) -> None:
-            bus = self.bus_map[platform]
+            try:
+                bus = self.bus_map[platform]
 
-            if not bus.is_allowed(context):
-                self.logger.info(f"Ignored non-whitelisted message from {platform}")
-                return
+                if not bus.is_allowed(context):
+                    self.logger.debug(f"Ignored non-whitelisted message from {platform}")
+                    return
 
-            # Create frontend for this message
-            frontend = MessageBusFrontend(bus, context)
+                # Create frontend for this message
+                frontend = MessageBusFrontend(bus, context)
 
-            # Dispatch job to agent queue
-            job = Job(
-                session_id=self.global_session.session_id,
-                agent_id=self.global_session.agent_id,
-                message=message,
-                frontend=frontend,
-                mode=SessionMode.CHAT,
-            )
-            await self.agent_queue.put(job)
-            self.logger.debug(f"Dispatched message from {platform}")
+                # Dispatch job to agent queue
+                job = Job(
+                    session_id=self.global_session.session_id,
+                    agent_id=self.global_session.agent_id,
+                    message=message,
+                    frontend=frontend,
+                    mode=SessionMode.CHAT,
+                )
+                await self.agent_queue.put(job)
+                self.logger.debug(f"Dispatched message from {platform}")
+            except Exception as e:
+                self.logger.error(f"Error processing message from {platform}: {e}")
 
         return callback
