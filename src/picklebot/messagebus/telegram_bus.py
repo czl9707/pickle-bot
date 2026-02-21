@@ -1,5 +1,6 @@
 """Telegram message bus implementation."""
 
+import asyncio
 from dataclasses import dataclass
 import logging
 from typing import Callable, Awaitable
@@ -36,6 +37,8 @@ class TelegramBus(MessageBus[TelegramContext]):
         """
         self.config = config
         self.application: Application | None = None
+        self._running_task: asyncio.Task | None = None
+        self._stop_event: asyncio.Event | None = None
 
     def is_allowed(self, context: TelegramContext) -> bool:
         """Check if sender is whitelisted."""
@@ -45,15 +48,20 @@ class TelegramBus(MessageBus[TelegramContext]):
 
     async def start(
         self, on_message: Callable[[str, TelegramContext], Awaitable[None]]
-    ) -> None:
-        """Start listening for Telegram messages."""
-        # Idempotent: skip if already started
+    ) -> asyncio.Task | None:
+        """Start listening for Telegram messages.
+
+        Returns:
+            Task that runs until stop() is called, or None if already started.
+        """
+        # Idempotent: return existing task if already started
         if self.application is not None:
-            logger.debug("TelegramBus already started, skipping")
-            return
+            logger.debug("TelegramBus already started, returning existing task")
+            return self._running_task
 
         logger.info(f"Message bus enabled with platform: {self.platform_name}")
         self.application = Application.builder().token(self.config.bot_token).build()
+        self._stop_event = asyncio.Event()
 
         async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             """Handle incoming Telegram message."""
@@ -90,6 +98,23 @@ class TelegramBus(MessageBus[TelegramContext]):
             await self.application.updater.start_polling()
 
         logger.info("TelegramBus started")
+
+        # Create the running task that monitors for stop
+        async def run_until_stopped():
+            """Run until stop() is called or updater stops unexpectedly."""
+            while self.application and self.application.updater:
+                if self.application.updater.running:
+                    if self._stop_event and self._stop_event.is_set():
+                        return  # Graceful stop
+                    await asyncio.sleep(0.5)
+                else:
+                    # Updater stopped without us calling stop()
+                    if self._stop_event and not self._stop_event.is_set():
+                        raise RuntimeError("Telegram updater stopped unexpectedly")
+                    return
+
+        self._running_task = asyncio.create_task(run_until_stopped())
+        return self._running_task
 
     async def reply(self, content: str, context: TelegramContext) -> None:
         """Reply to incoming message."""
@@ -130,9 +155,25 @@ class TelegramBus(MessageBus[TelegramContext]):
             logger.debug("TelegramBus not running, skipping stop")
             return
 
+        # Signal the running task to stop
+        if self._stop_event:
+            self._stop_event.set()
+
         if self.application.updater and self.application.updater.running:
             await self.application.updater.stop()
         await self.application.stop()
         await self.application.shutdown()
-        self.application = None  # Reset to allow restart
+
+        # Wait for running task to complete
+        if self._running_task and not self._running_task.done():
+            try:
+                await asyncio.wait_for(self._running_task, timeout=2.0)
+            except asyncio.TimeoutError:
+                logger.warning("Running task did not complete in time")
+            except Exception:
+                pass  # Task may have already failed
+
+        self.application = None
+        self._running_task = None
+        self._stop_event = None
         logger.info("TelegramBus stopped")
