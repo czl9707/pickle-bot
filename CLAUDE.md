@@ -50,8 +50,8 @@ All definitions (agents, skills, crons) are loaded via loader classes:
 from picklebot.core.agent_loader import AgentLoader
 from picklebot.utils.def_loader import DefNotFoundError, InvalidDefError
 
-# Load single agent
-loader = AgentLoader(agents_path, llm_config)
+# Load single agent (config is a Config object)
+loader = AgentLoader(config)
 agent_def = loader.load("my-agent")
 
 # Discover all agents
