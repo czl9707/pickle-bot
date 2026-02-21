@@ -13,17 +13,22 @@ from picklebot.utils.def_loader import DefNotFoundError
 router = APIRouter()
 
 
-def _write_skill_file(skill_id: str, data: SkillCreate, skills_path) -> None:
+def _write_skill_file(skill_id: str, data: SkillCreate, skills_path) -> None:  # type: ignore[valid-type]
     """Write skill definition to file."""
     skill_dir = skills_path / skill_id
     skill_dir.mkdir(parents=True, exist_ok=True)
 
+    # Type ignore: SkillCreate is dynamically created
+    name = data.name  # type: ignore[attr-defined]
+    description = data.description  # type: ignore[attr-defined]
+    content_body = data.content  # type: ignore[attr-defined]
+
     content = f"""---
-name: {data.name}
-description: {data.description}
+name: {name}
+description: {description}
 ---
 
-{data.content}
+{content_body}
 """
 
     (skill_dir / "SKILL.md").write_text(content)
@@ -46,7 +51,7 @@ def get_skill(skill_id: str, ctx: SharedContext = Depends(get_context)) -> Skill
 
 @router.post("/{skill_id}", response_model=SkillDef, status_code=status.HTTP_201_CREATED)
 def create_skill(
-    skill_id: str, data: SkillCreate, ctx: SharedContext = Depends(get_context)
+    skill_id: str, data: SkillCreate, ctx: SharedContext = Depends(get_context)  # type: ignore[valid-type]
 ) -> SkillDef:
     """Create a new skill."""
     skills_path = ctx.config.skills_path
@@ -61,7 +66,7 @@ def create_skill(
 
 @router.put("/{skill_id}", response_model=SkillDef)
 def update_skill(
-    skill_id: str, data: SkillCreate, ctx: SharedContext = Depends(get_context)
+    skill_id: str, data: SkillCreate, ctx: SharedContext = Depends(get_context)  # type: ignore[valid-type]
 ) -> SkillDef:
     """Update an existing skill."""
     skills_path = ctx.config.skills_path

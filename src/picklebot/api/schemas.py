@@ -1,5 +1,7 @@
 """Pydantic schemas for API request/response models."""
 
+from typing import Any
+
 from pydantic import BaseModel, create_model
 
 from picklebot.core.cron_loader import CronDef
@@ -13,7 +15,7 @@ def make_create_model(
     if exclude is None:
         exclude = {"id"}
 
-    fields = {}
+    fields: dict[str, Any] = {}
     for name, field in model_cls.model_fields.items():
         if name in exclude:
             continue
@@ -27,8 +29,9 @@ def make_create_model(
 
 
 # Derived models - reuse existing definitions
-SkillCreate = make_create_model(SkillDef)
-CronCreate = make_create_model(CronDef)
+# Note: These are created at runtime, so we use type: ignore for mypy
+SkillCreate: type[BaseModel] = make_create_model(SkillDef)  # type: ignore[assignment]
+CronCreate: type[BaseModel] = make_create_model(CronDef)  # type: ignore[assignment]
 
 
 # Hand-written models (need special handling)

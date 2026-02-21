@@ -13,19 +13,26 @@ from picklebot.utils.def_loader import DefNotFoundError
 router = APIRouter()
 
 
-def _write_cron_file(cron_id: str, data: CronCreate, crons_path) -> None:
+def _write_cron_file(cron_id: str, data: CronCreate, crons_path) -> None:  # type: ignore[valid-type]
     """Write cron definition to file."""
     cron_dir = crons_path / cron_id
     cron_dir.mkdir(parents=True, exist_ok=True)
 
+    # Type ignore: CronCreate is dynamically created
+    name = data.name  # type: ignore[attr-defined]
+    agent = data.agent  # type: ignore[attr-defined]
+    schedule = data.schedule  # type: ignore[attr-defined]
+    one_off = data.one_off  # type: ignore[attr-defined]
+    prompt = data.prompt  # type: ignore[attr-defined]
+
     content = f"""---
-name: {data.name}
-agent: {data.agent}
-schedule: "{data.schedule}"
-one_off: {data.one_off}
+name: {name}
+agent: {agent}
+schedule: "{schedule}"
+one_off: {one_off}
 ---
 
-{data.prompt}
+{prompt}
 """
 
     (cron_dir / "CRON.md").write_text(content)
@@ -48,7 +55,7 @@ def get_cron(cron_id: str, ctx: SharedContext = Depends(get_context)) -> CronDef
 
 @router.post("/{cron_id}", response_model=CronDef, status_code=status.HTTP_201_CREATED)
 def create_cron(
-    cron_id: str, data: CronCreate, ctx: SharedContext = Depends(get_context)
+    cron_id: str, data: CronCreate, ctx: SharedContext = Depends(get_context)  # type: ignore[valid-type]
 ) -> CronDef:
     """Create a new cron."""
     crons_path = ctx.config.crons_path
@@ -63,7 +70,7 @@ def create_cron(
 
 @router.put("/{cron_id}", response_model=CronDef)
 def update_cron(
-    cron_id: str, data: CronCreate, ctx: SharedContext = Depends(get_context)
+    cron_id: str, data: CronCreate, ctx: SharedContext = Depends(get_context)  # type: ignore[valid-type]
 ) -> CronDef:
     """Update an existing cron."""
     crons_path = ctx.config.crons_path
