@@ -15,3 +15,11 @@ class OnboardingWizard:
         """
         self.workspace = workspace or Path.home() / ".pickle-bot"
         self.state: dict = {}
+
+    def setup_workspace(self) -> None:
+        """Create workspace directory and required subdirectories."""
+        self.workspace.mkdir(parents=True, exist_ok=True)
+
+        subdirs = ["agents", "skills", "crons", "memories", ".history", ".logs"]
+        for subdir in subdirs:
+            (self.workspace / subdir).mkdir(exist_ok=True)
