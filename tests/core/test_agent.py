@@ -13,20 +13,12 @@ def test_agent_creation_with_new_structure(test_agent, test_agent_def, test_cont
 
 
 def test_agent_new_session(test_agent, test_agent_def):
-    """Agent should create new session with self reference."""
+    """Agent should create new session with self reference and correct mode defaults."""
     session = test_agent.new_session(SessionMode.CHAT)
 
     assert session.session_id is not None
     assert session.agent_id == test_agent_def.id
     assert session.agent is test_agent
-
-
-def test_agent_new_session_requires_mode(test_agent):
-    """Agent.new_session should require explicit mode."""
-    # This will fail at runtime if mode is not provided
-    session = test_agent.new_session(SessionMode.CHAT)
-
-    assert session.session_id is not None
     assert session.max_history == 50  # chat default
 
 

@@ -39,7 +39,7 @@ class BlockingBus(FakeBus):
         return False
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_messagebus_worker_creates_global_session(test_context, tmp_path):
     """MessageBusWorker creates a global session on init."""
     # Create test agent
@@ -67,7 +67,7 @@ You are a test assistant.
     assert worker.global_session.agent_id == "test"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_messagebus_worker_dispatches_to_queue(test_context, tmp_path):
     """MessageBusWorker dispatches incoming messages to agent queue."""
     # Create test agent
@@ -110,7 +110,7 @@ You are a test assistant.
     assert job.session_id == worker.global_session.session_id
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_messagebus_worker_ignores_non_whitelisted(test_context, tmp_path):
     """MessageBusWorker ignores messages from non-whitelisted senders."""
     # Create test agent

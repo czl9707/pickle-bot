@@ -1,7 +1,7 @@
 """Tests for DiscordBus."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from picklebot.messagebus.discord_bus import DiscordBus
 from picklebot.messagebus.base import DiscordContext
 from picklebot.utils.config import DiscordConfig
@@ -14,19 +14,28 @@ def test_discord_bus_platform_name():
     assert bus.platform_name == "discord"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_discord_bus_start_stop():
     """Test that DiscordBus can start and stop."""
     config = DiscordConfig(bot_token="test_token")
     bus = DiscordBus(config)
 
-    # Should not raise - callback now receives (content, context)
-    async def dummy_callback(content: str, context: DiscordContext) -> None:
-        pass
+    # Mock the discord.Client to avoid actual network calls
+    mock_client = MagicMock()
+    mock_client.start = AsyncMock()
+    mock_client.close = AsyncMock()
 
-    await bus.start(dummy_callback)
-    # Note: Discord bot needs event loop to fully start, so we just test it doesn't crash
-    await bus.stop()
+    with patch("picklebot.messagebus.discord_bus.discord.Client", return_value=mock_client):
+        # Should not raise - callback now receives (content, context)
+        async def dummy_callback(content: str, context: DiscordContext) -> None:
+            pass
+
+        await bus.start(dummy_callback)
+        await bus.stop()
+
+        # Verify lifecycle was called
+        mock_client.start.assert_called_once()
+        mock_client.close.assert_called_once()
 
 
 class TestDiscordBusReply:

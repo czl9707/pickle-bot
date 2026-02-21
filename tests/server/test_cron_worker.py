@@ -48,7 +48,7 @@ def test_find_due_jobs_empty_when_no_match():
     assert len(due) == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_cron_worker_dispatches_due_job(test_context):
     """CronWorker dispatches due jobs to the queue."""
     queue: asyncio.Queue[Job] = asyncio.Queue()

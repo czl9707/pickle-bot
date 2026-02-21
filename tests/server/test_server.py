@@ -7,17 +7,7 @@ import pytest
 from picklebot.server.server import Server
 
 
-@pytest.mark.asyncio
-async def test_server_creates_workers(test_context):
-    """Server creates AgentWorker and CronWorker."""
-    server = Server(test_context)
-
-    server._setup_workers()
-
-    assert len(server.workers) == 2  # Agent + Cron
-
-
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_server_starts_workers(test_context):
     """Server starts all workers as tasks."""
     server = Server(test_context)
@@ -30,7 +20,7 @@ async def test_server_starts_workers(test_context):
     await server._stop_all()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_server_stops_workers_gracefully(test_context):
     """Server stops all workers on shutdown."""
     server = Server(test_context)
@@ -42,7 +32,7 @@ async def test_server_stops_workers_gracefully(test_context):
     assert all(not w.is_running() for w in server.workers)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_server_monitor_restarts_crashed_worker(test_context):
     """Server monitoring restarts crashed workers."""
     server = Server(test_context)

@@ -37,7 +37,7 @@ class FakeFrontend:
         yield
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_agent_worker_processes_job(test_context, tmp_path):
     """AgentWorker processes a job from the queue."""
     # Create a test agent definition
@@ -81,7 +81,7 @@ You are a test assistant. Respond briefly.
     assert job.session_id is not None  # Session created
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_agent_worker_does_not_requeue_nonexistent_agent(test_context):
     """AgentWorker does not requeue job when agent doesn't exist (DefNotFoundError)."""
     queue: asyncio.Queue[Job] = asyncio.Queue()
@@ -106,7 +106,7 @@ async def test_agent_worker_does_not_requeue_nonexistent_agent(test_context):
     assert queue.empty()  # Job was not put back in queue
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_agent_worker_requeues_on_transient_error(test_context, tmp_path):
     """AgentWorker requeues job with '.' message on transient errors."""
     # Create a test agent definition

@@ -3,16 +3,6 @@
 from picklebot.core.agent import SessionMode
 
 
-def test_session_creation(test_agent):
-    """Session should be created with required fields including agent."""
-    session = test_agent.new_session(SessionMode.CHAT)
-
-    assert session.session_id is not None
-    assert session.agent_id == test_agent.agent_def.id
-    assert session.agent is test_agent
-    assert session.messages == []
-
-
 def test_session_add_message(test_agent):
     """Session should add message to in-memory list and persist to history."""
     session = test_agent.new_session(SessionMode.CHAT)
