@@ -134,3 +134,109 @@ class TestTelegramBusPost:
 
         with pytest.raises(ValueError, match="No default_chat_id configured"):
             await bus.post(content="Test")
+
+
+class TestTelegramBusIdempotentStartStop:
+    """Tests for idempotent start/stop behavior."""
+
+    @pytest.mark.anyio
+    async def test_start_is_idempotent(self):
+        """Calling start twice should be safe - second call is no-op."""
+        config = TelegramConfig(bot_token="test_token")
+        bus = TelegramBus(config)
+
+        mock_app = MagicMock()
+        mock_app.updater = MagicMock()
+        mock_app.updater.running = True
+        mock_app.updater.start_polling = AsyncMock()
+        mock_app.updater.stop = AsyncMock()
+        mock_app.initialize = AsyncMock()
+        mock_app.start = AsyncMock()
+        mock_app.stop = AsyncMock()
+        mock_app.shutdown = AsyncMock()
+        mock_app.add_handler = MagicMock()
+
+        async def dummy_callback(msg: str, ctx: TelegramContext) -> None:
+            pass
+
+        with patch("picklebot.messagebus.telegram_bus.Application.builder") as mock_builder:
+            mock_builder.return_value.token.return_value.build.return_value = mock_app
+
+            await bus.start(dummy_callback)
+            await bus.start(dummy_callback)  # Second call should be no-op
+
+            # Should only initialize once
+            mock_app.initialize.assert_called_once()
+
+    @pytest.mark.anyio
+    async def test_stop_is_idempotent(self):
+        """Calling stop twice should be safe - second call is no-op."""
+        config = TelegramConfig(bot_token="test_token")
+        bus = TelegramBus(config)
+
+        mock_app = MagicMock()
+        mock_app.updater = MagicMock()
+        mock_app.updater.running = True
+        mock_app.updater.start_polling = AsyncMock()
+        mock_app.updater.stop = AsyncMock()
+        mock_app.initialize = AsyncMock()
+        mock_app.start = AsyncMock()
+        mock_app.stop = AsyncMock()
+        mock_app.shutdown = AsyncMock()
+        mock_app.add_handler = MagicMock()
+
+        async def dummy_callback(msg: str, ctx: TelegramContext) -> None:
+            pass
+
+        with patch("picklebot.messagebus.telegram_bus.Application.builder") as mock_builder:
+            mock_builder.return_value.token.return_value.build.return_value = mock_app
+
+            await bus.start(dummy_callback)
+            await bus.stop()
+            await bus.stop()  # Second call should be no-op
+
+            # Should only stop once
+            mock_app.stop.assert_called_once()
+
+    @pytest.mark.anyio
+    async def test_stop_without_start_is_safe(self):
+        """Calling stop without start should be safe - no-op."""
+        config = TelegramConfig(bot_token="test_token")
+        bus = TelegramBus(config)
+
+        # Should not raise
+        await bus.stop()
+
+    @pytest.mark.anyio
+    async def test_can_restart_after_stop(self):
+        """Should be able to start again after stop."""
+        config = TelegramConfig(bot_token="test_token")
+        bus = TelegramBus(config)
+
+        mock_app = MagicMock()
+        mock_app.updater = MagicMock()
+        mock_app.updater.running = True
+        mock_app.updater.start_polling = AsyncMock()
+        mock_app.updater.stop = AsyncMock()
+        mock_app.initialize = AsyncMock()
+        mock_app.start = AsyncMock()
+        mock_app.stop = AsyncMock()
+        mock_app.shutdown = AsyncMock()
+        mock_app.add_handler = MagicMock()
+
+        async def dummy_callback(msg: str, ctx: TelegramContext) -> None:
+            pass
+
+        with patch("picklebot.messagebus.telegram_bus.Application.builder") as mock_builder:
+            mock_builder.return_value.token.return_value.build.return_value = mock_app
+
+            # First cycle
+            await bus.start(dummy_callback)
+            await bus.stop()
+
+            # Reset mock counts
+            mock_app.initialize.reset_mock()
+
+            # Second cycle should work
+            await bus.start(dummy_callback)
+            mock_app.initialize.assert_called_once()
