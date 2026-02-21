@@ -1,46 +1,16 @@
-"""Server CLI command for cron execution."""
+"""Server CLI command for worker-based architecture."""
 
 import asyncio
-import logging
 
 import typer
 
 from picklebot.core.context import SharedContext
-from picklebot.core.cron_executor import CronExecutor
-from picklebot.core.messagebus_executor import MessageBusExecutor
+from picklebot.server.server import Server
 from picklebot.utils.logging import setup_logging
 
-logger = logging.getLogger(__name__)
 
-
-async def _run_server(context: SharedContext) -> None:
-    """
-    Run both CronExecutor and MessageBusExecutor.
-
-    Args:
-        context: Shared application context
-    """
-    # Start CronExecutor
-    cron_task = asyncio.create_task(CronExecutor(context).run())
-
-    # Start MessageBusExecutor
-    if context.config.messagebus.enabled:
-        buses = context.messagebus_buses
-        if buses:
-            logger.info(f"Starting MessageBusExecutor with {len(buses)} bus(es)")
-            bus_task = asyncio.create_task(MessageBusExecutor(context, buses).run())
-            await asyncio.gather(cron_task, bus_task)
-        else:
-            logger.warning("MessageBus enabled but no buses configured")
-            await cron_task
-    else:
-        await cron_task
-
-
-def server_command(
-    ctx: typer.Context,
-) -> None:
-    """Start the 24/7 server for cron job execution."""
+def server_command(ctx: typer.Context) -> None:
+    """Start the 24/7 server for cron and messagebus execution."""
     config = ctx.obj.get("config")
 
     setup_logging(config, console_output=True)
@@ -50,6 +20,6 @@ def server_command(
 
     try:
         context = SharedContext(config)
-        asyncio.run(_run_server(context))
+        asyncio.run(Server(context).run())
     except KeyboardInterrupt:
         typer.echo("\nServer stopped")

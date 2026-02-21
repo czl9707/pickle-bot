@@ -4,73 +4,86 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from picklebot.cli.server import _run_server
 from picklebot.core.context import SharedContext
+from picklebot.server.server import Server
 from picklebot.utils.config import MessageBusConfig, TelegramConfig
 
 
-class TestRunServer:
-    """Test _run_server async function."""
+class TestServerCommand:
+    """Test server_command CLI function."""
+
+    def test_imports_successfully(self):
+        """Verify server module imports correctly."""
+        from picklebot.cli.server import server_command
+
+        assert callable(server_command)
+
+
+class TestServer:
+    """Test Server class setup."""
 
     @pytest.mark.asyncio
-    async def test_starts_cron_executor_when_messagebus_disabled(self, test_config):
-        """Start CronExecutor when messagebus is disabled."""
-        with patch("picklebot.cli.server.CronExecutor") as mock_cron_executor:
-            mock_cron = AsyncMock()
-            mock_cron_executor.return_value = mock_cron
-            mock_cron.run = AsyncMock()
+    async def test_server_initializes_with_context(self, test_config):
+        """Server initializes successfully with context."""
+        context = SharedContext(test_config)
+        server = Server(context)
 
-            context = SharedContext(test_config)
-            await _run_server(context)
-
-            mock_cron_executor.assert_called_once_with(context)
+        assert server.context == context
+        assert server.agent_queue is not None
+        assert server.workers == []
 
     @pytest.mark.asyncio
-    async def test_starts_messagebus_executor_when_enabled(self, test_config):
-        """Start MessageBusExecutor when messagebus is enabled."""
+    async def test_server_setup_workers_when_messagebus_disabled(self, test_config):
+        """Server sets up AgentWorker and CronWorker when messagebus disabled."""
+        context = SharedContext(test_config)
+        server = Server(context)
+        server._setup_workers()
+
+        # Should have 2 workers: AgentWorker and CronWorker
+        assert len(server.workers) == 2
+        worker_types = [w.__class__.__name__ for w in server.workers]
+        assert "AgentWorker" in worker_types
+        assert "CronWorker" in worker_types
+        assert "MessageBusWorker" not in worker_types
+
+    @pytest.mark.asyncio
+    async def test_server_setup_workers_when_messagebus_enabled(self, test_config):
+        """Server sets up MessageBusWorker when messagebus enabled."""
         test_config.messagebus = MessageBusConfig(
             enabled=True,
             default_platform="telegram",
             telegram=TelegramConfig(enabled=True, bot_token="test"),
         )
 
-        with (
-            patch("picklebot.cli.server.CronExecutor") as mock_cron_executor,
-            patch("picklebot.cli.server.MessageBusExecutor") as mock_bus_executor,
-        ):
-            mock_cron = AsyncMock()
-            mock_cron_executor.return_value = mock_cron
-            mock_cron.run = AsyncMock()
-
-            mock_bus = AsyncMock()
-            mock_bus_executor.return_value = mock_bus
-            mock_bus.run = AsyncMock()
-
+        # Mock MessageBusWorker to avoid needing real agent
+        with patch("picklebot.server.server.MessageBusWorker") as mock_worker_class:
             context = SharedContext(test_config)
-            await _run_server(context)
+            server = Server(context)
+            server._setup_workers()
 
-            mock_cron_executor.assert_called_once_with(context)
-            mock_bus_executor.assert_called_once_with(context, context.messagebus_buses)
+            # Should have 3 workers: AgentWorker, CronWorker, and MessageBusWorker
+            assert len(server.workers) == 3
+            worker_types = [w.__class__.__name__ for w in server.workers]
+            assert "AgentWorker" in worker_types
+            assert "CronWorker" in worker_types
+            assert mock_worker_class.called  # MessageBusWorker was created
 
     @pytest.mark.asyncio
-    async def test_does_not_start_messagebus_when_no_buses(self, test_config):
-        """Don't start MessageBusExecutor if no buses are configured."""
+    async def test_server_does_not_setup_messagebus_worker_when_no_buses(self, test_config):
+        """Server doesn't setup MessageBusWorker if no buses configured."""
         test_config.messagebus = MessageBusConfig(
             enabled=True,
             default_platform="telegram",
             telegram=TelegramConfig(enabled=False, bot_token="test"),
         )
 
-        with (
-            patch("picklebot.cli.server.CronExecutor") as mock_cron_executor,
-            patch("picklebot.cli.server.MessageBusExecutor") as mock_bus_executor,
-        ):
-            mock_cron = AsyncMock()
-            mock_cron_executor.return_value = mock_cron
-            mock_cron.run = AsyncMock()
+        context = SharedContext(test_config)
+        server = Server(context)
+        server._setup_workers()
 
-            context = SharedContext(test_config)
-            await _run_server(context)
-
-            mock_cron_executor.assert_called_once_with(context)
-            mock_bus_executor.assert_not_called()
+        # Should have only 2 workers: AgentWorker and CronWorker
+        assert len(server.workers) == 2
+        worker_types = [w.__class__.__name__ for w in server.workers]
+        assert "AgentWorker" in worker_types
+        assert "CronWorker" in worker_types
+        assert "MessageBusWorker" not in worker_types
