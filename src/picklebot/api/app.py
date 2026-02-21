@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI
 
-from picklebot.api.routers import agents, crons, memories, sessions, skills
+from picklebot.api.routers import agents, config, crons, memories, sessions, skills
 from picklebot.core.context import SharedContext
 
 
@@ -20,5 +20,6 @@ def create_app(context: SharedContext) -> FastAPI:
     app.include_router(crons.router, prefix="/crons", tags=["crons"])
     app.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
     app.include_router(memories.router, prefix="/memories", tags=["memories"])
+    app.include_router(config.router, prefix="/config", tags=["config"])
 
     return app
