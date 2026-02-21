@@ -34,7 +34,7 @@ class MessageBusWorker(Worker):
         self.logger.info(f"MessageBusWorker started with {len(self.buses)} bus(es)")
 
         bus_tasks = [
-            bus.start(self._create_callback(bus.platform_name)) for bus in self.buses
+            bus.run(self._create_callback(bus.platform_name)) for bus in self.buses
         ]
 
         try:

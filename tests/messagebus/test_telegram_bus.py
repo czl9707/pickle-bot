@@ -1,5 +1,6 @@
 """Tests for TelegramBus."""
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -15,15 +16,15 @@ def test_telegram_bus_platform_name():
 
 
 @pytest.mark.anyio
-async def test_telegram_bus_start_stop():
-    """Test that TelegramBus can start and stop."""
+async def test_telegram_bus_run_stop():
+    """Test that TelegramBus can run and stop."""
     config = TelegramConfig(bot_token="test_token")
     bus = TelegramBus(config)
 
     # Mock the Application
     mock_app = MagicMock()
     mock_app.updater = MagicMock()
-    mock_app.updater.running = True  # Simulate running state after start
+    mock_app.updater.running = True  # Simulate running state after run
     mock_app.updater.start_polling = AsyncMock()
     mock_app.updater.stop = AsyncMock()
     mock_app.initialize = AsyncMock()
@@ -40,8 +41,16 @@ async def test_telegram_bus_start_stop():
         async def dummy_callback(msg: str, ctx: TelegramContext) -> None:
             pass
 
-        await bus.start(dummy_callback)
+        # Run run() in background since it blocks until stop() is called
+        run_task = asyncio.create_task(bus.run(dummy_callback))
+
+        # Wait for run to initialize
+        await asyncio.sleep(0.1)
+
         await bus.stop()
+
+        # Wait for run_task to complete
+        await run_task
 
         # Verify lifecycle was called
         mock_app.initialize.assert_called_once()
@@ -135,12 +144,12 @@ class TestTelegramBusPost:
             await bus.post(content="Test")
 
 
-class TestTelegramBusIdempotentStartStop:
-    """Tests for idempotent start/stop behavior."""
+class TestTelegramBusRunStop:
+    """Tests for run/stop behavior."""
 
     @pytest.mark.anyio
-    async def test_start_is_idempotent(self):
-        """Calling start twice should be safe - second call is no-op."""
+    async def test_run_raises_on_second_call(self):
+        """Calling run twice should raise RuntimeError."""
         config = TelegramConfig(bot_token="test_token")
         bus = TelegramBus(config)
 
@@ -161,11 +170,17 @@ class TestTelegramBusIdempotentStartStop:
         with patch("picklebot.messagebus.telegram_bus.Application.builder") as mock_builder:
             mock_builder.return_value.token.return_value.build.return_value = mock_app
 
-            await bus.start(dummy_callback)
-            await bus.start(dummy_callback)  # Second call should be no-op
+            # Run run() in background since it blocks
+            run_task = asyncio.create_task(bus.run(dummy_callback))
+            await asyncio.sleep(0.1)  # Let run() initialize
 
-            # Should only initialize once
-            mock_app.initialize.assert_called_once()
+            # Second call should raise immediately (not in background)
+            with pytest.raises(RuntimeError, match="TelegramBus already running"):
+                await bus.run(dummy_callback)
+
+            # Clean up
+            await bus.stop()
+            await run_task
 
     @pytest.mark.anyio
     async def test_stop_is_idempotent(self):
@@ -190,16 +205,20 @@ class TestTelegramBusIdempotentStartStop:
         with patch("picklebot.messagebus.telegram_bus.Application.builder") as mock_builder:
             mock_builder.return_value.token.return_value.build.return_value = mock_app
 
-            await bus.start(dummy_callback)
+            # Run run() in background since it blocks
+            run_task = asyncio.create_task(bus.run(dummy_callback))
+            await asyncio.sleep(0.1)
+
             await bus.stop()
+            await run_task
             await bus.stop()  # Second call should be no-op
 
             # Should only stop once
             mock_app.stop.assert_called_once()
 
     @pytest.mark.anyio
-    async def test_stop_without_start_is_safe(self):
-        """Calling stop without start should be safe - no-op."""
+    async def test_stop_without_run_is_safe(self):
+        """Calling stop without run should be safe - no-op."""
         config = TelegramConfig(bot_token="test_token")
         bus = TelegramBus(config)
 
@@ -207,8 +226,8 @@ class TestTelegramBusIdempotentStartStop:
         await bus.stop()
 
     @pytest.mark.anyio
-    async def test_can_restart_after_stop(self):
-        """Should be able to start again after stop."""
+    async def test_can_rerun_after_stop(self):
+        """Should be able to run again after stop."""
         config = TelegramConfig(bot_token="test_token")
         bus = TelegramBus(config)
 
@@ -230,112 +249,19 @@ class TestTelegramBusIdempotentStartStop:
             mock_builder.return_value.token.return_value.build.return_value = mock_app
 
             # First cycle
-            await bus.start(dummy_callback)
+            run_task = asyncio.create_task(bus.run(dummy_callback))
+            await asyncio.sleep(0.1)
             await bus.stop()
+            await run_task
 
             # Reset mock counts
             mock_app.initialize.reset_mock()
 
             # Second cycle should work
-            await bus.start(dummy_callback)
+            run_task2 = asyncio.create_task(bus.run(dummy_callback))
+            await asyncio.sleep(0.1)
             mock_app.initialize.assert_called_once()
 
-
-class TestTelegramBusRunningTask:
-    """Tests for start() returning a running task."""
-
-    @pytest.mark.anyio
-    async def test_start_returns_task(self):
-        """start() should return an asyncio.Task."""
-        config = TelegramConfig(bot_token="test_token")
-        bus = TelegramBus(config)
-
-        mock_app = MagicMock()
-        mock_app.updater = MagicMock()
-        mock_app.updater.running = True
-        mock_app.updater.start_polling = AsyncMock()
-        mock_app.updater.stop = AsyncMock()
-        mock_app.initialize = AsyncMock()
-        mock_app.start = AsyncMock()
-        mock_app.stop = AsyncMock()
-        mock_app.shutdown = AsyncMock()
-        mock_app.add_handler = MagicMock()
-
-        async def dummy_callback(msg: str, ctx: TelegramContext) -> None:
-            pass
-
-        with patch("picklebot.messagebus.telegram_bus.Application.builder") as mock_builder:
-            mock_builder.return_value.token.return_value.build.return_value = mock_app
-
-            import asyncio
-            task = await bus.start(dummy_callback)
-
-            assert isinstance(task, asyncio.Task)
-
             # Clean up
             await bus.stop()
-
-    @pytest.mark.anyio
-    async def test_start_returns_same_task_if_called_twice(self):
-        """Calling start() twice should return the same task."""
-        config = TelegramConfig(bot_token="test_token")
-        bus = TelegramBus(config)
-
-        mock_app = MagicMock()
-        mock_app.updater = MagicMock()
-        mock_app.updater.running = True
-        mock_app.updater.start_polling = AsyncMock()
-        mock_app.updater.stop = AsyncMock()
-        mock_app.initialize = AsyncMock()
-        mock_app.start = AsyncMock()
-        mock_app.stop = AsyncMock()
-        mock_app.shutdown = AsyncMock()
-        mock_app.add_handler = MagicMock()
-
-        async def dummy_callback(msg: str, ctx: TelegramContext) -> None:
-            pass
-
-        with patch("picklebot.messagebus.telegram_bus.Application.builder") as mock_builder:
-            mock_builder.return_value.token.return_value.build.return_value = mock_app
-
-            task1 = await bus.start(dummy_callback)
-            task2 = await bus.start(dummy_callback)
-
-            assert task1 is task2
-
-            # Clean up
-            await bus.stop()
-
-    @pytest.mark.anyio
-    async def test_task_completes_on_stop(self):
-        """The running task should complete when stop() is called."""
-        config = TelegramConfig(bot_token="test_token")
-        bus = TelegramBus(config)
-
-        mock_app = MagicMock()
-        mock_app.updater = MagicMock()
-        mock_app.updater.running = True
-        mock_app.updater.start_polling = AsyncMock()
-        mock_app.updater.stop = AsyncMock()
-        mock_app.initialize = AsyncMock()
-        mock_app.start = AsyncMock()
-        mock_app.stop = AsyncMock()
-        mock_app.shutdown = AsyncMock()
-        mock_app.add_handler = MagicMock()
-
-        async def dummy_callback(msg: str, ctx: TelegramContext) -> None:
-            pass
-
-        with patch("picklebot.messagebus.telegram_bus.Application.builder") as mock_builder:
-            mock_builder.return_value.token.return_value.build.return_value = mock_app
-
-            task = await bus.start(dummy_callback)
-
-            # Task should not be done yet
-            assert not task.done()
-
-            # Stop the bus
-            await bus.stop()
-
-            # Task should be done after stop
-            assert task.done()
+            await run_task2

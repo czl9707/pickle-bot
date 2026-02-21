@@ -36,18 +36,16 @@ class DiscordBus(MessageBus[DiscordContext]):
         self.client: discord.Client | None = None
         self._running_task: asyncio.Task | None = None
 
-    async def start(
+    async def run(
         self, on_message: Callable[[str, DiscordContext], Awaitable[None]]
-    ) -> asyncio.Task | None:
-        """Start listening for Discord messages.
+    ) -> None:
+        """Run the Discord message bus. Blocks until stop() is called.
 
-        Returns:
-            Task that runs until stop() is called, or None if already started.
+        Raises:
+            RuntimeError: If run() is called when already running.
         """
-        # Idempotent: return existing task if already started
-        if self.client is not None:
-            logger.debug("DiscordBus already started, returning existing task")
-            return self._running_task
+        if self._running_task is not None:
+            raise RuntimeError("DiscordBus already running")
 
         logger.info(f"Message bus enabled with platform: {self.platform_name}")
 
@@ -95,11 +93,8 @@ class DiscordBus(MessageBus[DiscordContext]):
         # Start the bot and store the task
         self._running_task = asyncio.create_task(self.client.start(self.config.bot_token))
 
-        # Wait a moment for client to initialize
-        await asyncio.sleep(0.5)
-
         logger.info("DiscordBus started")
-        return self._running_task
+        await self._running_task
 
     def is_allowed(self, context: DiscordContext) -> bool:
         """Check if sender is whitelisted."""

@@ -16,7 +16,7 @@ class FakeBus:
         self.messages: list[str] = []
         self.started = False
 
-    async def start(self, callback):
+    async def run(self, callback):
         self.started = True
         self._callback = callback
         # Simulate receiving a message

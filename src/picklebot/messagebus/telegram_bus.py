@@ -46,18 +46,16 @@ class TelegramBus(MessageBus[TelegramContext]):
             return True
         return context.user_id in self.config.allowed_user_ids
 
-    async def start(
+    async def run(
         self, on_message: Callable[[str, TelegramContext], Awaitable[None]]
-    ) -> asyncio.Task | None:
-        """Start listening for Telegram messages.
+    ) -> None:
+        """Run the Telegram message bus. Blocks until stop() is called.
 
-        Returns:
-            Task that runs until stop() is called, or None if already started.
+        Raises:
+            RuntimeError: If run() is called when already running.
         """
-        # Idempotent: return existing task if already started
         if self.application is not None:
-            logger.debug("TelegramBus already started, returning existing task")
-            return self._running_task
+            raise RuntimeError("TelegramBus already running")
 
         logger.info(f"Message bus enabled with platform: {self.platform_name}")
         self.application = Application.builder().token(self.config.bot_token).build()
@@ -106,15 +104,14 @@ class TelegramBus(MessageBus[TelegramContext]):
                 if self.application.updater.running:
                     if self._stop_event and self._stop_event.is_set():
                         return  # Graceful stop
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(1)
                 else:
-                    # Updater stopped without us calling stop()
                     if self._stop_event and not self._stop_event.is_set():
                         raise RuntimeError("Telegram updater stopped unexpectedly")
                     return
 
         self._running_task = asyncio.create_task(run_until_stopped())
-        return self._running_task
+        await self._running_task
 
     async def reply(self, content: str, context: TelegramContext) -> None:
         """Reply to incoming message."""

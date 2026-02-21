@@ -22,7 +22,7 @@ class MockBus(MessageBus[Any]):
     def platform_name(self) -> str:
         return "mock"
 
-    async def start(self, on_message) -> None:
+    async def run(self, on_message) -> None:
         pass
 
     def is_allowed(self, context: Any) -> bool:

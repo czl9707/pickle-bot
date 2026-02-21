@@ -28,15 +28,15 @@ class MessageBus(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    async def start(self, on_message: Callable[[str, T], Awaitable[None]]) -> asyncio.Task | None:
+    async def run(self, on_message: Callable[[str, T], Awaitable[None]]) -> None:
         """
-        Start listening for messages.
+        Run the message bus. Blocks until stop() is called.
 
         Args:
             on_message: Callback async function(message: str, context: T)
 
-        Returns:
-            Task that runs until stop() is called, or None if already started.
+        Raises:
+            RuntimeError: If run() is called when already running.
         """
         pass
 
