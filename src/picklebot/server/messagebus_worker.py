@@ -21,7 +21,6 @@ class MessageBusWorker(Worker):
         self.buses = context.messagebus_buses
         self.bus_map = {bus.platform_name: bus for bus in self.buses}
 
-        # Create global session on startup
         try:
             agent_def = context.agent_loader.load(context.config.default_agent)
             agent = Agent(agent_def, context)
@@ -55,10 +54,8 @@ class MessageBusWorker(Worker):
                     self.logger.debug(f"Ignored non-whitelisted message from {platform}")
                     return
 
-                # Create frontend for this message
                 frontend = MessageBusFrontend(bus, context)
 
-                # Dispatch job to agent queue
                 job = Job(
                     session_id=self.global_session.session_id,
                     agent_id=self.global_session.agent_id,

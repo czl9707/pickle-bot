@@ -44,6 +44,20 @@ class Worker(ABC):
         self._task = asyncio.create_task(self.run())
         return self._task
 
+    def is_running(self) -> bool:
+        """Check if worker is actively running."""
+        return self._task is not None and not self._task.done()
+
+    def has_crashed(self) -> bool:
+        """Check if worker crashed (done but not cancelled)."""
+        return self._task is not None and self._task.done() and not self._task.cancelled()
+
+    def get_exception(self) -> BaseException | None:
+        """Get the exception if worker crashed, None otherwise."""
+        if self.has_crashed():
+            return self._task.exception()
+        return None
+
     async def stop(self) -> None:
         """Gracefully stop the worker."""
         if self._task:

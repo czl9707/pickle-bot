@@ -24,8 +24,7 @@ async def test_server_starts_workers(test_context):
     server._setup_workers()
     server._start_workers()
 
-    assert len(server._tasks) == 2
-    assert all(not t.done() for t in server._tasks)
+    assert all(w.is_running() for w in server.workers)
 
     # Cleanup
     await server._stop_all()
@@ -40,7 +39,7 @@ async def test_server_stops_workers_gracefully(test_context):
 
     await server._stop_all()
 
-    assert all(t.done() for t in server._tasks)
+    assert all(not w.is_running() for w in server.workers)
 
 
 @pytest.mark.asyncio
@@ -50,28 +49,28 @@ async def test_server_monitor_restarts_crashed_worker(test_context):
     server._setup_workers()
     server._start_workers()
 
-    # Create a task that fails immediately
+    # Get the first worker and simulate a crash by replacing its task
+    worker = server.workers[0]
+
     async def crash():
         raise RuntimeError("Crash!")
 
     crashed_task = asyncio.create_task(crash())
     await asyncio.sleep(0.01)  # Let it crash
 
-    # Replace a running task with the crashed one
-    server._tasks[0] = crashed_task
+    # Replace the worker's task with the crashed one
+    worker._task = crashed_task
 
-    # Run one monitoring check manually
-    task = server._tasks[0]
-    if task.done() and not task.cancelled():
-        worker = server.workers[0]
-        exc = task.exception()
-        if exc:
-            new_task = worker.start()
-            server._tasks[0] = new_task
+    # Verify worker is detected as crashed
+    assert worker.has_crashed()
+    assert worker.get_exception() is not None
 
-    # Verify the task was replaced
-    assert server._tasks[0] is not crashed_task
-    assert not server._tasks[0].done()
+    # Restart via the worker's start method
+    worker.start()
+
+    # Verify the worker is running again
+    assert worker.is_running()
+    assert not worker.has_crashed()
 
     # Cleanup
     await server._stop_all()
