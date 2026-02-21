@@ -78,7 +78,7 @@ Discovers and loads agent definitions.
 
 **Uses:** `def_loader.parse_definition()` for YAML frontmatter parsing
 
-### AgentSession (core/session.py)
+### AgentSession (core/agent.py)
 
 Runtime state for a conversation. Manages in-memory message list and persists to HistoryStore.
 
@@ -225,7 +225,7 @@ Abstract UI interface for presenting agent responses.
 
 Worker-based architecture for `picklebot server` mode.
 
-### Worker Base Class (workers/base.py)
+### Worker Base Class (server/base.py)
 
 ```python
 class Worker(ABC):
@@ -275,7 +275,7 @@ class Worker(ABC):
                           Frontend.reply()
 ```
 
-### AgentWorker (workers/agent_worker.py)
+### AgentWorker (server/agent_worker.py)
 
 Executes agent jobs from queue sequentially.
 
@@ -292,7 +292,7 @@ Executes agent jobs from queue sequentially.
 - Session resumes from HistoryStore
 - LLM sees history + "." message, naturally continues
 
-### CronWorker (workers/cron_worker.py)
+### CronWorker (server/cron_worker.py)
 
 Finds due cron jobs, dispatches to agent queue.
 
@@ -305,7 +305,7 @@ Finds due cron jobs, dispatches to agent queue.
 
 **Always creates new sessions** (no memory between runs).
 
-### MessageBusWorker (workers/messagebus_worker.py)
+### MessageBusWorker (server/messagebus_worker.py)
 
 Ingests messages from platforms, dispatches to agent queue.
 
@@ -320,7 +320,7 @@ Ingests messages from platforms, dispatches to agent queue.
 - User messages -> reply to sender's platform
 - Maintains platform context through MessageBusFrontend
 
-### Server (workers/server.py)
+### Server (server/server.py)
 
 Orchestrates workers with health monitoring.
 
@@ -347,12 +347,11 @@ src/picklebot/
 │   ├── agent.py           # Agent orchestrator
 │   ├── agent_def.py       # Agent definition model
 │   ├── agent_loader.py    # Load AGENT.md files
-│   ├── session.py         # Runtime session state
 │   ├── history.py         # JSON persistence
 │   ├── context.py         # Shared context container
 │   ├── skill_loader.py    # Load SKILL.md files
 │   └── cron_loader.py     # Load CRON.md files
-├── workers/                # Server workers
+├── server/                 # Server workers
 │   ├── base.py            # Worker base class
 │   ├── server.py          # Server orchestrator
 │   ├── agent_worker.py    # Execute agent jobs
