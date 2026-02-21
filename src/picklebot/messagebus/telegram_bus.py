@@ -47,6 +47,11 @@ class TelegramBus(MessageBus[TelegramContext]):
         self, on_message: Callable[[str, TelegramContext], Awaitable[None]]
     ) -> None:
         """Start listening for Telegram messages."""
+        # Idempotent: skip if already started
+        if self.application is not None:
+            logger.debug("TelegramBus already started, skipping")
+            return
+
         logger.info(f"Message bus enabled with platform: {self.platform_name}")
         self.application = Application.builder().token(self.config.bot_token).build()
 
@@ -120,9 +125,14 @@ class TelegramBus(MessageBus[TelegramContext]):
 
     async def stop(self) -> None:
         """Stop Telegram bot and cleanup."""
-        if self.application:
-            if self.application.updater and self.application.updater.running:
-                await self.application.updater.stop()
-            await self.application.stop()
-            await self.application.shutdown()
-            logger.info("TelegramBus stopped")
+        # Idempotent: skip if not running
+        if self.application is None:
+            logger.debug("TelegramBus not running, skipping stop")
+            return
+
+        if self.application.updater and self.application.updater.running:
+            await self.application.updater.stop()
+        await self.application.stop()
+        await self.application.shutdown()
+        self.application = None  # Reset to allow restart
+        logger.info("TelegramBus stopped")
