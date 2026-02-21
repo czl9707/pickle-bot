@@ -1,30 +1,16 @@
 """Abstract base class for message bus implementations."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import Callable, Awaitable, Generic, TypeVar, Any
 
 from picklebot.utils.config import Config
 
 
-T = TypeVar("T")
+class MessageContext(ABC):
+    """Abstract base for message context."""
+    pass
 
-
-@dataclass
-class TelegramContext:
-    """Context for Telegram messages."""
-
-    user_id: str  # from_user.id - for whitelisting
-    chat_id: str  # effective_chat.id - for replying
-
-
-@dataclass
-class DiscordContext:
-    """Context for Discord messages."""
-
-    user_id: str  # author.id - for whitelisting
-    channel_id: str  # channel.id - for replying
-
+T = TypeVar("T", bound=MessageContext)
 
 class MessageBus(ABC, Generic[T]):
     """Abstract base for messaging platforms with platform-specific context."""

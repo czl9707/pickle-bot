@@ -1,20 +1,32 @@
 """Telegram message bus implementation."""
 
+from dataclasses import dataclass
 import logging
 from typing import Callable, Awaitable
 
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 
-from picklebot.messagebus.base import MessageBus, TelegramContext
+from picklebot.messagebus.base import MessageBus, MessageContext
 from picklebot.utils.config import TelegramConfig
 
 logger = logging.getLogger(__name__)
 
 
+
+@dataclass
+class TelegramContext(MessageContext):
+    """Context for Telegram messages."""
+
+    user_id: str
+    chat_id: str
+
+
 class TelegramBus(MessageBus[TelegramContext]):
     """Telegram platform implementation using python-telegram-bot."""
 
+    platform_name = "telegram"
+    
     def __init__(self, config: TelegramConfig):
         """
         Initialize TelegramBus.
@@ -24,11 +36,6 @@ class TelegramBus(MessageBus[TelegramContext]):
         """
         self.config = config
         self.application: Application | None = None
-
-    @property
-    def platform_name(self) -> str:
-        """Platform identifier."""
-        return "telegram"
 
     def is_allowed(self, context: TelegramContext) -> bool:
         """Check if sender is whitelisted."""

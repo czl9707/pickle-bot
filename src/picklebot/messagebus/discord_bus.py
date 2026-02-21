@@ -1,19 +1,29 @@
 """Discord message bus implementation."""
 
 import asyncio
+from dataclasses import dataclass
 import logging
 from typing import Callable, Awaitable
 
 import discord
 
-from picklebot.messagebus.base import MessageBus, DiscordContext
+from picklebot.messagebus.base import MessageBus, MessageContext
 from picklebot.utils.config import DiscordConfig
 
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class DiscordContext(MessageContext):
+    """Context for Discord messages."""
+
+    user_id: str  # author.id - for whitelisting
+    channel_id: str  # channel.id - for replying
+
 class DiscordBus(MessageBus[DiscordContext]):
     """Discord platform implementation using discord.py."""
+
+    platform_name = "discord"
 
     def __init__(self, config: DiscordConfig):
         """
@@ -24,11 +34,6 @@ class DiscordBus(MessageBus[DiscordContext]):
         """
         self.config = config
         self.client: discord.Client | None = None
-
-    @property
-    def platform_name(self) -> str:
-        """Platform identifier."""
-        return "discord"
 
     async def start(
         self, on_message: Callable[[str, DiscordContext], Awaitable[None]]
