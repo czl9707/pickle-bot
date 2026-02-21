@@ -1,0 +1,57 @@
+"""Pydantic schemas for API request/response models."""
+
+from pydantic import BaseModel, create_model
+
+from picklebot.core.cron_loader import CronDef
+from picklebot.core.history import HistoryMessage
+from picklebot.core.skill_loader import SkillDef
+
+
+def make_create_model(
+    model_cls: type[BaseModel], exclude: set[str] | None = None
+) -> type[BaseModel]:
+    """Derive a Create model from existing model, excluding specified fields."""
+    if exclude is None:
+        exclude = {"id"}
+
+    fields = {}
+    for name, field in model_cls.model_fields.items():
+        if name in exclude:
+            continue
+        fields[name] = (
+            field.annotation,
+            field.default if field.has_default else ...,
+        )
+
+    return create_model(f"{model_cls.__name__}Create", **fields)
+
+
+# Derived models - reuse existing definitions
+SkillCreate = make_create_model(SkillDef)
+CronCreate = make_create_model(CronDef)
+MemoryCreate = make_create_model(
+    HistoryMessage, exclude={"timestamp", "tool_calls", "tool_call_id"}
+)
+
+
+# Hand-written models (need special handling)
+
+class AgentCreate(BaseModel):
+    """Request body for creating/updating an agent."""
+
+    name: str
+    description: str = ""
+    system_prompt: str
+    provider: str | None = None
+    model: str | None = None
+    temperature: float = 0.7
+    max_tokens: int = 2048
+    allow_skills: bool = False
+
+
+class ConfigUpdate(BaseModel):
+    """Request body for updating config (partial updates)."""
+
+    default_agent: str | None = None
+    chat_max_history: int | None = None
+    job_max_history: int | None = None
