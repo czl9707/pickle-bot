@@ -71,12 +71,16 @@ class Server:
         while True:
             for i, task in enumerate(self._tasks):
                 if task.done() and not task.cancelled():
-                    # Worker crashed
                     worker = self.workers[i]
                     exc = task.exception()
-                    logger.error(
-                        f"{worker.__class__.__name__} crashed: {exc}"
-                    )
+                    if exc is None:
+                        logger.warning(
+                            f"{worker.__class__.__name__} exited unexpectedly"
+                        )
+                    else:
+                        logger.error(
+                            f"{worker.__class__.__name__} crashed: {exc}"
+                        )
 
                     # Restart the worker
                     new_task = worker.start()
