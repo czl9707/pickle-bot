@@ -50,9 +50,6 @@ async def test_server_monitor_restarts_crashed_worker(test_context):
     server._setup_workers()
     server._start_workers()
 
-    # Get initial task reference
-    initial_tasks = server._tasks.copy()
-
     # Create a task that fails immediately
     async def crash():
         raise RuntimeError("Crash!")

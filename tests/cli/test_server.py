@@ -1,6 +1,6 @@
 """Tests for server CLI command."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
