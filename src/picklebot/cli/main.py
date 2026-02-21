@@ -6,7 +6,7 @@ from typing import Annotated
 import typer
 from rich.console import Console
 
-from picklebot.cli.chat import ChatLoop
+from picklebot.cli.chat import chat_command
 from picklebot.cli.server import server_command
 from picklebot.utils.config import Config
 
@@ -70,12 +70,7 @@ def chat(
     ] = None,
 ) -> None:
     """Start interactive chat session."""
-    import asyncio
-
-    config = ctx.obj.get("config")
-
-    session = ChatLoop(config, agent_id=agent)
-    asyncio.run(session.run())
+    chat_command(ctx, agent_id=agent)
 
 
 @app.command("server")

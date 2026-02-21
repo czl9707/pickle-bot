@@ -1,9 +1,13 @@
-"""CLI command handlers for pickle-bot."""
+"""Chat CLI command for interactive sessions."""
+
+import asyncio
+
+import typer
 
 from picklebot.core import Agent, SharedContext
 from picklebot.core.agent import SessionMode
-from picklebot.utils.config import Config
 from picklebot.frontend import ConsoleFrontend
+from picklebot.utils.config import Config
 from picklebot.utils.logging import setup_logging
 
 
@@ -49,3 +53,13 @@ class ChatLoop:
                 break
             except Exception as e:
                 await self.frontend.show_system_message(f"[red]Error: {e}[/red]")
+
+
+def chat_command(ctx: typer.Context, agent_id: str | None = None) -> None:
+    """Start interactive chat session."""
+    config = ctx.obj.get("config")
+
+    setup_logging(config, console_output=False)
+
+    chat_loop = ChatLoop(config, agent_id=agent_id)
+    asyncio.run(chat_loop.run())
