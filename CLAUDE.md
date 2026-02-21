@@ -24,7 +24,8 @@ uv run mypy .           # Type check
 ```
 src/picklebot/
 ├── cli/           # Typer CLI (main.py, chat.py, server.py)
-├── core/          # Agent, AgentSession, AgentDef, loaders, executors
+├── core/          # Agent, AgentSession, AgentDef, loaders
+├── workers/       # AgentWorker, CronWorker, MessageBusWorker, Server
 ├── messagebus/    # Message bus abstraction (base.py, telegram_bus.py, discord_bus.py)
 ├── provider/      # LLM provider abstraction (base.py, providers.py)
 ├── tools/         # Tool system (base.py, registry.py, builtin_tools.py, skill_tool.py, subagent_tool.py, post_message_tool.py)
@@ -42,15 +43,11 @@ src/picklebot/
 
 **AgentSession** (`core/session.py`): Runtime state for a conversation. Manages in-memory message list and persists to HistoryStore. Async context manager.
 
-**SharedContext** (`core/context.py`): Container for shared resources (config, frontend, tool registry) passed to Agent and CronExecutor.
+**SharedContext** (`core/context.py`): Container for shared resources (config, frontend, tool registry) passed to Agent and workers.
 
 **SkillLoader** (`core/skill_loader.py`): Discovers and loads SKILL.md files. Used by `create_skill_tool()` to build the skill tool.
 
 **CronLoader** (`core/cron_loader.py`): Discovers and loads CRON.md files with schedule definitions.
-
-**CronExecutor** (`core/cron_executor.py`): Runs scheduled cron jobs. Loops every 60 seconds, executes due jobs sequentially with fresh sessions.
-
-**MessageBusExecutor** (`core/messagebus_executor.py`): Handles incoming messages from messaging platforms. Uses queue-based sequential processing with a shared AgentSession across all platforms. Responses route back to sender's platform.
 
 **MessageBus** (`messagebus/base.py`): Abstract generic base with platform-specific context. Key methods: `is_allowed(context)`, `reply(content, context)`, `post(content, target=None)`. Implementations: `TelegramBus[TelegramContext]`, `DiscordBus[DiscordContext]`.
 
@@ -70,6 +67,17 @@ All loaders use unified exceptions from `utils/def_loader.py`:
 
 - **DefNotFoundError**: Definition folder or file doesn't exist
 - **InvalidDefError**: Definition file is malformed
+
+### Server Architecture
+
+Worker-based architecture for `picklebot server` mode:
+
+- **AgentWorker** - Executes agent jobs sequentially from queue
+- **CronWorker** - Finds due cron jobs, dispatches to agent queue
+- **MessageBusWorker** - Ingests messages from platforms, dispatches to agent queue
+- **Server** - Orchestrates workers with health monitoring
+
+See `docs/plans/2026-02-20-worker-architecture-design.md` for details.
 
 ### Configuration
 
@@ -188,7 +196,7 @@ messagebus:
 - Useful for cron job notifications and proactive alerts
 
 **Implementation:**
-- `MessageBusExecutor` runs alongside `CronExecutor` in server mode
+- `MessageBusWorker` and `CronWorker` run under `Server` orchestration
 - Each platform implements `MessageBus` abstract interface with typed context
 - `reply(content, context)` sends to the context's originating chat
 - `post(content, target=None)` sends to `default_chat_id` if target not specified
