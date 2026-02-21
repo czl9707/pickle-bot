@@ -47,14 +47,14 @@ See [docs/architecture.md](docs/architecture.md) for details.
 All definitions (agents, skills, crons) use `def_loader.py` utilities:
 
 ```python
-from picklebot.utils.def_loader import parse_definition, discover_definitions
-from picklebot.core.agent_def import AgentDef
+from picklebot.utils.def_loader import parse_definition, discover_definitions, DefNotFoundError, InvalidDefError
+from picklebot.core.agent_loader import AgentDef, parse_agent
 
-# Load single definition
-agent_def = parse_definition(path, AgentDef)
+# Load single definition (simplified - actual API takes content, def_id, parse_fn)
+agent_def = parse_definition(content, "agent-id", parse_agent)
 
 # Discover all definitions
-agents = discover_definitions(agents_path, AgentDef)
+agents = discover_definitions(agents_path, parse_agent)
 ```
 
 Raises:
