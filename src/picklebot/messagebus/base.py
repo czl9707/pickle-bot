@@ -1,5 +1,6 @@
 """Abstract base class for message bus implementations."""
 
+import asyncio
 from abc import ABC, abstractmethod
 from typing import Callable, Awaitable, Generic, TypeVar, Any
 
@@ -27,12 +28,15 @@ class MessageBus(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    async def start(self, on_message: Callable[[str, T], Awaitable[None]]) -> None:
+    async def start(self, on_message: Callable[[str, T], Awaitable[None]]) -> asyncio.Task | None:
         """
         Start listening for messages.
 
         Args:
             on_message: Callback async function(message: str, context: T)
+
+        Returns:
+            Task that runs until stop() is called, or None if already started.
         """
         pass
 
