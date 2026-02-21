@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI
 
-from picklebot.api.routers import agents
+from picklebot.api.routers import agents, skills
 from picklebot.core.context import SharedContext
 
 
@@ -16,5 +16,6 @@ def create_app(context: SharedContext) -> FastAPI:
     app.state.context = context
 
     app.include_router(agents.router, prefix="/agents", tags=["agents"])
+    app.include_router(skills.router, prefix="/skills", tags=["skills"])
 
     return app
