@@ -34,15 +34,20 @@ class DiscordBus(MessageBus[DiscordContext]):
         """
         self.config = config
         self.client: discord.Client | None = None
+        self._running_task: asyncio.Task | None = None
 
     async def start(
         self, on_message: Callable[[str, DiscordContext], Awaitable[None]]
-    ) -> None:
-        """Start listening for Discord messages."""
-        # Idempotent: skip if already started
+    ) -> asyncio.Task | None:
+        """Start listening for Discord messages.
+
+        Returns:
+            Task that runs until stop() is called, or None if already started.
+        """
+        # Idempotent: return existing task if already started
         if self.client is not None:
-            logger.debug("DiscordBus already started, skipping")
-            return
+            logger.debug("DiscordBus already started, returning existing task")
+            return self._running_task
 
         logger.info(f"Message bus enabled with platform: {self.platform_name}")
 
@@ -87,13 +92,14 @@ class DiscordBus(MessageBus[DiscordContext]):
             except Exception as e:
                 logger.error(f"Error in message callback: {e}")
 
-        # Start the bot in background
-        asyncio.create_task(self.client.start(self.config.bot_token))
+        # Start the bot and store the task
+        self._running_task = asyncio.create_task(self.client.start(self.config.bot_token))
 
         # Wait a moment for client to initialize
         await asyncio.sleep(0.5)
 
         logger.info("DiscordBus started")
+        return self._running_task
 
     def is_allowed(self, context: DiscordContext) -> bool:
         """Check if sender is whitelisted."""
@@ -147,5 +153,16 @@ class DiscordBus(MessageBus[DiscordContext]):
             return
 
         await self.client.close()
-        self.client = None  # Reset to allow restart
+
+        # Wait for running task to complete
+        if self._running_task and not self._running_task.done():
+            try:
+                await asyncio.wait_for(self._running_task, timeout=2.0)
+            except asyncio.TimeoutError:
+                logger.warning("Running task did not complete in time")
+            except Exception:
+                pass  # Task may have already failed
+
+        self.client = None
+        self._running_task = None
         logger.info("DiscordBus stopped")
