@@ -39,6 +39,11 @@ class DiscordBus(MessageBus[DiscordContext]):
         self, on_message: Callable[[str, DiscordContext], Awaitable[None]]
     ) -> None:
         """Start listening for Discord messages."""
+        # Idempotent: skip if already started
+        if self.client is not None:
+            logger.debug("DiscordBus already started, skipping")
+            return
+
         logger.info(f"Message bus enabled with platform: {self.platform_name}")
 
         # Configure intents
@@ -136,6 +141,11 @@ class DiscordBus(MessageBus[DiscordContext]):
 
     async def stop(self) -> None:
         """Stop Discord bot and cleanup."""
-        if self.client:
-            await self.client.close()
-            logger.info("DiscordBus stopped")
+        # Idempotent: skip if not running
+        if self.client is None:
+            logger.debug("DiscordBus not running, skipping stop")
+            return
+
+        await self.client.close()
+        self.client = None  # Reset to allow restart
+        logger.info("DiscordBus stopped")
