@@ -9,23 +9,17 @@ from picklebot.frontend.messagebus import MessageBusFrontend
 from picklebot.utils.def_loader import DefNotFoundError
 
 if TYPE_CHECKING:
-    from picklebot.messagebus.base import MessageBus
     from picklebot.core.context import SharedContext
 
 
 class MessageBusWorker(Worker):
     """Ingests messages from platforms, dispatches to agent queue."""
 
-    def __init__(
-        self,
-        context: "SharedContext",
-        agent_queue: asyncio.Queue[Job],
-        buses: list["MessageBus"],
-    ):
+    def __init__(self, context: "SharedContext", agent_queue: asyncio.Queue[Job]):
         super().__init__(context)
         self.agent_queue = agent_queue
-        self.buses = buses
-        self.bus_map = {bus.platform_name: bus for bus in buses}
+        self.buses = context.messagebus_buses
+        self.bus_map = {bus.platform_name: bus for bus in self.buses}
 
         # Create global session on startup
         try:

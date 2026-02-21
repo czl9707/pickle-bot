@@ -38,22 +38,19 @@ class Server:
 
     def _setup_workers(self) -> None:
         """Create all workers."""
-        # AgentWorker (always needed)
         self.workers.append(
             AgentWorker(self.context, self.agent_queue)
         )
 
-        # CronWorker (always needed)
         self.workers.append(
             CronWorker(self.context, self.agent_queue)
         )
 
-        # MessageBusWorker (if enabled)
         if self.context.config.messagebus.enabled:
             buses = self.context.messagebus_buses
             if buses:
                 self.workers.append(
-                    MessageBusWorker(self.context, self.agent_queue, buses)
+                    MessageBusWorker(self.context, self.agent_queue)
                 )
                 logger.info(f"MessageBus enabled with {len(buses)} bus(es)")
             else:
@@ -87,7 +84,7 @@ class Server:
                     self._tasks[i] = new_task
                     logger.info(f"Restarted {worker.__class__.__name__}")
 
-            await asyncio.sleep(5)  # Check every 5 seconds
+            await asyncio.sleep(5)
 
     async def _stop_all(self) -> None:
         """Stop all workers gracefully."""

@@ -2,6 +2,7 @@
 
 import asyncio
 import pytest
+from unittest.mock import patch
 
 from picklebot.server.messagebus_worker import MessageBusWorker
 from picklebot.server.base import Job
@@ -59,7 +60,8 @@ You are a test assistant.
     )
 
     bus = FakeBus()
-    worker = MessageBusWorker(test_context, asyncio.Queue(), [bus])
+    with patch.object(test_context, "messagebus_buses", [bus]):
+        worker = MessageBusWorker(test_context, asyncio.Queue())
 
     assert worker.global_session is not None
     assert worker.global_session.agent_id == "test"
@@ -87,7 +89,8 @@ You are a test assistant.
 
     queue: asyncio.Queue[Job] = asyncio.Queue()
     bus = FakeBus()
-    worker = MessageBusWorker(test_context, queue, [bus])
+    with patch.object(test_context, "messagebus_buses", [bus]):
+        worker = MessageBusWorker(test_context, queue)
 
     # Start worker (it will process one message and wait)
     task = asyncio.create_task(worker.run())
@@ -129,7 +132,8 @@ You are a test assistant.
 
     queue: asyncio.Queue[Job] = asyncio.Queue()
     bus = BlockingBus()
-    worker = MessageBusWorker(test_context, queue, [bus])
+    with patch.object(test_context, "messagebus_buses", [bus]):
+        worker = MessageBusWorker(test_context, queue)
 
     task = asyncio.create_task(worker.run())
     await asyncio.sleep(0.1)
