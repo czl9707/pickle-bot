@@ -152,6 +152,85 @@ def test_save_config_no_system_file():
         assert not system_config_path.exists()
 
 
+def test_check_existing_workspace_returns_true_if_no_config():
+    """Test check_existing_workspace returns True when config doesn't exist."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workspace = Path(tmpdir) / "workspace"
+        wizard = OnboardingWizard(workspace=workspace)
+
+        result = wizard.check_existing_workspace()
+
+        assert result is True
+
+
+def test_check_existing_workspace_prompts_if_config_exists():
+    """Test check_existing_workspace prompts user when config exists."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workspace = Path(tmpdir) / "workspace"
+        workspace.mkdir()
+        (workspace / "config.user.yaml").write_text("llm: {}")
+
+        wizard = OnboardingWizard(workspace=workspace)
+
+        with patch("questionary.confirm") as mock_confirm:
+            mock_confirm.return_value.ask.return_value = True
+            result = wizard.check_existing_workspace()
+
+        mock_confirm.assert_called_once()
+        assert result is True
+
+
+def test_check_existing_workspace_returns_false_if_user_declines():
+    """Test check_existing_workspace returns False if user says no."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workspace = Path(tmpdir) / "workspace"
+        workspace.mkdir()
+        (workspace / "config.user.yaml").write_text("llm: {}")
+
+        wizard = OnboardingWizard(workspace=workspace)
+
+        with patch("questionary.confirm") as mock_confirm:
+            mock_confirm.return_value.ask.return_value = False
+            result = wizard.check_existing_workspace()
+
+        assert result is False
+
+
+def test_run_includes_copy_default_assets():
+    """Test that run() calls copy_default_assets."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workspace = Path(tmpdir) / "workspace"
+        wizard = OnboardingWizard(workspace=workspace)
+
+        with (
+            patch.object(wizard, "check_existing_workspace", return_value=True),
+            patch.object(wizard, "setup_workspace"),
+            patch.object(wizard, "configure_llm"),
+            patch.object(wizard, "copy_default_assets") as mock_copy,
+            patch.object(wizard, "configure_messagebus"),
+            patch.object(wizard, "save_config", return_value=True),
+        ):
+            wizard.run()
+
+        mock_copy.assert_called_once()
+
+
+def test_run_returns_false_if_user_cancels_overwrite():
+    """Test run returns False if user cancels at overwrite prompt."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workspace = Path(tmpdir) / "workspace"
+        workspace.mkdir()
+        (workspace / "config.user.yaml").write_text("llm: {}")
+
+        wizard = OnboardingWizard(workspace=workspace)
+
+        with patch("questionary.confirm") as mock_confirm:
+            mock_confirm.return_value.ask.return_value = False
+            result = wizard.run()
+
+        assert result is False
+
+
 def test_run_orchestrates_all_steps():
     """Test that run() calls all steps in order."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -159,15 +238,18 @@ def test_run_orchestrates_all_steps():
         wizard = OnboardingWizard(workspace=workspace)
 
         with (
+            patch.object(wizard, "check_existing_workspace", return_value=True),
             patch.object(wizard, "setup_workspace") as mock_setup,
             patch.object(wizard, "configure_llm") as mock_llm,
+            patch.object(wizard, "copy_default_assets") as mock_copy,
             patch.object(wizard, "configure_messagebus") as mock_bus,
-            patch.object(wizard, "save_config") as mock_save,
+            patch.object(wizard, "save_config", return_value=True) as mock_save,
         ):
             wizard.run()
 
         mock_setup.assert_called_once()
         mock_llm.assert_called_once()
+        mock_copy.assert_called_once()
         mock_bus.assert_called_once()
         mock_save.assert_called_once()
 

@@ -199,21 +199,49 @@ class OnboardingWizard:
 
         return True
 
-    def run(self) -> None:
-        """Run the complete onboarding flow."""
+    def check_existing_workspace(self) -> bool:
+        """Check if workspace exists and prompt for overwrite confirmation."""
+        config_path = self.workspace / "config.user.yaml"
+
+        if config_path.exists():
+            console = Console()
+            console.print(
+                f"\n[yellow]Workspace already exists at {self.workspace}[/yellow]"
+            )
+
+            proceed = questionary.confirm(
+                "This will overwrite your existing configuration. Continue?",
+                default=False,
+            ).ask()
+
+            return proceed
+
+        return True
+
+    def run(self) -> bool:
+        """Run the complete onboarding flow. Returns True if successful."""
         console = Console()
+
+        # Check for existing workspace
+        if not self.check_existing_workspace():
+            console.print("[yellow]Onboarding cancelled.[/yellow]")
+            return False
 
         console.print("\n[bold cyan]Welcome to Pickle-Bot![/bold cyan]")
         console.print("Let's set up your configuration.\n")
 
         self.setup_workspace()
         self.configure_llm()
+        self.copy_default_assets()
         self.configure_messagebus()
-        self.save_config()
 
-        console.print("\n[green]Configuration saved![/green]")
-        console.print(f"Config file: {self.workspace / 'config.user.yaml'}")
-        console.print("Edit this file to make changes.\n")
+        if self.save_config():
+            console.print("\n[green]Configuration saved![/green]")
+            console.print(f"Config file: {self.workspace / 'config.user.yaml'}")
+            console.print("Edit this file to make changes.\n")
+            return True
+
+        return False
 
     def copy_default_assets(self) -> None:
         """Copy selected default agents and skills to workspace."""
