@@ -22,12 +22,14 @@ def client():
         # Create a test agent
         test_agent_dir = agents_path / "test-agent"
         test_agent_dir.mkdir()
-        (test_agent_dir / "AGENT.md").write_text("""---
+        (test_agent_dir / "AGENT.md").write_text(
+            """---
 name: Test Agent
 description: A test agent
 ---
 You are a test agent.
-""")
+"""
+        )
 
         config = Config(
             workspace=workspace,

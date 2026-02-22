@@ -8,9 +8,7 @@ from picklebot.core.cron_loader import CronDef
 from picklebot.core.skill_loader import SkillDef
 
 
-def make_create_model(
-    model_cls: type[BaseModel], exclude: set[str]
-) -> type[BaseModel]:
+def make_create_model(model_cls: type[BaseModel], exclude: set[str]) -> type[BaseModel]:
     """Derive a Create model from existing model, excluding specified fields."""
     fields: dict[str, Any] = {}
     for name, field in model_cls.model_fields.items():
@@ -33,10 +31,12 @@ CronCreate: type[BaseModel] = make_create_model(CronDef, exclude={"id"})  # type
 
 # Hand-written models (need special handling)
 
+
 class MemoryCreate(BaseModel):
     """Request body for creating/updating a memory."""
 
     content: str
+
 
 class AgentCreate(BaseModel):
     """Request body for creating/updating an agent."""

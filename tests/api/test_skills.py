@@ -22,14 +22,16 @@ def client():
         # Create a test skill
         test_skill_dir = skills_path / "test-skill"
         test_skill_dir.mkdir()
-        (test_skill_dir / "SKILL.md").write_text("""---
+        (test_skill_dir / "SKILL.md").write_text(
+            """---
 name: Test Skill
 description: A test skill
 ---
 # Test Skill
 
 This is a test skill.
-""")
+"""
+        )
 
         config = Config(
             workspace=workspace,

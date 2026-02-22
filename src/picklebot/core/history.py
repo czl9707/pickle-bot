@@ -20,7 +20,6 @@ class HistorySession(BaseModel):
 
     id: str
     agent_id: str
-    max_history: int = 50  # Maximum messages per chunk
     chunk_count: int = 1  # Number of chunk files
     title: str | None = None
     message_count: int = 0
@@ -182,15 +181,12 @@ class HistoryStore:
                 return i
         return -1
 
-    def create_session(
-        self, agent_id: str, session_id: str, max_history: int = 50
-    ) -> dict[str, Any]:
+    def create_session(self, agent_id: str, session_id: str) -> dict[str, Any]:
         """Create a new conversation session."""
         now = _now_iso()
         session = HistorySession(
             id=session_id,
             agent_id=agent_id,
-            max_history=max_history,
             chunk_count=1,
             title=None,
             message_count=0,
@@ -207,16 +203,17 @@ class HistoryStore:
 
         return session.model_dump()
 
-    def save_message(self, session_id: str, message: HistoryMessage) -> None:
+    def save_message(
+        self, session_id: str, message: HistoryMessage, max_history: int = 50
+    ) -> None:
         """Save a message to history."""
-        # Get session to access max_history
+        # Get session to update
         sessions = self._read_index()
         idx = self._find_session_index(sessions, session_id)
         if idx < 0:
             raise ValueError(f"Session not found: {session_id}")
 
         session = sessions[idx]
-        max_history = session.max_history
 
         # Get current chunk and check if full
         current_idx = self._get_current_chunk_index(session_id)
@@ -265,16 +262,10 @@ class HistoryStore:
         sessions.sort(key=lambda s: s.updated_at, reverse=True)
         return sessions
 
-    def get_messages(self, session_id: str) -> list[HistoryMessage]:
+    def get_messages(
+        self, session_id: str, max_history: int = 50
+    ) -> list[HistoryMessage]:
         """Get messages for a session, up to max_history."""
-        # Get session to access max_history
-        sessions = self._read_index()
-        idx = self._find_session_index(sessions, session_id)
-        if idx < 0:
-            return []
-
-        max_history = sessions[idx].max_history
-
         # Load from chunks, newest first
         chunks = self._list_chunks(session_id)
         messages: list[HistoryMessage] = []

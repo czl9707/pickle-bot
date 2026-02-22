@@ -223,33 +223,13 @@ def test_post_message_available_in_job_mode(test_config):
     assert "post_message" in tool_names
 
 
-def test_new_session_passes_max_history_to_create_session(test_agent, test_config):
-    """Agent.new_session should pass max_history to history_store.create_session."""
-    # Create a session in CHAT mode
+def test_new_session_has_chat_max_history(test_agent, test_config):
+    """Agent.new_session should set max_history from config for CHAT mode."""
     session = test_agent.new_session(SessionMode.CHAT)
-
-    # Verify the session was created with the correct max_history in HistoryStore
-    stored_session = None
-    for s in test_agent.context.history_store.list_sessions():
-        if s.id == session.session_id:
-            stored_session = s
-            break
-
-    assert stored_session is not None
-    assert stored_session.max_history == test_config.chat_max_history
+    assert session.max_history == test_config.chat_max_history
 
 
-def test_new_session_passes_job_max_history_to_create_session(test_agent, test_config):
-    """Agent.new_session should pass job_max_history to history_store.create_session in JOB mode."""
-    # Create a session in JOB mode
+def test_new_session_has_job_max_history(test_agent, test_config):
+    """Agent.new_session should set max_history from config for JOB mode."""
     session = test_agent.new_session(SessionMode.JOB)
-
-    # Verify the session was created with the correct max_history in HistoryStore
-    stored_session = None
-    for s in test_agent.context.history_store.list_sessions():
-        if s.id == session.session_id:
-            stored_session = s
-            break
-
-    assert stored_session is not None
-    assert stored_session.max_history == test_config.job_max_history
+    assert session.max_history == test_config.job_max_history

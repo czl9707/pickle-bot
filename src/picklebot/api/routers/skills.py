@@ -39,7 +39,9 @@ def get_skill(skill_id: str, ctx: SharedContext = Depends(get_context)) -> Skill
         raise HTTPException(status_code=404, detail=f"Skill not found: {skill_id}")
 
 
-@router.post("/{skill_id}", response_model=SkillDef, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{skill_id}", response_model=SkillDef, status_code=status.HTTP_201_CREATED
+)
 def create_skill(
     skill_id: str, data: SkillCreate, ctx: SharedContext = Depends(get_context)  # type: ignore[valid-type]
 ) -> SkillDef:

@@ -66,7 +66,9 @@ class TestUpdateConfig:
         # Update only default_agent
         update_data = ConfigUpdate(default_agent="new-agent")
 
-        response = client.patch("/config", json=update_data.model_dump(exclude_none=True))
+        response = client.patch(
+            "/config", json=update_data.model_dump(exclude_none=True)
+        )
 
         assert response.status_code == 200
         config = response.json()
@@ -84,7 +86,9 @@ class TestUpdateConfig:
             chat_max_history=100,
         )
 
-        response = client.patch("/config", json=update_data.model_dump(exclude_none=True))
+        response = client.patch(
+            "/config", json=update_data.model_dump(exclude_none=True)
+        )
 
         assert response.status_code == 200
 
@@ -115,7 +119,9 @@ class TestUpdateConfig:
 
         # Update only chat_max_history
         update_data = ConfigUpdate(chat_max_history=75)
-        response = client.patch("/config", json=update_data.model_dump(exclude_none=True))
+        response = client.patch(
+            "/config", json=update_data.model_dump(exclude_none=True)
+        )
 
         assert response.status_code == 200
 
@@ -137,7 +143,9 @@ class TestUpdateConfig:
             job_max_history=1000,
         )
 
-        response = client.patch("/config", json=update_data.model_dump(exclude_none=True))
+        response = client.patch(
+            "/config", json=update_data.model_dump(exclude_none=True)
+        )
 
         assert response.status_code == 200
         config = response.json()
