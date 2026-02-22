@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import yaml
+
 import questionary
 
 
@@ -146,3 +148,24 @@ class OnboardingWizard:
             config["default_chat_id"] = default_chat
 
         return config
+
+    def save_config(self) -> None:
+        """Write configuration to YAML files."""
+        # Ensure workspace exists
+        self.workspace.mkdir(parents=True, exist_ok=True)
+
+        # Write system defaults (only if not exists)
+        system_config_path = self.workspace / "config.system.yaml"
+        if not system_config_path.exists():
+            system_defaults = {
+                "default_agent": "pickle",
+                "logging_path": ".logs",
+                "history_path": ".history",
+            }
+            with open(system_config_path, "w") as f:
+                yaml.dump(system_defaults, f, default_flow_style=False)
+
+        # Write user config
+        user_config_path = self.workspace / "config.user.yaml"
+        with open(user_config_path, "w") as f:
+            yaml.dump(self.state, f, default_flow_style=False)

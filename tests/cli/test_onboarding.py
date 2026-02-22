@@ -4,6 +4,8 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
+import yaml
+
 from picklebot.cli.onboarding import OnboardingWizard
 
 
@@ -60,8 +62,8 @@ def test_configure_messagebus_stores_state():
         mock_checkbox.return_value.ask.return_value = ["telegram"]
         mock_text.return_value.ask.side_effect = [
             "123:ABC",  # telegram bot token
-            "12345",    # telegram allowed user ids
-            "12345",    # telegram default chat id
+            "12345",  # telegram allowed user ids
+            "12345",  # telegram default chat id
         ]
 
         wizard.configure_messagebus()
@@ -81,3 +83,49 @@ def test_configure_messagebus_skip_all():
         wizard.configure_messagebus()
 
     assert wizard.state["messagebus"]["enabled"] is False
+
+
+def test_save_config_writes_yaml():
+    """Test that save_config writes valid YAML files."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workspace = Path(tmpdir) / "test-workspace"
+        wizard = OnboardingWizard(workspace=workspace)
+
+        wizard.state = {
+            "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test"},
+            "messagebus": {"enabled": False},
+        }
+
+        wizard.save_config()
+
+        user_config_path = workspace / "config.user.yaml"
+        assert user_config_path.exists()
+
+        with open(user_config_path) as f:
+            config = yaml.safe_load(f)
+
+        assert config["llm"]["provider"] == "openai"
+        assert config["messagebus"]["enabled"] is False
+
+
+def test_save_config_creates_system_defaults():
+    """Test that save_config creates config.system.yaml with defaults."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workspace = Path(tmpdir) / "test-workspace"
+        wizard = OnboardingWizard(workspace=workspace)
+
+        wizard.state = {
+            "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test"},
+            "messagebus": {"enabled": False},
+        }
+
+        wizard.save_config()
+
+        system_config_path = workspace / "config.system.yaml"
+        assert system_config_path.exists()
+
+        with open(system_config_path) as f:
+            config = yaml.safe_load(f)
+
+        assert "default_agent" in config
+        assert "logging_path" in config
