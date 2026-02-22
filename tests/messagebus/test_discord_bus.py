@@ -39,10 +39,13 @@ class TestDiscordBusPost:
     """Tests for DiscordBus.post method."""
 
     @pytest.mark.anyio
-    @pytest.mark.parametrize("default_chat_id,should_raise", [
-        ("999888", False),
-        (None, True),
-    ])
+    @pytest.mark.parametrize(
+        "default_chat_id,should_raise",
+        [
+            ("999888", False),
+            (None, True),
+        ],
+    )
     async def test_post_default_chat_id(self, default_chat_id, should_raise):
         """post should send to default_chat_id or raise if not configured."""
         config = DiscordConfig(bot_token="test-token", default_chat_id=default_chat_id)

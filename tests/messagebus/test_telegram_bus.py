@@ -59,10 +59,13 @@ class TestTelegramBusPost:
             await bus.post(content="Hello, world!")
 
     @pytest.mark.anyio
-    @pytest.mark.parametrize("default_chat_id,should_raise", [
-        ("999888", False),
-        (None, True),
-    ])
+    @pytest.mark.parametrize(
+        "default_chat_id,should_raise",
+        [
+            ("999888", False),
+            (None, True),
+        ],
+    )
     async def test_post_default_chat_id(self, default_chat_id, should_raise):
         """post should send to default_chat_id or raise if not configured."""
         config = TelegramConfig(bot_token="test-token", default_chat_id=default_chat_id)
@@ -112,7 +115,9 @@ class TestTelegramBusRunStop:
         async def dummy_callback(msg: str, ctx: TelegramContext) -> None:
             pass
 
-        with patch("picklebot.messagebus.telegram_bus.Application.builder") as mock_builder:
+        with patch(
+            "picklebot.messagebus.telegram_bus.Application.builder"
+        ) as mock_builder:
             mock_builder.return_value.token.return_value.build.return_value = mock_app
 
             run_task = asyncio.create_task(bus.run(dummy_callback))
@@ -134,7 +139,9 @@ class TestTelegramBusRunStop:
         async def dummy_callback(msg: str, ctx: TelegramContext) -> None:
             pass
 
-        with patch("picklebot.messagebus.telegram_bus.Application.builder") as mock_builder:
+        with patch(
+            "picklebot.messagebus.telegram_bus.Application.builder"
+        ) as mock_builder:
             mock_builder.return_value.token.return_value.build.return_value = mock_app
 
             run_task = asyncio.create_task(bus.run(dummy_callback))
@@ -156,7 +163,9 @@ class TestTelegramBusRunStop:
         async def dummy_callback(msg: str, ctx: TelegramContext) -> None:
             pass
 
-        with patch("picklebot.messagebus.telegram_bus.Application.builder") as mock_builder:
+        with patch(
+            "picklebot.messagebus.telegram_bus.Application.builder"
+        ) as mock_builder:
             mock_builder.return_value.token.return_value.build.return_value = mock_app
 
             run_task = asyncio.create_task(bus.run(dummy_callback))
@@ -185,7 +194,9 @@ class TestTelegramBusRunStop:
         async def dummy_callback(msg: str, ctx: TelegramContext) -> None:
             pass
 
-        with patch("picklebot.messagebus.telegram_bus.Application.builder") as mock_builder:
+        with patch(
+            "picklebot.messagebus.telegram_bus.Application.builder"
+        ) as mock_builder:
             mock_builder.return_value.token.return_value.build.return_value = mock_app
 
             # First cycle

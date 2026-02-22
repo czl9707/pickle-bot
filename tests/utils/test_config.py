@@ -71,10 +71,13 @@ class TestConfigValidation:
 class TestPlatformConfig:
     """Tests for platform-specific config (Telegram/Discord)."""
 
-    @pytest.mark.parametrize("config_class,user_id", [
-        (TelegramConfig, "123456"),
-        (DiscordConfig, "789012"),
-    ])
+    @pytest.mark.parametrize(
+        "config_class,user_id",
+        [
+            (TelegramConfig, "123456"),
+            (DiscordConfig, "789012"),
+        ],
+    )
     def test_platform_config_allows_user_fields(self, config_class, user_id):
         """Platform configs should accept allowed_user_ids and default_chat_id."""
         config = config_class(
@@ -122,10 +125,13 @@ class TestSessionHistoryLimits:
         assert config.job_max_history == 1000
         assert config.max_history_file_size == 2000
 
-    @pytest.mark.parametrize("field,value", [
-        ("chat_max_history", 0),
-        ("max_history_file_size", 0),
-    ])
+    @pytest.mark.parametrize(
+        "field,value",
+        [
+            ("chat_max_history", 0),
+            ("max_history_file_size", 0),
+        ],
+    )
     def test_positive_field_validation(self, llm_config, field, value):
         """Config should reject non-positive values for certain fields."""
         with pytest.raises(ValidationError):
@@ -133,7 +139,7 @@ class TestSessionHistoryLimits:
                 workspace=Path("/workspace"),
                 llm=llm_config,
                 default_agent="test",
-                **{field: value}
+                **{field: value},
             )
 
 
@@ -154,12 +160,17 @@ class TestMessageBusConfig:
         with pytest.raises(ValidationError, match="default_platform is required"):
             MessageBusConfig(enabled=True)
 
-    @pytest.mark.parametrize("platform,config_factory,error_match", [
-        ("telegram", lambda: None, "telegram config is missing"),
-        ("discord", lambda: None, "discord config is missing"),
-        ("invalid", lambda: None, "Invalid default_platform"),
-    ])
-    def test_messagebus_validates_platform_config(self, platform, config_factory, error_match):
+    @pytest.mark.parametrize(
+        "platform,config_factory,error_match",
+        [
+            ("telegram", lambda: None, "telegram config is missing"),
+            ("discord", lambda: None, "discord config is missing"),
+            ("invalid", lambda: None, "Invalid default_platform"),
+        ],
+    )
+    def test_messagebus_validates_platform_config(
+        self, platform, config_factory, error_match
+    ):
         """Test that messagebus validates platform config requirements."""
         kwargs = {"enabled": True, "default_platform": platform}
         if config_factory():
@@ -167,16 +178,20 @@ class TestMessageBusConfig:
         with pytest.raises(ValidationError, match=error_match):
             MessageBusConfig(**kwargs)
 
-    @pytest.mark.parametrize("platform,config_factory", [
-        ("telegram", lambda: TelegramConfig(bot_token="test_token")),
-        ("discord", lambda: DiscordConfig(bot_token="test_token", channel_id="12345")),
-    ])
+    @pytest.mark.parametrize(
+        "platform,config_factory",
+        [
+            ("telegram", lambda: TelegramConfig(bot_token="test_token")),
+            (
+                "discord",
+                lambda: DiscordConfig(bot_token="test_token", channel_id="12345"),
+            ),
+        ],
+    )
     def test_messagebus_valid_platform_config(self, platform, config_factory):
         """Test valid messagebus configuration for each platform."""
         config = MessageBusConfig(
-            enabled=True,
-            default_platform=platform,
-            **{platform: config_factory()}
+            enabled=True, default_platform=platform, **{platform: config_factory()}
         )
         assert config.enabled
         assert config.default_platform == platform

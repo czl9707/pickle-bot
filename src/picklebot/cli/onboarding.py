@@ -1,5 +1,6 @@
 """Interactive onboarding wizard for pickle-bot."""
 
+import shutil
 from pathlib import Path
 
 import questionary
@@ -7,11 +8,14 @@ import yaml
 from pydantic import ValidationError
 from rich.console import Console
 
+from picklebot.provider.base import LLMProvider
 from picklebot.utils.config import Config
 
 
 class OnboardingWizard:
     """Guides users through initial configuration."""
+
+    DEFAULT_WORKSPACE = Path(__file__).parent.parent.parent / "default_workspace"
 
     def __init__(self, workspace: Path | None = None):
         """
@@ -32,33 +36,43 @@ class OnboardingWizard:
             (self.workspace / subdir).mkdir(exist_ok=True)
 
     def configure_llm(self) -> None:
-        """Prompt user for LLM configuration."""
-        provider = questionary.select(
-            "Select LLM provider:",
-            choices=["openai", "anthropic", "zai", "other"],
-        ).ask()
+        """Prompt user for LLM configuration using auto-discovered providers."""
+        # Get providers for onboarding
+        providers = LLMProvider.get_onboarding_providers()
 
-        if provider == "other":
-            provider = questionary.text("Enter provider name:").ask()
+        choices = [
+            questionary.Choice(
+                title=f"{p.display_name} (default: {p.default_model})",
+                value=config_name,
+            )
+            for config_name, p in providers
+        ]
+        choices.append(questionary.Choice("Other (custom)", value="other"))
 
+        provider = questionary.select("Select LLM provider:", choices=choices).ask()
+
+        # Get provider class for defaults
+        provider_cls = LLMProvider.name2provider[provider]
+
+        # Model with provider default
         model = questionary.text(
             "Model name:",
-            default="gpt-4" if provider == "openai" else "claude-3-opus",
+            default=provider_cls.default_model,
         ).ask()
 
-        api_key = questionary.text("API key:").ask()
+        # API key with env var hint
+        env_hint = f" (or set {provider_cls.env_var})" if provider_cls.env_var else ""
+        api_key = questionary.text(f"API key{env_hint}:").ask()
 
-        api_base = questionary.text(
-            "API base URL (optional, press Enter to skip):",
-            default="",
-        ).ask()
+        # API base (only for "other" or if provider has default)
+        api_base = ""
+        if provider == "other" or provider_cls.api_base:
+            api_base = questionary.text(
+                "API base URL (optional):",
+                default=provider_cls.api_base or "",
+            ).ask()
 
-        self.state["llm"] = {
-            "provider": provider,
-            "model": model,
-            "api_key": api_key,
-        }
-
+        self.state["llm"] = {"provider": provider, "model": model, "api_key": api_key}
         if api_base:
             self.state["llm"]["api_base"] = api_base
 
@@ -185,18 +199,102 @@ class OnboardingWizard:
 
         return True
 
-    def run(self) -> None:
-        """Run the complete onboarding flow."""
+    def check_existing_workspace(self) -> bool:
+        """Check if workspace exists and prompt for overwrite confirmation."""
+        config_path = self.workspace / "config.user.yaml"
+
+        if config_path.exists():
+            console = Console()
+            console.print(
+                f"\n[yellow]Workspace already exists at {self.workspace}[/yellow]"
+            )
+
+            proceed = questionary.confirm(
+                "This will overwrite your existing configuration. Continue?",
+                default=False,
+            ).ask()
+
+            return proceed
+
+        return True
+
+    def run(self) -> bool:
+        """Run the complete onboarding flow. Returns True if successful."""
         console = Console()
+
+        # Check for existing workspace
+        if not self.check_existing_workspace():
+            console.print("[yellow]Onboarding cancelled.[/yellow]")
+            return False
 
         console.print("\n[bold cyan]Welcome to Pickle-Bot![/bold cyan]")
         console.print("Let's set up your configuration.\n")
 
         self.setup_workspace()
         self.configure_llm()
+        self.copy_default_assets()
         self.configure_messagebus()
-        self.save_config()
 
-        console.print("\n[green]Configuration saved![/green]")
-        console.print(f"Config file: {self.workspace / 'config.user.yaml'}")
-        console.print("Edit this file to make changes.\n")
+        if self.save_config():
+            console.print("\n[green]Configuration saved![/green]")
+            console.print(f"Config file: {self.workspace / 'config.user.yaml'}")
+            console.print("Edit this file to make changes.\n")
+            return True
+
+        return False
+
+    def copy_default_assets(self) -> None:
+        """Copy selected default agents and skills to workspace."""
+        default_agents = self._discover_defaults("agents")
+        default_skills = self._discover_defaults("skills")
+
+        if not default_agents and not default_skills:
+            return
+
+        console = Console()
+        console.print("\n[bold]Default assets available:[/bold]")
+
+        # Multi-select for agents
+        selected_agents = (
+            questionary.checkbox(
+                "Select agents to copy (will overwrite existing):",
+                choices=[
+                    questionary.Choice(f"agents/{name}", value=name, checked=True)
+                    for name in sorted(default_agents)
+                ],
+            ).ask()
+            or []
+        )
+
+        # Multi-select for skills
+        selected_skills = (
+            questionary.checkbox(
+                "Select skills to copy (will overwrite existing):",
+                choices=[
+                    questionary.Choice(f"skills/{name}", value=name, checked=True)
+                    for name in sorted(default_skills)
+                ],
+            ).ask()
+            or []
+        )
+
+        # Copy selected
+        for name in selected_agents:
+            self._copy_asset("agents", name)
+        for name in selected_skills:
+            self._copy_asset("skills", name)
+
+    def _discover_defaults(self, asset_type: str) -> list[str]:
+        """List available default assets of a type."""
+        path = self.DEFAULT_WORKSPACE / asset_type
+        if not path.exists():
+            return []
+        return [d.name for d in path.iterdir() if d.is_dir()]
+
+    def _copy_asset(self, asset_type: str, name: str) -> None:
+        """Copy a single asset from defaults to workspace."""
+        src = self.DEFAULT_WORKSPACE / asset_type / name
+        dst = self.workspace / asset_type / name
+        if dst.exists():
+            shutil.rmtree(dst)
+        shutil.copytree(src, dst)
