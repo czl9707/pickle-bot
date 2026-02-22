@@ -32,10 +32,13 @@ def test_agent_new_session_with_custom_session_id(test_agent):
     assert session.session_id == custom_id
 
 
-@pytest.mark.parametrize("mode,expected_history_attr", [
-    (SessionMode.CHAT, "chat_max_history"),
-    (SessionMode.JOB, "job_max_history"),
-])
+@pytest.mark.parametrize(
+    "mode,expected_history_attr",
+    [
+        (SessionMode.CHAT, "chat_max_history"),
+        (SessionMode.JOB, "job_max_history"),
+    ],
+)
 def test_session_max_history(test_agent, test_config, mode, expected_history_attr):
     """Agent.new_session should use correct max_history based on mode."""
     session = test_agent.new_session(mode)
@@ -65,10 +68,13 @@ def _create_agent_with_skills(test_config, allow_skills: bool) -> Agent:
     return Agent(agent_def=agent_def, context=context)
 
 
-@pytest.mark.parametrize("allow_skills,expected", [
-    (True, True),
-    (False, False),
-])
+@pytest.mark.parametrize(
+    "allow_skills,expected",
+    [
+        (True, True),
+        (False, False),
+    ],
+)
 def test_skill_tool_registration(test_config, allow_skills, expected):
     """Session should register skill tool based on allow_skills setting."""
     agent = _create_agent_with_skills(test_config, allow_skills)
@@ -78,7 +84,9 @@ def test_skill_tool_registration(test_config, allow_skills, expected):
     assert ("skill" in tool_names) == expected
 
 
-def _create_agent_with_other_agents(test_config, test_agent_def, has_other_agents: bool) -> Agent:
+def _create_agent_with_other_agents(
+    test_config, test_agent_def, has_other_agents: bool
+) -> Agent:
     """Helper to create an agent optionally with other agents present."""
     if has_other_agents:
         other_agent_dir = test_config.agents_path / "other-agent"
@@ -92,13 +100,20 @@ def _create_agent_with_other_agents(test_config, test_agent_def, has_other_agent
     return Agent(agent_def=test_agent_def, context=context)
 
 
-@pytest.mark.parametrize("has_other_agents,expected", [
-    (True, True),
-    (False, False),
-])
-def test_subagent_dispatch_registration(test_config, test_agent_def, has_other_agents, expected):
+@pytest.mark.parametrize(
+    "has_other_agents,expected",
+    [
+        (True, True),
+        (False, False),
+    ],
+)
+def test_subagent_dispatch_registration(
+    test_config, test_agent_def, has_other_agents, expected
+):
     """Session should register subagent_dispatch tool only when other agents exist."""
-    agent = _create_agent_with_other_agents(test_config, test_agent_def, has_other_agents)
+    agent = _create_agent_with_other_agents(
+        test_config, test_agent_def, has_other_agents
+    )
     session = agent.new_session(SessionMode.CHAT)
     tool_names = [s["function"]["name"] for s in session.tools.get_tool_schemas()]
 
@@ -129,10 +144,13 @@ def _create_agent_with_messagebus(test_config) -> Agent:
     return Agent(agent_def=agent_def, context=context)
 
 
-@pytest.mark.parametrize("mode,expected", [
-    (SessionMode.CHAT, False),
-    (SessionMode.JOB, True),
-])
+@pytest.mark.parametrize(
+    "mode,expected",
+    [
+        (SessionMode.CHAT, False),
+        (SessionMode.JOB, True),
+    ],
+)
 def test_post_message_availability(test_config, mode, expected):
     """post_message tool should only be available in JOB mode."""
     agent = _create_agent_with_messagebus(test_config)

@@ -1,6 +1,5 @@
 """Tests for CronLoader and related components."""
 
-import pytest
 
 from picklebot.core.cron_loader import CronLoader
 

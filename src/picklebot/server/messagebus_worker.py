@@ -47,8 +47,7 @@ class MessageBusWorker(Worker):
 
         # Persist session_id to runtime config
         self.context.config.set_runtime(
-            f"messagebus.{platform}.sessions.{user_id}",
-            session.session_id
+            f"messagebus.{platform}.sessions.{user_id}", session.session_id
         )
 
         return session.session_id

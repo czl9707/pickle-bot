@@ -13,6 +13,7 @@ from picklebot.messagebus.base import MessageContext
 @dataclass
 class FakeContext(MessageContext):
     """Fake context with user_id for testing."""
+
     user_id: str
     chat_id: str
 
@@ -209,13 +210,13 @@ You are a test assistant.
 
     # Pre-configure a session for user "123"
     from picklebot.utils.config import TelegramConfig, MessageBusConfig
+
     test_context.config.messagebus = MessageBusConfig(
         enabled=True,
         default_platform="telegram",
         telegram=TelegramConfig(
-            bot_token="test",
-            sessions={"123": "existing-session-uuid"}
-        )
+            bot_token="test", sessions={"123": "existing-session-uuid"}
+        ),
     )
 
     queue: asyncio.Queue[Job] = asyncio.Queue()

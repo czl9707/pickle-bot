@@ -78,7 +78,9 @@ class Agent:
 
         return registry
 
-    def new_session(self, mode: SessionMode, session_id: str | None = None) -> "AgentSession":
+    def new_session(
+        self, mode: SessionMode, session_id: str | None = None
+    ) -> "AgentSession":
         """
         Create a new conversation session.
 
