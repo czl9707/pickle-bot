@@ -67,37 +67,31 @@ class TestConfigValidation:
             )
         assert "default_agent" in str(exc.value)
 
-    def test_telegram_config_allows_user_fields(self, llm_config):
-        """TelegramConfig should accept allowed_user_ids and default_chat_id."""
-        telegram = TelegramConfig(
+
+class TestPlatformConfig:
+    """Tests for platform-specific config (Telegram/Discord)."""
+
+    @pytest.mark.parametrize("config_class,user_id", [
+        (TelegramConfig, "123456"),
+        (DiscordConfig, "789012"),
+    ])
+    def test_platform_config_allows_user_fields(self, config_class, user_id):
+        """Platform configs should accept allowed_user_ids and default_chat_id."""
+        config = config_class(
             enabled=True,
             bot_token="test-token",
-            allowed_user_ids=["123456"],
-            default_chat_id="123456",
+            allowed_user_ids=[user_id],
+            default_chat_id=user_id,
         )
-        assert telegram.allowed_user_ids == ["123456"]
-        assert telegram.default_chat_id == "123456"
+        assert config.allowed_user_ids == [user_id]
+        assert config.default_chat_id == user_id
 
-    def test_discord_config_allows_user_fields(self, llm_config):
-        """DiscordConfig should accept allowed_user_ids and default_chat_id."""
-        discord = DiscordConfig(
-            enabled=True,
-            bot_token="test-token",
-            allowed_user_ids=["789012"],
-            default_chat_id="789012",
-        )
-        assert discord.allowed_user_ids == ["789012"]
-        assert discord.default_chat_id == "789012"
-
-    def test_messagebus_user_fields_default_to_empty(self, llm_config):
-        """User fields should have sensible defaults."""
-        telegram = TelegramConfig(enabled=True, bot_token="test-token")
-        assert telegram.allowed_user_ids == []
-        assert telegram.default_chat_id is None
-
-        discord = DiscordConfig(enabled=True, bot_token="test-token")
-        assert discord.allowed_user_ids == []
-        assert discord.default_chat_id is None
+    @pytest.mark.parametrize("config_class", [TelegramConfig, DiscordConfig])
+    def test_platform_config_defaults(self, config_class):
+        """Platform config user fields should have sensible defaults."""
+        config = config_class(enabled=True, bot_token="test-token")
+        assert config.allowed_user_ids == []
+        assert config.default_chat_id is None
 
 
 class TestSessionHistoryLimits:
@@ -110,9 +104,9 @@ class TestSessionHistoryLimits:
             llm=llm_config,
             default_agent="test",
         )
-
         assert config.chat_max_history == 50
         assert config.job_max_history == 500
+        assert config.max_history_file_size == 500
 
     def test_config_custom_history_limits(self, llm_config):
         """Config should allow custom history limits."""
@@ -122,48 +116,24 @@ class TestSessionHistoryLimits:
             default_agent="test",
             chat_max_history=100,
             job_max_history=1000,
+            max_history_file_size=2000,
         )
-
         assert config.chat_max_history == 100
         assert config.job_max_history == 1000
+        assert config.max_history_file_size == 2000
 
-    def test_config_history_limits_must_be_positive(self, llm_config):
-        """Config should reject non-positive history limits."""
+    @pytest.mark.parametrize("field,value", [
+        ("chat_max_history", 0),
+        ("max_history_file_size", 0),
+    ])
+    def test_positive_field_validation(self, llm_config, field, value):
+        """Config should reject non-positive values for certain fields."""
         with pytest.raises(ValidationError):
             Config(
                 workspace=Path("/workspace"),
                 llm=llm_config,
                 default_agent="test",
-                chat_max_history=0,
-            )
-
-    def test_config_default_max_history_file_size(self, llm_config):
-        """Config should have default max_history_file_size."""
-        config = Config(
-            workspace=Path("/workspace"),
-            llm=llm_config,
-            default_agent="test",
-        )
-        assert config.max_history_file_size == 500
-
-    def test_config_custom_max_history_file_size(self, llm_config):
-        """Config should allow custom max_history_file_size."""
-        config = Config(
-            workspace=Path("/workspace"),
-            llm=llm_config,
-            default_agent="test",
-            max_history_file_size=1000,
-        )
-        assert config.max_history_file_size == 1000
-
-    def test_config_max_history_file_size_must_be_positive(self, llm_config):
-        """Config should reject non-positive max_history_file_size."""
-        with pytest.raises(ValidationError):
-            Config(
-                workspace=Path("/workspace"),
-                llm=llm_config,
-                default_agent="test",
-                max_history_file_size=0,
+                **{field: value}
             )
 
 
@@ -184,41 +154,32 @@ class TestMessageBusConfig:
         with pytest.raises(ValidationError, match="default_platform is required"):
             MessageBusConfig(enabled=True)
 
-    def test_messagebus_validates_platform_config(self):
-        """Test that default_platform must have valid config."""
-        with pytest.raises(ValidationError, match="telegram config is missing"):
-            MessageBusConfig(enabled=True, default_platform="telegram")
+    @pytest.mark.parametrize("platform,config_factory,error_match", [
+        ("telegram", lambda: None, "telegram config is missing"),
+        ("discord", lambda: None, "discord config is missing"),
+        ("invalid", lambda: None, "Invalid default_platform"),
+    ])
+    def test_messagebus_validates_platform_config(self, platform, config_factory, error_match):
+        """Test that messagebus validates platform config requirements."""
+        kwargs = {"enabled": True, "default_platform": platform}
+        if config_factory():
+            kwargs[platform] = config_factory()
+        with pytest.raises(ValidationError, match=error_match):
+            MessageBusConfig(**kwargs)
 
-    def test_messagebus_valid_config(self):
-        """Test valid messagebus configuration."""
+    @pytest.mark.parametrize("platform,config_factory", [
+        ("telegram", lambda: TelegramConfig(bot_token="test_token")),
+        ("discord", lambda: DiscordConfig(bot_token="test_token", channel_id="12345")),
+    ])
+    def test_messagebus_valid_platform_config(self, platform, config_factory):
+        """Test valid messagebus configuration for each platform."""
         config = MessageBusConfig(
             enabled=True,
-            default_platform="telegram",
-            telegram=TelegramConfig(bot_token="test_token"),
+            default_platform=platform,
+            **{platform: config_factory()}
         )
         assert config.enabled
-        assert config.default_platform == "telegram"
-
-    def test_messagebus_validates_discord_platform(self):
-        """Test that discord platform requires discord config."""
-        with pytest.raises(ValidationError, match="discord config is missing"):
-            MessageBusConfig(enabled=True, default_platform="discord")
-
-    def test_messagebus_valid_discord_config(self):
-        """Test valid discord configuration."""
-        config = MessageBusConfig(
-            enabled=True,
-            default_platform="discord",
-            discord=DiscordConfig(bot_token="test_token", channel_id="12345"),
-        )
-        assert config.enabled
-        assert config.default_platform == "discord"
-        assert config.discord.channel_id == "12345"
-
-    def test_messagebus_validates_invalid_platform(self):
-        """Test that invalid platform is rejected."""
-        with pytest.raises(ValidationError, match="Invalid default_platform"):
-            MessageBusConfig(enabled=True, default_platform="invalid")
+        assert config.default_platform == platform
 
     def test_messagebus_can_be_disabled(self):
         """Test that messagebus can be explicitly disabled."""
@@ -253,7 +214,6 @@ class TestApiConfig:
             default_agent="pickle",
             api=ApiConfig(enabled=True, host="0.0.0.0", port=3000),
         )
-
         assert config.api.enabled is True
         assert config.api.host == "0.0.0.0"
         assert config.api.port == 3000

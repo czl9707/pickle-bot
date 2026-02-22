@@ -13,32 +13,6 @@ def test_discord_bus_platform_name():
     assert bus.platform_name == "discord"
 
 
-@pytest.mark.anyio
-async def test_discord_bus_run_stop():
-    """Test that DiscordBus can run and stop."""
-    config = DiscordConfig(bot_token="test_token")
-    bus = DiscordBus(config)
-
-    # Mock the discord.Client to avoid actual network calls
-    mock_client = MagicMock()
-    mock_client.start = AsyncMock()
-    mock_client.close = AsyncMock()
-
-    with patch(
-        "picklebot.messagebus.discord_bus.discord.Client", return_value=mock_client
-    ):
-        # Should not raise - callback now receives (content, context)
-        async def dummy_callback(content: str, context: DiscordContext) -> None:
-            pass
-
-        await bus.run(dummy_callback)
-        await bus.stop()
-
-        # Verify lifecycle was called
-        mock_client.start.assert_called_once()
-        mock_client.close.assert_called_once()
-
-
 class TestDiscordBusReply:
     """Tests for DiscordBus.reply method."""
 
@@ -48,7 +22,6 @@ class TestDiscordBusReply:
         config = DiscordConfig(bot_token="test-token")
         bus = DiscordBus(config)
 
-        # Mock the client and channel
         mock_client = MagicMock()
         mock_channel = MagicMock()
         mock_channel.send = AsyncMock()
@@ -66,47 +39,68 @@ class TestDiscordBusPost:
     """Tests for DiscordBus.post method."""
 
     @pytest.mark.anyio
-    async def test_post_sends_to_default_chat_id(self):
-        """post should send to config.default_chat_id."""
-        config = DiscordConfig(bot_token="test-token", default_chat_id="999888")
+    @pytest.mark.parametrize("default_chat_id,should_raise", [
+        ("999888", False),
+        (None, True),
+    ])
+    async def test_post_default_chat_id(self, default_chat_id, should_raise):
+        """post should send to default_chat_id or raise if not configured."""
+        config = DiscordConfig(bot_token="test-token", default_chat_id=default_chat_id)
         bus = DiscordBus(config)
 
-        # Mock the client and channel
-        mock_client = MagicMock()
-        mock_channel = MagicMock()
-        mock_channel.send = AsyncMock()
-        mock_client.get_channel.return_value = mock_channel
-        bus.client = mock_client
+        if should_raise:
+            bus.client = MagicMock()
+            with pytest.raises(ValueError, match="No default_chat_id configured"):
+                await bus.post(content="Test")
+        else:
+            mock_client = MagicMock()
+            mock_channel = MagicMock()
+            mock_channel.send = AsyncMock()
+            mock_client.get_channel.return_value = mock_channel
+            bus.client = mock_client
 
-        await bus.post(content="Proactive message")
+            await bus.post(content="Proactive message")
 
-        mock_client.get_channel.assert_called_once_with(999888)
-        mock_channel.send.assert_called_once_with("Proactive message")
+            mock_client.get_channel.assert_called_once_with(999888)
+            mock_channel.send.assert_called_once_with("Proactive message")
 
-    @pytest.mark.anyio
-    async def test_post_raises_when_no_default_chat_id(self):
-        """post should raise when no default_chat_id configured."""
-        config = DiscordConfig(bot_token="test-token", default_chat_id=None)
-        bus = DiscordBus(config)
 
-        bus.client = MagicMock()  # Mark as started
-
-        with pytest.raises(ValueError, match="No default_chat_id configured"):
-            await bus.post(content="Test")
+def _create_mock_discord_client():
+    """Create a mock Discord Client for testing."""
+    mock_client = MagicMock()
+    mock_client.start = AsyncMock()
+    mock_client.close = AsyncMock()
+    return mock_client
 
 
 class TestDiscordBusRunStop:
     """Tests for run/stop behavior."""
 
     @pytest.mark.anyio
+    async def test_run_stop_lifecycle(self):
+        """Test that DiscordBus can run and stop."""
+        config = DiscordConfig(bot_token="test_token")
+        bus = DiscordBus(config)
+        mock_client = _create_mock_discord_client()
+
+        async def dummy_callback(content: str, context: DiscordContext) -> None:
+            pass
+
+        with patch(
+            "picklebot.messagebus.discord_bus.discord.Client", return_value=mock_client
+        ):
+            await bus.run(dummy_callback)
+            await bus.stop()
+
+            mock_client.start.assert_called_once()
+            mock_client.close.assert_called_once()
+
+    @pytest.mark.anyio
     async def test_run_raises_on_second_call(self):
         """Calling run twice should raise RuntimeError."""
         config = DiscordConfig(bot_token="test_token")
         bus = DiscordBus(config)
-
-        mock_client = MagicMock()
-        mock_client.start = AsyncMock()
-        mock_client.close = AsyncMock()
+        mock_client = _create_mock_discord_client()
 
         async def dummy_callback(content: str, context: DiscordContext) -> None:
             pass
@@ -116,7 +110,6 @@ class TestDiscordBusRunStop:
         ):
             await bus.run(dummy_callback)
 
-            # Second call should raise
             with pytest.raises(RuntimeError, match="DiscordBus already running"):
                 await bus.run(dummy_callback)
 
@@ -125,10 +118,7 @@ class TestDiscordBusRunStop:
         """Calling stop twice should be safe - second call is no-op."""
         config = DiscordConfig(bot_token="test_token")
         bus = DiscordBus(config)
-
-        mock_client = MagicMock()
-        mock_client.start = AsyncMock()
-        mock_client.close = AsyncMock()
+        mock_client = _create_mock_discord_client()
 
         async def dummy_callback(content: str, context: DiscordContext) -> None:
             pass
@@ -140,7 +130,6 @@ class TestDiscordBusRunStop:
             await bus.stop()
             await bus.stop()  # Second call should be no-op
 
-            # Should only close once
             mock_client.close.assert_called_once()
 
     @pytest.mark.anyio
@@ -149,18 +138,14 @@ class TestDiscordBusRunStop:
         config = DiscordConfig(bot_token="test_token")
         bus = DiscordBus(config)
 
-        # Should not raise
-        await bus.stop()
+        await bus.stop()  # Should not raise
 
     @pytest.mark.anyio
     async def test_can_rerun_after_stop(self):
         """Should be able to run again after stop."""
         config = DiscordConfig(bot_token="test_token")
         bus = DiscordBus(config)
-
-        mock_client = MagicMock()
-        mock_client.start = AsyncMock()
-        mock_client.close = AsyncMock()
+        mock_client = _create_mock_discord_client()
 
         async def dummy_callback(content: str, context: DiscordContext) -> None:
             pass
@@ -172,7 +157,6 @@ class TestDiscordBusRunStop:
             await bus.run(dummy_callback)
             await bus.stop()
 
-            # Reset mock counts
             mock_client.start.reset_mock()
 
             # Second cycle should work
