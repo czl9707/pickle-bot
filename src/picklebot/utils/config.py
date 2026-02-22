@@ -119,6 +119,7 @@ class Config(BaseModel):
     api: ApiConfig = Field(default_factory=ApiConfig)
     chat_max_history: int = Field(default=50, gt=0)
     job_max_history: int = Field(default=500, gt=0)
+    max_history_file_size: int = Field(default=500, gt=0)
 
     @model_validator(mode="after")
     def resolve_paths(self) -> "Config":
