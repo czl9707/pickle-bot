@@ -7,6 +7,7 @@ import typer
 from rich.console import Console
 
 from picklebot.cli.chat import chat_command
+from picklebot.cli.onboarding import OnboardingWizard
 from picklebot.cli.server import server_command
 from picklebot.utils.config import Config
 
@@ -79,6 +80,16 @@ def server(
 ) -> None:
     """Start the 24/7 server for cron job execution."""
     server_command(ctx)
+
+
+@app.command()
+def init(
+    ctx: typer.Context,
+) -> None:
+    """Initialize pickle-bot configuration with interactive onboarding."""
+    workspace = ctx.obj.get("config").workspace if ctx.obj else Path.home() / ".pickle-bot"
+    wizard = OnboardingWizard(workspace=workspace)
+    wizard.run()
 
 
 if __name__ == "__main__":
