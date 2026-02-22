@@ -137,6 +137,35 @@ class TestSessionHistoryLimits:
                 chat_max_history=0,
             )
 
+    def test_config_default_max_history_file_size(self, llm_config):
+        """Config should have default max_history_file_size."""
+        config = Config(
+            workspace=Path("/workspace"),
+            llm=llm_config,
+            default_agent="test",
+        )
+        assert config.max_history_file_size == 500
+
+    def test_config_custom_max_history_file_size(self, llm_config):
+        """Config should allow custom max_history_file_size."""
+        config = Config(
+            workspace=Path("/workspace"),
+            llm=llm_config,
+            default_agent="test",
+            max_history_file_size=1000,
+        )
+        assert config.max_history_file_size == 1000
+
+    def test_config_max_history_file_size_must_be_positive(self, llm_config):
+        """Config should reject non-positive max_history_file_size."""
+        with pytest.raises(ValidationError):
+            Config(
+                workspace=Path("/workspace"),
+                llm=llm_config,
+                default_agent="test",
+                max_history_file_size=0,
+            )
+
 
 class TestMessageBusConfig:
     """Tests for messagebus configuration."""

@@ -186,9 +186,7 @@ class AgentSession:
     def _persist_message(self, message: Message) -> None:
         """Save to HistoryStore."""
         history_msg = HistoryMessage.from_message(message)
-        self.context.history_store.save_message(
-            self.session_id, history_msg, max_history=self.max_history
-        )
+        self.context.history_store.save_message(self.session_id, history_msg)
 
     async def chat(self, message: str, frontend: "Frontend") -> str:
         """
