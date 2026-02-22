@@ -8,34 +8,26 @@ from picklebot.api.deps import get_context
 from picklebot.api.schemas import AgentCreate
 from picklebot.core.agent_loader import AgentDef
 from picklebot.core.context import SharedContext
-from picklebot.utils.def_loader import DefNotFoundError
+from picklebot.utils.def_loader import DefNotFoundError, write_definition
 
 router = APIRouter()
 
 
 def _write_agent_file(agent_id: str, data: AgentCreate, agents_path) -> None:
     """Write agent definition to file."""
-    agent_dir = agents_path / agent_id
-    agent_dir.mkdir(parents=True, exist_ok=True)
-
-    # Build frontmatter
-    frontmatter = f"""---
-name: {data.name}
-description: {data.description}
-"""
+    frontmatter = {
+        "name": data.name,
+        "description": data.description,
+        "temperature": data.temperature,
+        "max_tokens": data.max_tokens,
+        "allow_skills": data.allow_skills,
+    }
     if data.provider:
-        frontmatter += f"provider: {data.provider}\n"
+        frontmatter["provider"] = data.provider
     if data.model:
-        frontmatter += f"model: {data.model}\n"
-    frontmatter += f"""temperature: {data.temperature}
-max_tokens: {data.max_tokens}
-allow_skills: {data.allow_skills}
----
+        frontmatter["model"] = data.model
 
-{data.system_prompt}
-"""
-
-    (agent_dir / "AGENT.md").write_text(frontmatter)
+    write_definition(agent_id, frontmatter, data.system_prompt, agents_path, "AGENT.md")
 
 
 @router.get("", response_model=list[AgentDef])

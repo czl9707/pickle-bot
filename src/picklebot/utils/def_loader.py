@@ -148,3 +148,36 @@ def discover_definitions(
             continue
 
     return results
+
+
+def write_definition(
+    def_id: str,
+    frontmatter: dict[str, Any],
+    body: str,
+    base_path: Path,
+    filename: str,
+) -> Path:
+    """
+    Write a definition file with YAML frontmatter and markdown body.
+
+    Args:
+        def_id: Definition ID (directory name)
+        frontmatter: Dict of YAML frontmatter fields
+        body: Markdown body content
+        base_path: Base directory (e.g., agents_path, skills_path)
+        filename: File to write (e.g., "AGENT.md", "SKILL.md")
+
+    Returns:
+        Path to the written file
+    """
+    def_dir = base_path / def_id
+    def_dir.mkdir(parents=True, exist_ok=True)
+
+    # Build file content with YAML frontmatter
+    yaml_content = yaml.dump(frontmatter, default_flow_style=False, sort_keys=False)
+    content = f"---\n{yaml_content}---\n\n{body.strip()}\n"
+
+    def_file = def_dir / filename
+    def_file.write_text(content)
+
+    return def_file

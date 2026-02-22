@@ -8,34 +8,22 @@ from picklebot.api.deps import get_context
 from picklebot.api.schemas import CronCreate
 from picklebot.core.context import SharedContext
 from picklebot.core.cron_loader import CronDef
-from picklebot.utils.def_loader import DefNotFoundError
+from picklebot.utils.def_loader import DefNotFoundError, write_definition
 
 router = APIRouter()
 
 
 def _write_cron_file(cron_id: str, data: CronCreate, crons_path) -> None:  # type: ignore[valid-type]
     """Write cron definition to file."""
-    cron_dir = crons_path / cron_id
-    cron_dir.mkdir(parents=True, exist_ok=True)
-
     # Type ignore: CronCreate is dynamically created
-    name = data.name  # type: ignore[attr-defined]
-    agent = data.agent  # type: ignore[attr-defined]
-    schedule = data.schedule  # type: ignore[attr-defined]
-    one_off = data.one_off  # type: ignore[attr-defined]
-    prompt = data.prompt  # type: ignore[attr-defined]
-
-    content = f"""---
-name: {name}
-agent: {agent}
-schedule: "{schedule}"
-one_off: {one_off}
----
-
-{prompt}
-"""
-
-    (cron_dir / "CRON.md").write_text(content)
+    frontmatter = {
+        "name": data.name,  # type: ignore[attr-defined]
+        "agent": data.agent,  # type: ignore[attr-defined]
+        "schedule": data.schedule,  # type: ignore[attr-defined]
+        "one_off": data.one_off,  # type: ignore[attr-defined]
+    }
+    body = data.prompt  # type: ignore[attr-defined]
+    write_definition(cron_id, frontmatter, body, crons_path, "CRON.md")
 
 
 @router.get("", response_model=list[CronDef])

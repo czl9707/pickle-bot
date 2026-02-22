@@ -8,30 +8,20 @@ from picklebot.api.deps import get_context
 from picklebot.api.schemas import SkillCreate
 from picklebot.core.context import SharedContext
 from picklebot.core.skill_loader import SkillDef
-from picklebot.utils.def_loader import DefNotFoundError
+from picklebot.utils.def_loader import DefNotFoundError, write_definition
 
 router = APIRouter()
 
 
 def _write_skill_file(skill_id: str, data: SkillCreate, skills_path) -> None:  # type: ignore[valid-type]
     """Write skill definition to file."""
-    skill_dir = skills_path / skill_id
-    skill_dir.mkdir(parents=True, exist_ok=True)
-
     # Type ignore: SkillCreate is dynamically created
-    name = data.name  # type: ignore[attr-defined]
-    description = data.description  # type: ignore[attr-defined]
-    content_body = data.content  # type: ignore[attr-defined]
-
-    content = f"""---
-name: {name}
-description: {description}
----
-
-{content_body}
-"""
-
-    (skill_dir / "SKILL.md").write_text(content)
+    frontmatter = {
+        "name": data.name,  # type: ignore[attr-defined]
+        "description": data.description,  # type: ignore[attr-defined]
+    }
+    body = data.content  # type: ignore[attr-defined]
+    write_definition(skill_id, frontmatter, body, skills_path, "SKILL.md")
 
 
 @router.get("", response_model=list[SkillDef])
