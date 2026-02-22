@@ -109,7 +109,9 @@ class Agent:
             max_history=max_history,
         )
 
-        self.context.history_store.create_session(self.agent_def.id, session_id)
+        self.context.history_store.create_session(
+            self.agent_def.id, session_id, max_history=max_history
+        )
         return session
 
     def resume_session(self, session_id: str) -> "AgentSession":

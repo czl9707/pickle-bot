@@ -71,7 +71,9 @@ class Server:
                 if worker.has_crashed():
                     exc = worker.get_exception()
                     if exc is None:
-                        logger.warning(f"{worker.__class__.__name__} exited unexpectedly")
+                        logger.warning(
+                            f"{worker.__class__.__name__} exited unexpectedly"
+                        )
                     else:
                         logger.error(f"{worker.__class__.__name__} crashed: {exc}")
 

@@ -1,6 +1,5 @@
 """Abstract base class for message bus implementations."""
 
-import asyncio
 from abc import ABC, abstractmethod
 from typing import Callable, Awaitable, Generic, TypeVar, Any
 
@@ -9,9 +8,12 @@ from picklebot.utils.config import Config
 
 class MessageContext(ABC):
     """Abstract base for message context."""
+
     pass
 
+
 T = TypeVar("T", bound=MessageContext)
+
 
 class MessageBus(ABC, Generic[T]):
     """Abstract base for messaging platforms with platform-specific context."""
