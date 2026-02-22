@@ -7,6 +7,7 @@ import yaml
 from pydantic import ValidationError
 from rich.console import Console
 
+from picklebot.provider.base import LLMProvider
 from picklebot.utils.config import Config
 
 
@@ -32,33 +33,43 @@ class OnboardingWizard:
             (self.workspace / subdir).mkdir(exist_ok=True)
 
     def configure_llm(self) -> None:
-        """Prompt user for LLM configuration."""
-        provider = questionary.select(
-            "Select LLM provider:",
-            choices=["openai", "anthropic", "zai", "other"],
-        ).ask()
+        """Prompt user for LLM configuration using auto-discovered providers."""
+        # Get providers for onboarding
+        providers = LLMProvider.get_onboarding_providers()
 
-        if provider == "other":
-            provider = questionary.text("Enter provider name:").ask()
+        choices = [
+            questionary.Choice(
+                title=f"{p.display_name} (default: {p.default_model})",
+                value=config_name,
+            )
+            for config_name, p in providers
+        ]
+        choices.append(questionary.Choice("Other (custom)", value="other"))
 
+        provider = questionary.select("Select LLM provider:", choices=choices).ask()
+
+        # Get provider class for defaults
+        provider_cls = LLMProvider.name2provider[provider]
+
+        # Model with provider default
         model = questionary.text(
             "Model name:",
-            default="gpt-4" if provider == "openai" else "claude-3-opus",
+            default=provider_cls.default_model,
         ).ask()
 
-        api_key = questionary.text("API key:").ask()
+        # API key with env var hint
+        env_hint = f" (or set {provider_cls.env_var})" if provider_cls.env_var else ""
+        api_key = questionary.text(f"API key{env_hint}:").ask()
 
-        api_base = questionary.text(
-            "API base URL (optional, press Enter to skip):",
-            default="",
-        ).ask()
+        # API base (only for "other" or if provider has default)
+        api_base = ""
+        if provider == "other" or provider_cls.api_base:
+            api_base = questionary.text(
+                "API base URL (optional):",
+                default=provider_cls.api_base or "",
+            ).ask()
 
-        self.state["llm"] = {
-            "provider": provider,
-            "model": model,
-            "api_key": api_key,
-        }
-
+        self.state["llm"] = {"provider": provider, "model": model, "api_key": api_key}
         if api_base:
             self.state["llm"]["api_base"] = api_base
 

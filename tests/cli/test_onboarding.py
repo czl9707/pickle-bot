@@ -39,15 +39,41 @@ def test_configure_llm_stores_state():
         patch("questionary.select") as mock_select,
         patch("questionary.text") as mock_text,
     ):
+        # Mock select returns the provider config_name
         mock_select.return_value.ask.return_value = "openai"
-        mock_text.return_value.ask.side_effect = ["gpt-4", "sk-test-key", ""]
+        # Model uses provider default - questionary returns default when user presses enter
+        # Then api_key (no default), then api_base not prompted for openai
+        mock_text.return_value.ask.side_effect = ["gpt-4o", "sk-test-key"]
 
         wizard.configure_llm()
 
     assert wizard.state["llm"]["provider"] == "openai"
-    assert wizard.state["llm"]["model"] == "gpt-4"
+    assert wizard.state["llm"]["model"] == "gpt-4o"  # default from provider
     assert wizard.state["llm"]["api_key"] == "sk-test-key"
     assert wizard.state["llm"].get("api_base") is None
+
+
+def test_configure_llm_other_provider_prompts_api_base():
+    """Test that other provider prompts for api_base."""
+    wizard = OnboardingWizard()
+
+    with (
+        patch("questionary.select") as mock_select,
+        patch("questionary.text") as mock_text,
+    ):
+        mock_select.return_value.ask.return_value = "other"
+        mock_text.return_value.ask.side_effect = [
+            "llama-3",  # model (no default)
+            "my-key",  # api_key
+            "http://localhost:11434",  # api_base
+        ]
+
+        wizard.configure_llm()
+
+    assert wizard.state["llm"]["provider"] == "other"
+    assert wizard.state["llm"]["model"] == "llama-3"
+    assert wizard.state["llm"]["api_key"] == "my-key"
+    assert wizard.state["llm"]["api_base"] == "http://localhost:11434"
 
 
 def test_configure_messagebus_stores_state():
