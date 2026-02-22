@@ -3,7 +3,6 @@
 from pathlib import Path
 from typing import Annotated
 
-import questionary
 import typer
 from rich.console import Console
 
@@ -22,39 +21,12 @@ app = typer.Typer(
 console = Console()
 
 
-# Global config option callback
-def load_config_callback(ctx: typer.Context, workspace: str):
-    """Load configuration and store it in the context."""
-    workspace_path = Path(workspace)
-    config_file = workspace_path / "config.user.yaml"
-
-    try:
-        if not config_file.exists():
-            # Offer onboarding
-            run_onboarding = questionary.confirm(
-                "No configuration found. Run onboarding now?",
-                default=True,
-            ).ask()
-
-            if run_onboarding:
-                wizard = OnboardingWizard(workspace=workspace_path)
-                wizard.run()
-            else:
-                console.print(
-                    "[yellow]Run 'picklebot init' to set up configuration.[/yellow]"
-                )
-                raise typer.Exit(1)
-
-        cfg = Config.load(workspace_path)
-        ctx.ensure_object(dict)
-        ctx.obj["config"] = cfg
-
-    except FileNotFoundError as e:
-        console.print(f"[red]{e}[/red]")
-        raise typer.Exit(1)
-    except Exception as e:
-        console.print(f"[red]Error loading config: {e}[/red]")
-        raise typer.Exit(1)
+# Global workspace option callback
+def workspace_callback(ctx: typer.Context, workspace: str):
+    """Store workspace path in context for later use."""
+    ctx.ensure_object(dict)
+    ctx.obj["workspace"] = Path(workspace)
+    return Path(workspace)
 
 
 @app.callback()
@@ -65,7 +37,7 @@ def main(
         "--workspace",
         "-w",
         help="Path to workspace directory",
-        callback=load_config_callback,
+        callback=workspace_callback,
     ),
 ) -> None:
     """
@@ -74,8 +46,24 @@ def main(
     Configuration is loaded from ~/.pickle-bot/ by default.
     Use --workspace to specify a custom workspace directory.
     """
-    # Config is loaded via callback, nothing to do here
-    pass
+    # Skip config check for init command - it handles its own setup
+    if ctx.invoked_subcommand == "init":
+        return
+
+    workspace_path = ctx.obj["workspace"]
+    config_file = workspace_path / "config.user.yaml"
+
+    if not config_file.exists():
+        console.print("[yellow]No configuration found.[/yellow]")
+        console.print("Run [bold]picklebot init[/bold] to set up.")
+        raise typer.Exit(1)
+
+    try:
+        cfg = Config.load(workspace_path)
+        ctx.obj["config"] = cfg
+    except Exception as e:
+        console.print(f"[red]Error loading config: {e}[/red]")
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -107,9 +95,7 @@ def init(
     ctx: typer.Context,
 ) -> None:
     """Initialize pickle-bot configuration with interactive onboarding."""
-    workspace = (
-        ctx.obj.get("config").workspace if ctx.obj else Path.home() / ".pickle-bot"
-    )
+    workspace = ctx.obj.get("workspace", Path.home() / ".pickle-bot")
     wizard = OnboardingWizard(workspace=workspace)
     wizard.run()
 
