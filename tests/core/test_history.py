@@ -507,8 +507,12 @@ class TestGetMessagesChunking:
         """get_messages should return all when less than max_history."""
         history_store.create_session("agent", "session-1", max_history=100)
 
-        history_store.save_message("session-1", HistoryMessage(role="user", content="a"))
-        history_store.save_message("session-1", HistoryMessage(role="user", content="b"))
+        history_store.save_message(
+            "session-1", HistoryMessage(role="user", content="a")
+        )
+        history_store.save_message(
+            "session-1", HistoryMessage(role="user", content="b")
+        )
 
         messages = history_store.get_messages("session-1")
         assert len(messages) == 2

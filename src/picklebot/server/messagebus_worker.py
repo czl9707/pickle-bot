@@ -26,7 +26,9 @@ class MessageBusWorker(Worker):
             agent = Agent(agent_def, context)
             self.global_session = agent.new_session(SessionMode.CHAT)
         except DefNotFoundError as e:
-            self.logger.error(f"Default agent not found: {context.config.default_agent}")
+            self.logger.error(
+                f"Default agent not found: {context.config.default_agent}"
+            )
             raise RuntimeError(f"Failed to initialize MessageBusWorker: {e}") from e
 
     async def run(self) -> None:
@@ -51,7 +53,9 @@ class MessageBusWorker(Worker):
                 bus = self.bus_map[platform]
 
                 if not bus.is_allowed(context):
-                    self.logger.debug(f"Ignored non-whitelisted message from {platform}")
+                    self.logger.debug(
+                        f"Ignored non-whitelisted message from {platform}"
+                    )
                     return
 
                 frontend = MessageBusFrontend(bus, context)

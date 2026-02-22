@@ -59,7 +59,9 @@ class TestServer:
             assert mock_worker_class.called  # MessageBusWorker was created
 
     @pytest.mark.anyio
-    async def test_server_does_not_setup_messagebus_worker_when_no_buses(self, test_config):
+    async def test_server_does_not_setup_messagebus_worker_when_no_buses(
+        self, test_config
+    ):
         """Server doesn't setup MessageBusWorker if no buses configured."""
         test_config.messagebus = MessageBusConfig(
             enabled=True,

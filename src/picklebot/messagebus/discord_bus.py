@@ -20,6 +20,7 @@ class DiscordContext(MessageContext):
     user_id: str  # author.id - for whitelisting
     channel_id: str  # channel.id - for replying
 
+
 class DiscordBus(MessageBus[DiscordContext]):
     """Discord platform implementation using discord.py."""
 
@@ -91,7 +92,9 @@ class DiscordBus(MessageBus[DiscordContext]):
                 logger.error(f"Error in message callback: {e}")
 
         # Start the bot and store the task
-        self._running_task = asyncio.create_task(self.client.start(self.config.bot_token))
+        self._running_task = asyncio.create_task(
+            self.client.start(self.config.bot_token)
+        )
 
         logger.info("DiscordBus started")
         await self._running_task

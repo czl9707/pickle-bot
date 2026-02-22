@@ -14,7 +14,6 @@ from picklebot.utils.config import TelegramConfig
 logger = logging.getLogger(__name__)
 
 
-
 @dataclass
 class TelegramContext(MessageContext):
     """Context for Telegram messages."""
@@ -27,7 +26,7 @@ class TelegramBus(MessageBus[TelegramContext]):
     """Telegram platform implementation using python-telegram-bot."""
 
     platform_name = "telegram"
-    
+
     def __init__(self, config: TelegramConfig):
         """
         Initialize TelegramBus.

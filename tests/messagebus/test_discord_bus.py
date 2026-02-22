@@ -24,7 +24,9 @@ async def test_discord_bus_run_stop():
     mock_client.start = AsyncMock()
     mock_client.close = AsyncMock()
 
-    with patch("picklebot.messagebus.discord_bus.discord.Client", return_value=mock_client):
+    with patch(
+        "picklebot.messagebus.discord_bus.discord.Client", return_value=mock_client
+    ):
         # Should not raise - callback now receives (content, context)
         async def dummy_callback(content: str, context: DiscordContext) -> None:
             pass
@@ -109,7 +111,9 @@ class TestDiscordBusRunStop:
         async def dummy_callback(content: str, context: DiscordContext) -> None:
             pass
 
-        with patch("picklebot.messagebus.discord_bus.discord.Client", return_value=mock_client):
+        with patch(
+            "picklebot.messagebus.discord_bus.discord.Client", return_value=mock_client
+        ):
             await bus.run(dummy_callback)
 
             # Second call should raise
@@ -129,7 +133,9 @@ class TestDiscordBusRunStop:
         async def dummy_callback(content: str, context: DiscordContext) -> None:
             pass
 
-        with patch("picklebot.messagebus.discord_bus.discord.Client", return_value=mock_client):
+        with patch(
+            "picklebot.messagebus.discord_bus.discord.Client", return_value=mock_client
+        ):
             await bus.run(dummy_callback)
             await bus.stop()
             await bus.stop()  # Second call should be no-op
@@ -159,7 +165,9 @@ class TestDiscordBusRunStop:
         async def dummy_callback(content: str, context: DiscordContext) -> None:
             pass
 
-        with patch("picklebot.messagebus.discord_bus.discord.Client", return_value=mock_client):
+        with patch(
+            "picklebot.messagebus.discord_bus.discord.Client", return_value=mock_client
+        ):
             # First cycle
             await bus.run(dummy_callback)
             await bus.stop()
@@ -170,5 +178,3 @@ class TestDiscordBusRunStop:
             # Second cycle should work
             await bus.run(dummy_callback)
             mock_client.start.assert_called_once()
-
-
