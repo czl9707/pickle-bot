@@ -1,6 +1,6 @@
 """Base LLM provider abstraction."""
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Optional, cast
 
@@ -35,6 +35,22 @@ class LLMProvider(ABC):
     provider_config_name: list[str]
     name2provider: dict[str, type["LLMProvider"]] = {}
 
+    @property
+    @abstractmethod
+    def display_name(self) -> str:
+        """Friendly name for onboarding wizard."""
+        ...
+
+    @property
+    @abstractmethod
+    def default_model(self) -> str:
+        """Default model for this provider."""
+        ...
+
+    # Optional class attributes (subclasses can override)
+    env_var: str | None = None
+    api_base: str | None = None
+
     def __init__(
         self,
         model: str,
@@ -51,6 +67,23 @@ class LLMProvider(ABC):
         for c_name in cls.provider_config_name:
             LLMProvider.name2provider[c_name] = cls
         return super().__init_subclass__()
+
+    @classmethod
+    def get_onboarding_providers(cls) -> list[tuple[str, type["LLMProvider"]]]:
+        """Return list of (config_name, provider_class) for onboarding wizard.
+
+        Returns unique providers (first config_name only), excluding "other".
+        "other" is handled separately as fallback.
+        """
+        seen = set()
+        providers = []
+        for config_name, provider_cls in cls.name2provider.items():
+            if config_name == "other":
+                continue
+            if provider_cls not in seen:
+                seen.add(provider_cls)
+                providers.append((config_name, provider_cls))
+        return providers
 
     @staticmethod
     def from_config(config: LLMConfig) -> "LLMProvider":
