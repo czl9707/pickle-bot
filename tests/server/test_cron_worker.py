@@ -80,3 +80,69 @@ async def test_cron_worker_dispatches_due_job(test_context):
     assert job.agent_id == "pickle"
     assert job.message == "Test prompt from cron"
     assert job.mode == SessionMode.JOB
+
+
+@pytest.mark.anyio
+async def test_cron_worker_deletes_one_off_after_dispatch(test_context):
+    """CronWorker deletes one-off crons after dispatching to queue."""
+    queue: asyncio.Queue[Job] = asyncio.Queue()
+    worker = CronWorker(test_context, queue)
+
+    # Create a one-off cron job
+    mock_cron = CronDef(
+        id="one-off-cron",
+        name="One Off Cron",
+        agent="pickle",
+        schedule="*/5 * * * *",
+        prompt="One off task",
+        one_off=True,
+    )
+
+    with patch.object(
+        test_context.cron_loader, "discover_crons", return_value=[mock_cron]
+    ):
+        with patch(
+            "picklebot.server.cron_worker.find_due_jobs", return_value=[mock_cron]
+        ):
+            with patch("picklebot.server.cron_worker.shutil.rmtree") as mock_rmtree:
+                await worker._tick()
+
+    # Verify job was dispatched
+    assert not queue.empty()
+    job = queue.get_nowait()
+    assert job.message == "One off task"
+
+    # Verify one-off cron was deleted
+    expected_path = test_context.cron_loader.config.crons_path / "one-off-cron"
+    mock_rmtree.assert_called_once_with(expected_path)
+
+
+@pytest.mark.anyio
+async def test_cron_worker_keeps_recurring_cron(test_context):
+    """CronWorker does not delete recurring crons."""
+    queue: asyncio.Queue[Job] = asyncio.Queue()
+    worker = CronWorker(test_context, queue)
+
+    # Create a recurring cron job (one_off=False is default)
+    mock_cron = CronDef(
+        id="recurring-cron",
+        name="Recurring Cron",
+        agent="pickle",
+        schedule="*/5 * * * *",
+        prompt="Recurring task",
+    )
+
+    with patch.object(
+        test_context.cron_loader, "discover_crons", return_value=[mock_cron]
+    ):
+        with patch(
+            "picklebot.server.cron_worker.find_due_jobs", return_value=[mock_cron]
+        ):
+            with patch("picklebot.server.cron_worker.shutil.rmtree") as mock_rmtree:
+                await worker._tick()
+
+    # Verify job was dispatched
+    assert not queue.empty()
+
+    # Verify cron was NOT deleted
+    mock_rmtree.assert_not_called()

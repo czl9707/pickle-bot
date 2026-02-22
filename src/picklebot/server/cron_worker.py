@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import shutil
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -85,3 +86,9 @@ class CronWorker(Worker):
             )
             await self.agent_queue.put(job)
             self.logger.info(f"Dispatched cron job: {cron_def.id}")
+
+            # Delete one-off crons after dispatching
+            if cron_def.one_off:
+                cron_path = self.context.cron_loader.config.crons_path / cron_def.id
+                shutil.rmtree(cron_path)
+                self.logger.info(f"Deleted one-off cron job: {cron_def.id}")
