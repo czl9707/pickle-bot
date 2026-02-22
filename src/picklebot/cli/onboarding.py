@@ -2,10 +2,12 @@
 
 from pathlib import Path
 
-import yaml
-
 import questionary
+import yaml
+from pydantic import ValidationError
 from rich.console import Console
+
+from picklebot.utils.config import Config
 
 
 class OnboardingWizard:
@@ -150,19 +152,39 @@ class OnboardingWizard:
 
         return config
 
-    def save_config(self) -> None:
-        """Write configuration to YAML files."""
+    def save_config(self) -> bool:
+        """
+        Write configuration to YAML files.
+
+        Returns:
+            True if save succeeded, False if validation failed.
+        """
+        # System defaults that will be written
+        system_defaults = {
+            "default_agent": "pickle",
+            "logging_path": ".logs",
+            "history_path": ".history",
+        }
+
+        # Validate config structure (merge system defaults with user state)
+        try:
+            config_data = {"workspace": self.workspace}
+            config_data.update(system_defaults)
+            config_data.update(self.state)
+            Config.model_validate(config_data)
+        except ValidationError as e:
+            console = Console()
+            console.print("\n[red]Configuration validation failed:[/red]")
+            for error in e.errors():
+                console.print(f"  - {error['loc'][0]}: {error['msg']}")
+            return False
+
         # Ensure workspace exists
         self.workspace.mkdir(parents=True, exist_ok=True)
 
         # Write system defaults (only if not exists)
         system_config_path = self.workspace / "config.system.yaml"
         if not system_config_path.exists():
-            system_defaults = {
-                "default_agent": "pickle",
-                "logging_path": ".logs",
-                "history_path": ".history",
-            }
             with open(system_config_path, "w") as f:
                 yaml.dump(system_defaults, f, default_flow_style=False)
 
@@ -170,6 +192,8 @@ class OnboardingWizard:
         user_config_path = self.workspace / "config.user.yaml"
         with open(user_config_path, "w") as f:
             yaml.dump(self.state, f, default_flow_style=False)
+
+        return True
 
     def run(self) -> None:
         """Run the complete onboarding flow."""

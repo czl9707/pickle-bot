@@ -149,3 +149,23 @@ def test_run_orchestrates_all_steps():
         mock_llm.assert_called_once()
         mock_bus.assert_called_once()
         mock_save.assert_called_once()
+
+
+def test_save_config_validates_with_pydantic():
+    """Test that save_config validates config structure."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workspace = Path(tmpdir) / "test-workspace"
+        wizard = OnboardingWizard(workspace=workspace)
+
+        # Missing required fields
+        wizard.state = {
+            "llm": {"provider": "openai"},  # missing model and api_key
+            "messagebus": {"enabled": False},
+        }
+
+        with patch("questionary.confirm") as mock_confirm:
+            mock_confirm.return_value.ask.return_value = False
+            result = wizard.save_config()
+
+        # Should handle validation error gracefully
+        assert result is False or "error" in str(result).lower()
