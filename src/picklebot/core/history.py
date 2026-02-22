@@ -128,6 +128,33 @@ class HistoryStore:
         """Get the file path for a session."""
         return self.sessions_path / f"session-{session_id}.jsonl"
 
+    def _chunk_path(self, session_id: str, index: int) -> Path:
+        """Get the file path for a session chunk."""
+        return self.sessions_path / f"session-{session_id}.{index}.jsonl"
+
+    def _list_chunks(self, session_id: str) -> list[Path]:
+        """List all chunk files for a session, sorted newest first."""
+        pattern = f"session-{session_id}.*.jsonl"
+        chunks = list(self.sessions_path.glob(pattern))
+        # Sort by index (descending - newest first)
+        chunks.sort(key=lambda p: int(p.name.split(".")[-2]), reverse=True)
+        return chunks
+
+    def _get_current_chunk_index(self, session_id: str) -> int:
+        """Get the current (highest) chunk index, or 1 if no chunks exist."""
+        chunks = self._list_chunks(session_id)
+        if not chunks:
+            return 1
+        # Extract index from filename: session-id.N.jsonl
+        return int(chunks[0].name.split(".")[-2])
+
+    def _count_messages_in_chunk(self, chunk_path: Path) -> int:
+        """Count the number of messages in a chunk file."""
+        if not chunk_path.exists():
+            return 0
+        with open(chunk_path) as f:
+            return sum(1 for line in f if line.strip())
+
     def _read_index(self) -> list[HistorySession]:
         """Read all session entries from index.jsonl."""
         if not self.index_path.exists():

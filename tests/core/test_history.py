@@ -344,3 +344,61 @@ class TestHistorySessionFields:
             updated_at="2024-01-01T00:00:00",
         )
         assert session.chunk_count == 3
+
+
+class TestHistoryStoreChunkHelpers:
+    def test_chunk_path_format(self, history_store):
+        """_chunk_path should return correct path format."""
+        path = history_store._chunk_path("abc-123", 1)
+        assert path == history_store.sessions_path / "session-abc-123.1.jsonl"
+
+        path = history_store._chunk_path("abc-123", 5)
+        assert path == history_store.sessions_path / "session-abc-123.5.jsonl"
+
+    def test_list_chunks_returns_empty_for_no_chunks(self, history_store):
+        """_list_chunks should return empty list when no chunks exist."""
+        chunks = history_store._list_chunks("no-such-session")
+        assert chunks == []
+
+    def test_list_chunks_returns_sorted_chunks(self, history_store):
+        """_list_chunks should return chunks sorted by index (newest first)."""
+        # Create chunk files manually
+        history_store.sessions_path.mkdir(parents=True, exist_ok=True)
+        (history_store.sessions_path / "session-test.1.jsonl").touch()
+        (history_store.sessions_path / "session-test.3.jsonl").touch()
+        (history_store.sessions_path / "session-test.2.jsonl").touch()
+
+        chunks = history_store._list_chunks("test")
+        assert len(chunks) == 3
+        # Newest first (highest index)
+        assert chunks[0].name == "session-test.3.jsonl"
+        assert chunks[1].name == "session-test.2.jsonl"
+        assert chunks[2].name == "session-test.1.jsonl"
+
+    def test_get_current_chunk_index_returns_1_when_empty(self, history_store):
+        """_get_current_chunk_index should return 1 when no chunks exist."""
+        idx = history_store._get_current_chunk_index("no-session")
+        assert idx == 1
+
+    def test_get_current_chunk_index_returns_highest(self, history_store):
+        """_get_current_chunk_index should return highest existing index."""
+        history_store.sessions_path.mkdir(parents=True, exist_ok=True)
+        (history_store.sessions_path / "session-test.1.jsonl").touch()
+        (history_store.sessions_path / "session-test.5.jsonl").touch()
+        (history_store.sessions_path / "session-test.3.jsonl").touch()
+
+        idx = history_store._get_current_chunk_index("test")
+        assert idx == 5
+
+    def test_count_messages_in_chunk(self, history_store):
+        """_count_messages_in_chunk should count lines in chunk file."""
+        chunk_path = history_store.sessions_path / "session-test.1.jsonl"
+        chunk_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(chunk_path, "w") as f:
+            f.write('{"role":"user","content":"msg1"}\n')
+            f.write('{"role":"user","content":"msg2"}\n')
+            f.write('{"role":"user","content":"msg3"}\n')
+
+        count = history_store._count_messages_in_chunk(chunk_path)
+        assert count == 3
