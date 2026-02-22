@@ -1,7 +1,6 @@
 """Tests for CronWorker."""
 
 import asyncio
-import shutil
 import pytest
 from datetime import datetime
 from unittest.mock import patch
@@ -84,10 +83,13 @@ async def test_cron_worker_dispatches_due_job(test_context):
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("one_off,should_delete", [
-    (True, True),
-    (False, False),
-])
+@pytest.mark.parametrize(
+    "one_off,should_delete",
+    [
+        (True, True),
+        (False, False),
+    ],
+)
 async def test_one_off_cron_deletion(test_context, one_off, should_delete):
     """CronWorker deletes one-off crons but keeps recurring crons."""
     queue: asyncio.Queue[Job] = asyncio.Queue()
