@@ -111,3 +111,41 @@ class TestConfigSetters:
         config.set_user("default_agent", "my-agent")
 
         assert config.default_agent == "my-agent"
+
+    def test_set_runtime_creates_file(self, tmp_path):
+        """set_runtime creates config.runtime.yaml if it doesn't exist."""
+        system_config = tmp_path / "config.system.yaml"
+        system_config.write_text(
+            "default_agent: system-agent\n"
+            "llm:\n"
+            "  provider: openai\n"
+            "  model: gpt-4\n"
+            "  api_key: system-key\n"
+        )
+
+        config = Config.load(tmp_path)
+        config.set_runtime("default_agent", "runtime-agent")
+
+        # File should exist
+        runtime_config = tmp_path / "config.runtime.yaml"
+        assert runtime_config.exists()
+
+        # Content should be correct
+        data = yaml.safe_load(runtime_config.read_text())
+        assert data["default_agent"] == "runtime-agent"
+
+    def test_set_runtime_updates_in_memory(self, tmp_path):
+        """set_runtime updates the in-memory config object."""
+        system_config = tmp_path / "config.system.yaml"
+        system_config.write_text(
+            "default_agent: system-agent\n"
+            "llm:\n"
+            "  provider: openai\n"
+            "  model: gpt-4\n"
+            "  api_key: system-key\n"
+        )
+
+        config = Config.load(tmp_path)
+        config.set_runtime("default_agent", "runtime-agent")
+
+        assert config.default_agent == "runtime-agent"

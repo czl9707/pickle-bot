@@ -232,3 +232,30 @@ class Config(BaseModel):
 
         # Update in-memory config
         setattr(self, key, value)
+
+    def set_runtime(self, key: str, value: Any) -> None:
+        """
+        Update a runtime value in config.runtime.yaml.
+
+        Args:
+            key: Config key to update
+            value: New value
+        """
+        runtime_config_path = self.workspace / "config.runtime.yaml"
+
+        # Load existing or start fresh
+        if runtime_config_path.exists():
+            with open(runtime_config_path) as f:
+                runtime_data = yaml.safe_load(f) or {}
+        else:
+            runtime_data = {}
+
+        # Update the key
+        runtime_data[key] = value
+
+        # Write back
+        with open(runtime_config_path, "w") as f:
+            yaml.dump(runtime_data, f)
+
+        # Update in-memory config
+        setattr(self, key, value)
