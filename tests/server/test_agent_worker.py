@@ -149,3 +149,43 @@ You are a test assistant.
     # Job should be requeued with message = "."
     assert job.message == "."
     assert not queue.empty()  # Job was put back in queue
+
+
+@pytest.mark.anyio
+async def test_agent_worker_recovers_missing_session(test_context, tmp_path):
+    """AgentWorker creates new session with same ID if session not found in history."""
+    # Create a test agent definition
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir(parents=True)
+    test_agent_dir = agents_dir / "test-agent"
+    test_agent_dir.mkdir(parents=True)
+
+    agent_md = test_agent_dir / "AGENT.md"
+    agent_md.write_text(
+        """---
+name: Test Agent
+description: A test agent
+---
+You are a test assistant.
+"""
+    )
+
+    queue: asyncio.Queue[Job] = asyncio.Queue()
+    worker = AgentWorker(test_context, queue)
+
+    # Create a job with a session_id that doesn't exist in history
+    nonexistent_session_id = "nonexistent-session-uuid"
+    job = Job(
+        session_id=nonexistent_session_id,
+        agent_id="test-agent",
+        message="Test",
+        frontend=FakeFrontend(),
+        mode=SessionMode.CHAT,
+    )
+
+    await worker._process_job(job)
+
+    # Session should be created with the provided ID in history
+    assert job.session_id == nonexistent_session_id
+    session_ids = [s.id for s in test_context.history_store.list_sessions()]
+    assert nonexistent_session_id in session_ids
