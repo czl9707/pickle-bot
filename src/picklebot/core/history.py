@@ -20,6 +20,8 @@ class HistorySession(BaseModel):
 
     id: str
     agent_id: str
+    max_history: int = 50  # Maximum messages per chunk
+    chunk_count: int = 1  # Number of chunk files
     title: str | None = None
     message_count: int = 0
     created_at: str
