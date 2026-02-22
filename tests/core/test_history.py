@@ -484,3 +484,50 @@ class TestSaveMessageChunking:
         )
         assert chunk_count == 1
         assert not history_store._chunk_path("session-1", 2).exists()
+
+
+class TestGetMessagesChunking:
+    def test_loads_from_multiple_chunks(self, history_store):
+        """get_messages should load from multiple chunks, newest first."""
+        history_store.create_session("agent", "session-1", max_history=2)
+
+        # Create 5 messages across 3 chunks
+        for i in range(5):
+            history_store.save_message(
+                "session-1", HistoryMessage(role="user", content=f"msg{i}")
+            )
+
+        # max_history=2, so should only get last 2 messages
+        messages = history_store.get_messages("session-1")
+        assert len(messages) == 2
+        assert messages[0].content == "msg3"
+        assert messages[1].content == "msg4"
+
+    def test_loads_all_when_less_than_max(self, history_store):
+        """get_messages should return all when less than max_history."""
+        history_store.create_session("agent", "session-1", max_history=100)
+
+        history_store.save_message("session-1", HistoryMessage(role="user", content="a"))
+        history_store.save_message("session-1", HistoryMessage(role="user", content="b"))
+
+        messages = history_store.get_messages("session-1")
+        assert len(messages) == 2
+        assert messages[0].content == "a"
+        assert messages[1].content == "b"
+
+    def test_spans_chunks_for_max_history(self, history_store):
+        """get_messages should span chunks to reach max_history."""
+        history_store.create_session("agent", "session-1", max_history=3)
+
+        # 5 messages across 2 chunks (3 in chunk 1, 2 in chunk 2)
+        for i in range(5):
+            history_store.save_message(
+                "session-1", HistoryMessage(role="user", content=f"msg{i}")
+            )
+
+        # max_history=3, should get last 3 (1 from chunk 1, 2 from chunk 2)
+        messages = history_store.get_messages("session-1")
+        assert len(messages) == 3
+        assert messages[0].content == "msg2"
+        assert messages[1].content == "msg3"
+        assert messages[2].content == "msg4"

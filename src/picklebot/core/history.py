@@ -266,19 +266,41 @@ class HistoryStore:
         return sessions
 
     def get_messages(self, session_id: str) -> list[HistoryMessage]:
-        """Get all messages for a session."""
-        # For now, use chunk 1 (multi-chunk reading will be added in Task 5)
-        session_file = self._chunk_path(session_id, 1)
-        if not session_file.exists():
+        """Get messages for a session, up to max_history."""
+        # Get session to access max_history
+        sessions = self._read_index()
+        idx = self._find_session_index(sessions, session_id)
+        if idx < 0:
             return []
 
-        messages = []
-        with open(session_file) as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    try:
-                        messages.append(HistoryMessage.model_validate_json(line))
-                    except Exception:
-                        continue
-        return messages
+        max_history = sessions[idx].max_history
+
+        # Load from chunks, newest first
+        chunks = self._list_chunks(session_id)
+        messages: list[HistoryMessage] = []
+
+        for chunk in chunks:
+            if not chunk.exists():
+                continue
+
+            chunk_messages: list[HistoryMessage] = []
+            with open(chunk) as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        try:
+                            chunk_messages.append(
+                                HistoryMessage.model_validate_json(line)
+                            )
+                        except Exception:
+                            continue
+
+            # Prepend older messages
+            messages = chunk_messages + messages
+
+            # Stop if we have enough
+            if len(messages) >= max_history:
+                break
+
+        # Return newest max_history messages
+        return messages[-max_history:]
