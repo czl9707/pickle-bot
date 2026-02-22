@@ -198,56 +198,64 @@ class Config(BaseModel):
 
         return result
 
+    def _set_nested(self, obj: dict, key: str, value: Any) -> None:
+        """Set a nested value in a dict using dot notation."""
+        keys = key.split(".")
+        for k in keys[:-1]:
+            if k not in obj or not isinstance(obj[k], dict):
+                obj[k] = {}
+            obj = obj[k]
+        obj[keys[-1]] = value
+
+    def _set_config_value(self, config_path: Path, key: str, value: Any) -> None:
+        """
+        Update a config value in a YAML file.
+
+        Args:
+            config_path: Path to the YAML file
+            key: Config key (supports dot notation for nested values)
+            value: New value
+        """
+        # Load existing or start fresh
+        if config_path.exists():
+            with open(config_path) as f:
+                data = yaml.safe_load(f) or {}
+        else:
+            data = {}
+
+        # Update the key (supports nested via dot notation)
+        self._set_nested(data, key, value)
+
+        # Write back
+        with open(config_path, "w") as f:
+            yaml.dump(data, f)
+
+    def _update_in_memory(self, key: str, value: Any) -> None:
+        """Update in-memory config, supporting nested attributes."""
+        keys = key.split(".")
+        obj = self
+        for k in keys[:-1]:
+            obj = getattr(obj, k)
+        setattr(obj, keys[-1], value)
+
     def set_user(self, key: str, value: Any) -> None:
         """
         Update a config value in config.user.yaml.
 
         Args:
-            key: Config key to update
+            key: Config key (supports dot notation, e.g., "llm.api_key")
             value: New value
         """
-        user_config_path = self.workspace / "config.user.yaml"
-
-        # Load existing or start fresh
-        if user_config_path.exists():
-            with open(user_config_path) as f:
-                user_data = yaml.safe_load(f) or {}
-        else:
-            user_data = {}
-
-        # Update the key
-        user_data[key] = value
-
-        # Write back
-        with open(user_config_path, "w") as f:
-            yaml.dump(user_data, f)
-
-        # Update in-memory config
-        setattr(self, key, value)
+        self._set_config_value(self.workspace / "config.user.yaml", key, value)
+        self._update_in_memory(key, value)
 
     def set_runtime(self, key: str, value: Any) -> None:
         """
         Update a runtime value in config.runtime.yaml.
 
         Args:
-            key: Config key to update
+            key: Config key (supports dot notation, e.g., "session.id")
             value: New value
         """
-        runtime_config_path = self.workspace / "config.runtime.yaml"
-
-        # Load existing or start fresh
-        if runtime_config_path.exists():
-            with open(runtime_config_path) as f:
-                runtime_data = yaml.safe_load(f) or {}
-        else:
-            runtime_data = {}
-
-        # Update the key
-        runtime_data[key] = value
-
-        # Write back
-        with open(runtime_config_path, "w") as f:
-            yaml.dump(runtime_data, f)
-
-        # Update in-memory config
-        setattr(self, key, value)
+        self._set_config_value(self.workspace / "config.runtime.yaml", key, value)
+        self._update_in_memory(key, value)

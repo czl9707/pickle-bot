@@ -106,3 +106,35 @@ class TestConfigSetters:
         config.set_runtime("default_agent", "runtime-agent")
 
         assert config.default_agent == "runtime-agent"
+
+    def test_set_user_nested_key(self, tmp_path):
+        """set_user supports dot notation for nested keys."""
+        _create_user_config(tmp_path)
+
+        config = Config.load(tmp_path)
+        config.set_user("llm.model", "gpt-4o")
+
+        # Check file content
+        user_config = tmp_path / "config.user.yaml"
+        data = yaml.safe_load(user_config.read_text())
+        assert data["llm"]["model"] == "gpt-4o"
+        # Other nested fields preserved
+        assert data["llm"]["provider"] == "openai"
+
+        # Check in-memory update
+        assert config.llm.model == "gpt-4o"
+
+    def test_set_runtime_nested_key(self, tmp_path):
+        """set_runtime supports dot notation for nested keys."""
+        _create_user_config(tmp_path)
+
+        config = Config.load(tmp_path)
+        config.set_runtime("llm.api_base", "https://custom.api")
+
+        # Check file content
+        runtime_config = tmp_path / "config.runtime.yaml"
+        data = yaml.safe_load(runtime_config.read_text())
+        assert data["llm"]["api_base"] == "https://custom.api"
+
+        # Check in-memory update
+        assert config.llm.api_base == "https://custom.api"
