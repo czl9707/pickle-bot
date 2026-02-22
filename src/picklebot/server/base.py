@@ -54,7 +54,7 @@ class Worker(ABC):
 
     def get_exception(self) -> BaseException | None:
         """Get the exception if worker crashed, None otherwise."""
-        if self.has_crashed():
+        if self.has_crashed() and self._task is not None:
             return self._task.exception()
         return None
 

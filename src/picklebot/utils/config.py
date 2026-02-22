@@ -47,6 +47,14 @@ class DiscordConfig(BaseModel):
     default_chat_id: str | None = None  # Renamed from default_user_id
 
 
+class ApiConfig(BaseModel):
+    """HTTP API configuration."""
+
+    enabled: bool = False
+    host: str = "127.0.0.1"
+    port: int = Field(default=8000, gt=0, lt=65536)
+
+
 class MessageBusConfig(BaseModel):
     """Message bus configuration."""
 
@@ -106,6 +114,7 @@ class Config(BaseModel):
     crons_path: Path = Field(default=Path("crons"))
     memories_path: Path = Field(default=Path("memories"))
     messagebus: MessageBusConfig = Field(default_factory=MessageBusConfig)
+    api: ApiConfig = Field(default_factory=ApiConfig)
     chat_max_history: int = Field(default=50, gt=0)
     job_max_history: int = Field(default=500, gt=0)
 

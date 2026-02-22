@@ -4,6 +4,8 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
+import uvicorn
+
 from picklebot.server.base import Job, Worker
 from picklebot.server.agent_worker import AgentWorker
 from picklebot.server.cron_worker import CronWorker
@@ -22,11 +24,19 @@ class Server:
         self.context = context
         self.agent_queue: asyncio.Queue[Job] = asyncio.Queue()
         self.workers: list[Worker] = []
+        self._api_task: asyncio.Task | None = None
 
     async def run(self) -> None:
         """Start all workers and monitor for crashes."""
         self._setup_workers()
         self._start_workers()
+
+        # Start API if enabled
+        if self.context.config.api.enabled:
+            self._api_task = asyncio.create_task(self._run_api())
+            logger.info(
+                f"API server started on {self.context.config.api.host}:{self.context.config.api.port}"
+            )
 
         try:
             await self._monitor_workers()
@@ -74,3 +84,16 @@ class Server:
         """Stop all workers gracefully."""
         for worker in self.workers:
             await worker.stop()
+
+    async def _run_api(self) -> None:
+        """Run the HTTP API server."""
+        from picklebot.api import create_app
+
+        app = create_app(self.context)
+        config = uvicorn.Config(
+            app,
+            host=self.context.config.api.host,
+            port=self.context.config.api.port,
+        )
+        server = uvicorn.Server(config)
+        await server.serve()
