@@ -16,6 +16,7 @@ uv run black . && uv run ruff check .  # Format + lint
 
 **Entry Points:**
 - `cli/` - Typer commands (chat, server)
+- `api/` - FastAPI HTTP interface (routers for agents, skills, crons, sessions, memories, config)
 - `workers/` - Server mode workers (AgentWorker, CronWorker, MessageBusWorker)
 
 **Core Flow:**
@@ -26,9 +27,13 @@ Agent receives message -> loads tools -> calls LLM -> executes tool calls -> res
 **Key Files:**
 - `core/agent.py` - Main orchestrator
 - `core/session.py` - Runtime state + history
+- `core/context.py` - SharedContext for dependency injection
+- `api/app.py` - FastAPI application factory
+- `api/routers/` - REST endpoints for resources
 - `workers/server.py` - Worker orchestration
 - `tools/registry.py` - Tool registration
 - `messagebus/base.py` - Platform abstraction
+- `utils/def_loader.py` - Definition file parsing/writing
 
 ## Critical Patterns
 
@@ -61,6 +66,37 @@ agents = loader.discover_agents()
 Raises:
 - `DefNotFoundError` - Definition folder/file doesn't exist
 - `InvalidDefError` - Definition file is malformed
+
+### HTTP API
+
+FastAPI-based REST API for SDK-like access. Routers use `SharedContext` via dependency injection:
+
+```python
+from picklebot.api.deps import get_context
+from picklebot.core.context import SharedContext
+
+@router.get("/{agent_id}")
+def get_agent(agent_id: str, ctx: SharedContext = Depends(get_context)):
+    return ctx.agent_loader.load(agent_id)
+```
+
+**Endpoints:**
+- `GET/POST/PUT/DELETE /agents/{id}` - Agent CRUD
+- `GET/POST/PUT/DELETE /skills/{id}` - Skill CRUD
+- `GET/POST/PUT/DELETE /crons/{id}` - Cron CRUD
+- `GET/DELETE /sessions/{id}` - Session management (no POST - created by system)
+- `GET/POST/PUT/DELETE /memories/{path}` - Memory file CRUD
+- `GET/PATCH /config` - Config read/update
+
+**Write definitions with YAML frontmatter:**
+```python
+from picklebot.utils.def_loader import write_definition
+
+frontmatter = {"name": "My Agent", "temperature": 0.7}
+write_definition("my-agent", frontmatter, "System prompt...", agents_path, "AGENT.md")
+```
+
+Enabled by default via `api.enabled: true` in config.
 
 ### Message Conversion
 
