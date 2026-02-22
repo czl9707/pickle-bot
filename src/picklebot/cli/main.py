@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Annotated
 
+import questionary
 import typer
 from rich.console import Console
 
@@ -24,8 +25,27 @@ console = Console()
 # Global config option callback
 def load_config_callback(ctx: typer.Context, workspace: str):
     """Load configuration and store it in the context."""
+    workspace_path = Path(workspace)
+    config_file = workspace_path / "config.user.yaml"
+
     try:
-        cfg = Config.load(Path(workspace))
+        if not config_file.exists():
+            # Offer onboarding
+            run_onboarding = questionary.confirm(
+                "No configuration found. Run onboarding now?",
+                default=True,
+            ).ask()
+
+            if run_onboarding:
+                wizard = OnboardingWizard(workspace=workspace_path)
+                wizard.run()
+            else:
+                console.print(
+                    "[yellow]Run 'picklebot init' to set up configuration.[/yellow]"
+                )
+                raise typer.Exit(1)
+
+        cfg = Config.load(workspace_path)
         ctx.ensure_object(dict)
         ctx.obj["config"] = cfg
 
@@ -87,7 +107,9 @@ def init(
     ctx: typer.Context,
 ) -> None:
     """Initialize pickle-bot configuration with interactive onboarding."""
-    workspace = ctx.obj.get("config").workspace if ctx.obj else Path.home() / ".pickle-bot"
+    workspace = (
+        ctx.obj.get("config").workspace if ctx.obj else Path.home() / ".pickle-bot"
+    )
     wizard = OnboardingWizard(workspace=workspace)
     wizard.run()
 
