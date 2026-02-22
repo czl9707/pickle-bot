@@ -418,3 +418,69 @@ class TestHistoryStoreChunkHelpers:
 
         count = history_store._count_messages_in_chunk(chunk_path)
         assert count == 3
+
+
+class TestSaveMessageChunking:
+    def test_creates_new_chunk_when_full(self, history_store):
+        """save_message should create new chunk when current is full."""
+        history_store.create_session("agent", "session-1", max_history=3)
+
+        # Fill first chunk (3 messages = max_history)
+        for i in range(3):
+            history_store.save_message(
+                "session-1", HistoryMessage(role="user", content=f"msg{i}")
+            )
+
+        # Next message should create chunk 2
+        history_store.save_message(
+            "session-1", HistoryMessage(role="user", content="msg3")
+        )
+
+        # Both chunks should exist
+        assert (history_store.sessions_path / "session-session-1.1.jsonl").exists()
+        assert (history_store.sessions_path / "session-session-1.2.jsonl").exists()
+
+        # Verify content distribution
+        chunk1_count = history_store._count_messages_in_chunk(
+            history_store.sessions_path / "session-session-1.1.jsonl"
+        )
+        chunk2_count = history_store._count_messages_in_chunk(
+            history_store.sessions_path / "session-session-1.2.jsonl"
+        )
+        assert chunk1_count == 3
+        assert chunk2_count == 1
+
+    def test_updates_chunk_count_in_index(self, history_store):
+        """save_message should update chunk_count when creating new chunk."""
+        history_store.create_session("agent", "session-1", max_history=2)
+
+        # Fill chunk 1
+        history_store.save_message(
+            "session-1", HistoryMessage(role="user", content="a")
+        )
+        history_store.save_message(
+            "session-1", HistoryMessage(role="user", content="b")
+        )
+
+        # Create chunk 2
+        history_store.save_message(
+            "session-1", HistoryMessage(role="user", content="c")
+        )
+
+        sessions = history_store.list_sessions()
+        assert sessions[0].chunk_count == 2
+
+    def test_appends_to_current_chunk_when_not_full(self, history_store):
+        """save_message should append to current chunk when not full."""
+        history_store.create_session("agent", "session-1", max_history=100)
+
+        history_store.save_message(
+            "session-1", HistoryMessage(role="user", content="hello")
+        )
+
+        # Should still be on chunk 1
+        chunk_count = history_store._count_messages_in_chunk(
+            history_store._chunk_path("session-1", 1)
+        )
+        assert chunk_count == 1
+        assert not history_store._chunk_path("session-1", 2).exists()

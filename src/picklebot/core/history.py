@@ -209,32 +209,44 @@ class HistoryStore:
 
     def save_message(self, session_id: str, message: HistoryMessage) -> None:
         """Save a message to history."""
-        # For now, use chunk 1 (chunking logic will be added in Task 4)
-        session_file = self._chunk_path(session_id, 1)
-        if not session_file.exists():
+        # Get session to access max_history
+        sessions = self._read_index()
+        idx = self._find_session_index(sessions, session_id)
+        if idx < 0:
             raise ValueError(f"Session not found: {session_id}")
 
-        # Append message to session file
-        with open(session_file, "a") as f:
+        session = sessions[idx]
+        max_history = session.max_history
+
+        # Get current chunk and check if full
+        current_idx = self._get_current_chunk_index(session_id)
+        current_chunk = self._chunk_path(session_id, current_idx)
+        current_count = self._count_messages_in_chunk(current_chunk)
+
+        # If current chunk is full, create new one
+        if current_count >= max_history:
+            current_idx += 1
+            current_chunk = self._chunk_path(session_id, current_idx)
+            session.chunk_count = current_idx
+
+        # Append message to chunk
+        with open(current_chunk, "a") as f:
             f.write(message.model_dump_json() + "\n")
 
         # Update index
-        sessions = self._read_index()
-        idx = self._find_session_index(sessions, session_id)
-        if idx >= 0:
-            sessions[idx].message_count += 1
-            sessions[idx].updated_at = _now_iso()
+        session.message_count += 1
+        session.updated_at = _now_iso()
 
-            # Auto-generate title from first user message
-            if sessions[idx].title is None and message.role == "user":
-                title = message.content[:50]
-                if len(message.content) > 50:
-                    title += "..."
-                sessions[idx].title = title
+        # Auto-generate title from first user message
+        if session.title is None and message.role == "user":
+            title = message.content[:50]
+            if len(message.content) > 50:
+                title += "..."
+            session.title = title
 
-            # Sort by updated_at (most recent first)
-            sessions.sort(key=lambda s: s.updated_at, reverse=True)
-            self._write_index(sessions)
+        # Sort by updated_at (most recent first)
+        sessions.sort(key=lambda s: s.updated_at, reverse=True)
+        self._write_index(sessions)
 
     def update_session_title(self, session_id: str, title: str) -> None:
         """Update a session's title."""
