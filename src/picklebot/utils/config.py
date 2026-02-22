@@ -100,8 +100,10 @@ class Config(BaseModel):
     Configuration is loaded from ~/.pickle-bot/:
     1. config.system.yaml - System defaults (shipped with the app)
     2. config.user.yaml - User overrides (optional, overrides system)
+    3. config.runtime.yaml - Runtime state (optional, overrides user)
 
-    User config takes precedence over system config.
+    Runtime config takes precedence over user config, which takes precedence
+    over system config.
     """
 
     workspace: Path
@@ -155,17 +157,25 @@ class Config(BaseModel):
 
         system_config = workspace_dir / "config.system.yaml"
         user_config = workspace_dir / "config.user.yaml"
+        runtime_config = workspace_dir / "config.runtime.yaml"
 
+        # Load system config (defaults)
         if system_config.exists():
             with open(system_config) as f:
                 system_data = yaml.safe_load(f) or {}
             config_data.update(system_data)
 
+        # Deep merge user config (overrides system)
         if user_config.exists():
             with open(user_config) as f:
                 user_data = yaml.safe_load(f) or {}
-            # Deep merge user config over system config
             config_data = cls._deep_merge(config_data, user_data)
+
+        # Deep merge runtime config (overrides user)
+        if runtime_config.exists():
+            with open(runtime_config) as f:
+                runtime_data = yaml.safe_load(f) or {}
+            config_data = cls._deep_merge(config_data, runtime_data)
 
         # Validate and create Config instance
         return cls.model_validate(config_data)
