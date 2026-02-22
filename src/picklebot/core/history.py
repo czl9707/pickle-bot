@@ -114,8 +114,7 @@ class HistoryStore:
     @staticmethod
     def from_config(config: Config) -> "HistoryStore":
         return HistoryStore(
-            config.history_path,
-            max_history_file_size=config.max_history_file_size
+            config.history_path, max_history_file_size=config.max_history_file_size
         )
 
     def __init__(self, base_path: Path, max_history_file_size: int = 500):
