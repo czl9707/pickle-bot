@@ -24,6 +24,14 @@ def test_agent_new_session(test_agent, test_agent_def):
     assert session.max_history == 50  # chat default
 
 
+def test_agent_new_session_with_custom_session_id(test_agent):
+    """Agent.new_session should accept optional session_id parameter."""
+    custom_id = "custom-session-123"
+    session = test_agent.new_session(SessionMode.CHAT, session_id=custom_id)
+
+    assert session.session_id == custom_id
+
+
 @pytest.mark.parametrize("mode,expected_history_attr", [
     (SessionMode.CHAT, "chat_max_history"),
     (SessionMode.JOB, "job_max_history"),
