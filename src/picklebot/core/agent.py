@@ -131,7 +131,10 @@ class Agent:
             raise ValueError(f"Session not found: {session_id}")
 
         session_info = session_query[0]
-        history_messages = self.context.history_store.get_messages(session_id)
+        max_history = self.context.config.chat_max_history
+        history_messages = self.context.history_store.get_messages(
+            session_id, max_history=max_history
+        )
 
         # Convert HistoryMessage to litellm Message format
         messages: list[Message] = [msg.to_message() for msg in history_messages]
@@ -183,7 +186,9 @@ class AgentSession:
     def _persist_message(self, message: Message) -> None:
         """Save to HistoryStore."""
         history_msg = HistoryMessage.from_message(message)
-        self.context.history_store.save_message(self.session_id, history_msg)
+        self.context.history_store.save_message(
+            self.session_id, history_msg, max_history=self.max_history
+        )
 
     async def chat(self, message: str, frontend: "Frontend") -> str:
         """

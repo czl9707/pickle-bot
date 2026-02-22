@@ -15,6 +15,7 @@ uv run picklebot chat
 
 - **Multi-Agent AI** - Specialized agents (Pickle for general tasks, Cookie for memory)
 - **Multiple Platforms** - Chat via CLI, Telegram, or Discord
+- **HTTP API** - RESTful API for SDK-like access to agents, skills, sessions, and more
 - **Scheduled Tasks** - Run cron jobs automatically in server mode
 - **Long-Term Memory** - Persistent context across conversations
 - **Extensible** - Add custom tools, skills, and agents

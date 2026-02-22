@@ -10,6 +10,7 @@ from picklebot.utils.config import (
     MessageBusConfig,
     TelegramConfig,
     DiscordConfig,
+    ApiConfig,
 )
 
 
@@ -210,3 +211,20 @@ class TestMessageBusConfig:
         assert config.messagebus.enabled
         assert config.messagebus.default_platform == "telegram"
         assert config.messagebus.telegram.bot_token == "test_token"
+
+
+class TestApiConfig:
+    """Tests for HTTP API configuration."""
+
+    def test_config_has_api_config(self, llm_config):
+        """Config should include api configuration."""
+        config = Config(
+            workspace=Path("/tmp/test-workspace"),
+            llm=llm_config,
+            default_agent="pickle",
+            api=ApiConfig(enabled=True, host="0.0.0.0", port=3000),
+        )
+
+        assert config.api.enabled is True
+        assert config.api.host == "0.0.0.0"
+        assert config.api.port == 3000

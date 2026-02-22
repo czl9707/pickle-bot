@@ -167,7 +167,9 @@ class TestTelegramBusRunStop:
         async def dummy_callback(msg: str, ctx: TelegramContext) -> None:
             pass
 
-        with patch("picklebot.messagebus.telegram_bus.Application.builder") as mock_builder:
+        with patch(
+            "picklebot.messagebus.telegram_bus.Application.builder"
+        ) as mock_builder:
             mock_builder.return_value.token.return_value.build.return_value = mock_app
 
             # Run run() in background since it blocks
@@ -202,7 +204,9 @@ class TestTelegramBusRunStop:
         async def dummy_callback(msg: str, ctx: TelegramContext) -> None:
             pass
 
-        with patch("picklebot.messagebus.telegram_bus.Application.builder") as mock_builder:
+        with patch(
+            "picklebot.messagebus.telegram_bus.Application.builder"
+        ) as mock_builder:
             mock_builder.return_value.token.return_value.build.return_value = mock_app
 
             # Run run() in background since it blocks
@@ -245,7 +249,9 @@ class TestTelegramBusRunStop:
         async def dummy_callback(msg: str, ctx: TelegramContext) -> None:
             pass
 
-        with patch("picklebot.messagebus.telegram_bus.Application.builder") as mock_builder:
+        with patch(
+            "picklebot.messagebus.telegram_bus.Application.builder"
+        ) as mock_builder:
             mock_builder.return_value.token.return_value.build.return_value = mock_app
 
             # First cycle

@@ -9,7 +9,8 @@ Configuration and data are stored in `~/.pickle-bot/`:
 ```
 ~/.pickle-bot/
 ├── config.system.yaml    # System defaults (version-controlled)
-├── config.user.yaml      # User overrides (api keys, custom settings)
+├── config.user.yaml      # User preferences (api keys, custom settings)
+├── config.runtime.yaml   # Runtime state (internal, auto-managed)
 ├── agents/               # Agent definitions
 │   ├── pickle/
 │   │   └── AGENT.md
@@ -32,14 +33,27 @@ Configuration and data are stored in `~/.pickle-bot/`:
 
 ## Configuration Files
 
-### System vs User Config
+### Three-Layer Config Merge
 
-Configuration uses a deep-merge pattern:
+Configuration uses a deep-merge pattern with three layers:
 
 - **config.system.yaml** - Version-controlled defaults
-- **config.user.yaml** - Local overrides (api keys, personal settings)
+- **config.user.yaml** - User preferences (api keys, personal settings)
+- **config.runtime.yaml** - Runtime state (internal, managed by application)
 
-User config overrides system config at the key level. Arrays are replaced, objects are merged recursively.
+Merge order: system <- user <- runtime. Later layers override earlier ones.
+
+### Updating Config Programmatically
+
+Use the `set_user()` and `set_runtime()` methods:
+
+```python
+# User preferences (written to config.user.yaml)
+ctx.config.set_user("default_agent", "cookie")
+
+# Runtime state (written to config.runtime.yaml)
+ctx.config.set_runtime("current_session_id", "abc123")
+```
 
 ### Example Configuration
 

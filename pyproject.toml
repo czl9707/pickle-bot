@@ -15,6 +15,8 @@ dependencies = [
   "python-telegram-bot>=20.0",
   "discord.py>=2.0",
   "questionary>=2.0.0",
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.32.0",
 ]
 
 [project.scripts]

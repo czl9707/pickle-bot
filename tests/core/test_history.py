@@ -181,10 +181,11 @@ class TestCreateSession:
         assert entry["id"] == "session-123"
 
     def test_creates_empty_session_file(self, history_store):
-        """create_session should create empty session file."""
+        """create_session should create chunk file with .1.jsonl extension."""
         history_store.create_session("test-agent", "session-123")
 
-        session_file = history_store.sessions_path / "session-session-123.jsonl"
+        # Should create session-session-123.1.jsonl (chunk format)
+        session_file = history_store.sessions_path / "session-session-123.1.jsonl"
         assert session_file.exists()
         with open(session_file) as f:
             content = f.read()
@@ -210,7 +211,8 @@ class TestSaveMessage:
         msg = HistoryMessage(role="user", content="Hello")
         history_store.save_message("session-1", msg)
 
-        session_file = history_store.sessions_path / "session-session-1.jsonl"
+        # Uses chunk format: session-session-1.1.jsonl
+        session_file = history_store.sessions_path / "session-session-1.1.jsonl"
         with open(session_file) as f:
             lines = f.readlines()
 
@@ -315,3 +317,199 @@ class TestListSessions:
         sessions = history_store.list_sessions()
         assert sessions[0].id == "session-1"  # Most recently updated
         assert sessions[1].id == "session-2"
+
+
+class TestHistorySessionFields:
+    def test_history_session_has_chunk_count(self):
+        """HistorySession should have chunk_count field."""
+        from picklebot.core.history import HistorySession
+
+        session = HistorySession(
+            id="test",
+            agent_id="agent",
+            chunk_count=3,
+            created_at="2024-01-01T00:00:00",
+            updated_at="2024-01-01T00:00:00",
+        )
+        assert session.chunk_count == 3
+
+
+class TestHistoryStoreChunkHelpers:
+    def test_chunk_path_format(self, history_store):
+        """_chunk_path should return correct path format."""
+        path = history_store._chunk_path("abc-123", 1)
+        assert path == history_store.sessions_path / "session-abc-123.1.jsonl"
+
+        path = history_store._chunk_path("abc-123", 5)
+        assert path == history_store.sessions_path / "session-abc-123.5.jsonl"
+
+    def test_list_chunks_returns_empty_for_no_chunks(self, history_store):
+        """_list_chunks should return empty list when no chunks exist."""
+        chunks = history_store._list_chunks("no-such-session")
+        assert chunks == []
+
+    def test_list_chunks_returns_sorted_chunks(self, history_store):
+        """_list_chunks should return chunks sorted by index (newest first)."""
+        # Create chunk files manually
+        history_store.sessions_path.mkdir(parents=True, exist_ok=True)
+        (history_store.sessions_path / "session-test.1.jsonl").touch()
+        (history_store.sessions_path / "session-test.3.jsonl").touch()
+        (history_store.sessions_path / "session-test.2.jsonl").touch()
+
+        chunks = history_store._list_chunks("test")
+        assert len(chunks) == 3
+        # Newest first (highest index)
+        assert chunks[0].name == "session-test.3.jsonl"
+        assert chunks[1].name == "session-test.2.jsonl"
+        assert chunks[2].name == "session-test.1.jsonl"
+
+    def test_get_current_chunk_index_returns_1_when_empty(self, history_store):
+        """_get_current_chunk_index should return 1 when no chunks exist."""
+        idx = history_store._get_current_chunk_index("no-session")
+        assert idx == 1
+
+    def test_get_current_chunk_index_returns_highest(self, history_store):
+        """_get_current_chunk_index should return highest existing index."""
+        history_store.sessions_path.mkdir(parents=True, exist_ok=True)
+        (history_store.sessions_path / "session-test.1.jsonl").touch()
+        (history_store.sessions_path / "session-test.5.jsonl").touch()
+        (history_store.sessions_path / "session-test.3.jsonl").touch()
+
+        idx = history_store._get_current_chunk_index("test")
+        assert idx == 5
+
+    def test_count_messages_in_chunk(self, history_store):
+        """_count_messages_in_chunk should count lines in chunk file."""
+        chunk_path = history_store.sessions_path / "session-test.1.jsonl"
+        chunk_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(chunk_path, "w") as f:
+            f.write('{"role":"user","content":"msg1"}\n')
+            f.write('{"role":"user","content":"msg2"}\n')
+            f.write('{"role":"user","content":"msg3"}\n')
+
+        count = history_store._count_messages_in_chunk(chunk_path)
+        assert count == 3
+
+
+class TestSaveMessageChunking:
+    def test_creates_new_chunk_when_full(self, history_store):
+        """save_message should create new chunk when current is full."""
+        history_store.create_session("agent", "session-1")
+
+        # Fill first chunk (3 messages = max_history)
+        for i in range(3):
+            history_store.save_message(
+                "session-1",
+                HistoryMessage(role="user", content=f"msg{i}"),
+                max_history=3,
+            )
+
+        # Next message should create chunk 2
+        history_store.save_message(
+            "session-1", HistoryMessage(role="user", content="msg3"), max_history=3
+        )
+
+        # Both chunks should exist
+        assert (history_store.sessions_path / "session-session-1.1.jsonl").exists()
+        assert (history_store.sessions_path / "session-session-1.2.jsonl").exists()
+
+        # Verify content distribution
+        chunk1_count = history_store._count_messages_in_chunk(
+            history_store.sessions_path / "session-session-1.1.jsonl"
+        )
+        chunk2_count = history_store._count_messages_in_chunk(
+            history_store.sessions_path / "session-session-1.2.jsonl"
+        )
+        assert chunk1_count == 3
+        assert chunk2_count == 1
+
+    def test_updates_chunk_count_in_index(self, history_store):
+        """save_message should update chunk_count when creating new chunk."""
+        history_store.create_session("agent", "session-1")
+
+        # Fill chunk 1
+        history_store.save_message(
+            "session-1", HistoryMessage(role="user", content="a"), max_history=2
+        )
+        history_store.save_message(
+            "session-1", HistoryMessage(role="user", content="b"), max_history=2
+        )
+
+        # Create chunk 2
+        history_store.save_message(
+            "session-1", HistoryMessage(role="user", content="c"), max_history=2
+        )
+
+        sessions = history_store.list_sessions()
+        assert sessions[0].chunk_count == 2
+
+    def test_appends_to_current_chunk_when_not_full(self, history_store):
+        """save_message should append to current chunk when not full."""
+        history_store.create_session("agent", "session-1")
+
+        history_store.save_message(
+            "session-1", HistoryMessage(role="user", content="hello"), max_history=100
+        )
+
+        # Should still be on chunk 1
+        chunk_count = history_store._count_messages_in_chunk(
+            history_store._chunk_path("session-1", 1)
+        )
+        assert chunk_count == 1
+        assert not history_store._chunk_path("session-1", 2).exists()
+
+
+class TestGetMessagesChunking:
+    def test_loads_from_multiple_chunks(self, history_store):
+        """get_messages should load from multiple chunks, newest first."""
+        history_store.create_session("agent", "session-1")
+
+        # Create 5 messages across 3 chunks (max_history=2 per chunk)
+        for i in range(5):
+            history_store.save_message(
+                "session-1",
+                HistoryMessage(role="user", content=f"msg{i}"),
+                max_history=2,
+            )
+
+        # max_history=2, so should only get last 2 messages
+        messages = history_store.get_messages("session-1", max_history=2)
+        assert len(messages) == 2
+        assert messages[0].content == "msg3"
+        assert messages[1].content == "msg4"
+
+    def test_loads_all_when_less_than_max(self, history_store):
+        """get_messages should return all when less than max_history."""
+        history_store.create_session("agent", "session-1")
+
+        history_store.save_message(
+            "session-1", HistoryMessage(role="user", content="a"), max_history=100
+        )
+        history_store.save_message(
+            "session-1", HistoryMessage(role="user", content="b"), max_history=100
+        )
+
+        messages = history_store.get_messages("session-1", max_history=100)
+        assert len(messages) == 2
+        assert messages[0].content == "a"
+        assert messages[1].content == "b"
+
+    def test_spans_chunks_for_max_history(self, history_store):
+        """get_messages should span chunks to reach max_history."""
+        history_store.create_session("agent", "session-1")
+
+        # 5 messages across 2 chunks (3 in chunk 1, 2 in chunk 2)
+        for i in range(5):
+            history_store.save_message(
+                "session-1",
+                HistoryMessage(role="user", content=f"msg{i}"),
+                max_history=3,
+            )
+
+        # max_history=3, should get last 3 (1 from chunk 1, 2 from chunk 2)
+        messages = history_store.get_messages("session-1", max_history=3)
+        assert len(messages) == 3
+        assert messages[0].content == "msg2"
+        assert messages[1].content == "msg3"
+        assert messages[2].content == "msg4"

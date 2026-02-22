@@ -29,9 +29,7 @@ class Worker(ABC):
 
     def __init__(self, context: "SharedContext"):
         self.context = context
-        self.logger = logging.getLogger(
-            f"picklebot.server.{self.__class__.__name__}"
-        )
+        self.logger = logging.getLogger(f"picklebot.server.{self.__class__.__name__}")
         self._task: asyncio.Task | None = None
 
     @abstractmethod
@@ -50,11 +48,13 @@ class Worker(ABC):
 
     def has_crashed(self) -> bool:
         """Check if worker crashed (done but not cancelled)."""
-        return self._task is not None and self._task.done() and not self._task.cancelled()
+        return (
+            self._task is not None and self._task.done() and not self._task.cancelled()
+        )
 
     def get_exception(self) -> BaseException | None:
         """Get the exception if worker crashed, None otherwise."""
-        if self.has_crashed():
+        if self.has_crashed() and self._task is not None:
             return self._task.exception()
         return None
 

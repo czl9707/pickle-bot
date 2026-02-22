@@ -47,6 +47,14 @@ class DiscordConfig(BaseModel):
     default_chat_id: str | None = None  # Renamed from default_user_id
 
 
+class ApiConfig(BaseModel):
+    """HTTP API configuration."""
+
+    enabled: bool = True
+    host: str = "127.0.0.1"
+    port: int = Field(default=8000, gt=0, lt=65536)
+
+
 class MessageBusConfig(BaseModel):
     """Message bus configuration."""
 
@@ -92,8 +100,10 @@ class Config(BaseModel):
     Configuration is loaded from ~/.pickle-bot/:
     1. config.system.yaml - System defaults (shipped with the app)
     2. config.user.yaml - User overrides (optional, overrides system)
+    3. config.runtime.yaml - Runtime state (optional, overrides user)
 
-    User config takes precedence over system config.
+    Runtime config takes precedence over user config, which takes precedence
+    over system config.
     """
 
     workspace: Path
@@ -106,6 +116,7 @@ class Config(BaseModel):
     crons_path: Path = Field(default=Path("crons"))
     memories_path: Path = Field(default=Path("memories"))
     messagebus: MessageBusConfig = Field(default_factory=MessageBusConfig)
+    api: ApiConfig = Field(default_factory=ApiConfig)
     chat_max_history: int = Field(default=50, gt=0)
     job_max_history: int = Field(default=500, gt=0)
 
@@ -146,17 +157,25 @@ class Config(BaseModel):
 
         system_config = workspace_dir / "config.system.yaml"
         user_config = workspace_dir / "config.user.yaml"
+        runtime_config = workspace_dir / "config.runtime.yaml"
 
+        # Load system config (defaults)
         if system_config.exists():
             with open(system_config) as f:
                 system_data = yaml.safe_load(f) or {}
             config_data.update(system_data)
 
+        # Deep merge user config (overrides system)
         if user_config.exists():
             with open(user_config) as f:
                 user_data = yaml.safe_load(f) or {}
-            # Deep merge user config over system config
             config_data = cls._deep_merge(config_data, user_data)
+
+        # Deep merge runtime config (overrides user)
+        if runtime_config.exists():
+            with open(runtime_config) as f:
+                runtime_data = yaml.safe_load(f) or {}
+            config_data = cls._deep_merge(config_data, runtime_data)
 
         # Validate and create Config instance
         return cls.model_validate(config_data)
@@ -186,3 +205,57 @@ class Config(BaseModel):
                 result[key] = value
 
         return result
+
+    def set_user(self, key: str, value: Any) -> None:
+        """
+        Update a config value in config.user.yaml.
+
+        Args:
+            key: Config key to update
+            value: New value
+        """
+        user_config_path = self.workspace / "config.user.yaml"
+
+        # Load existing or start fresh
+        if user_config_path.exists():
+            with open(user_config_path) as f:
+                user_data = yaml.safe_load(f) or {}
+        else:
+            user_data = {}
+
+        # Update the key
+        user_data[key] = value
+
+        # Write back
+        with open(user_config_path, "w") as f:
+            yaml.dump(user_data, f)
+
+        # Update in-memory config
+        setattr(self, key, value)
+
+    def set_runtime(self, key: str, value: Any) -> None:
+        """
+        Update a runtime value in config.runtime.yaml.
+
+        Args:
+            key: Config key to update
+            value: New value
+        """
+        runtime_config_path = self.workspace / "config.runtime.yaml"
+
+        # Load existing or start fresh
+        if runtime_config_path.exists():
+            with open(runtime_config_path) as f:
+                runtime_data = yaml.safe_load(f) or {}
+        else:
+            runtime_data = {}
+
+        # Update the key
+        runtime_data[key] = value
+
+        # Write back
+        with open(runtime_config_path, "w") as f:
+            yaml.dump(runtime_data, f)
+
+        # Update in-memory config
+        setattr(self, key, value)
