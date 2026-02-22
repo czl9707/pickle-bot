@@ -50,7 +50,7 @@ class DiscordConfig(BaseModel):
 class ApiConfig(BaseModel):
     """HTTP API configuration."""
 
-    enabled: bool = False
+    enabled: bool = True
     host: str = "127.0.0.1"
     port: int = Field(default=8000, gt=0, lt=65536)
 
