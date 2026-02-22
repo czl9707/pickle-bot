@@ -188,10 +188,10 @@ class OnboardingWizard:
             with open(system_config_path, "w") as f:
                 yaml.dump(system_defaults, f, default_flow_style=False)
 
-        # Write user config
-        user_config_path = self.workspace / "config.user.yaml"
-        with open(user_config_path, "w") as f:
-            yaml.dump(self.state, f, default_flow_style=False)
+        # Load config and use set_user for each field
+        config = Config.load(self.workspace)
+        for key, value in self.state.items():
+            config.set_user(key, value)
 
         return True
 
