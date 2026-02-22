@@ -124,10 +124,6 @@ class HistoryStore:
         self.base_path.mkdir(parents=True, exist_ok=True)
         self.sessions_path.mkdir(parents=True, exist_ok=True)
 
-    def _session_file_path(self, session_id: str) -> Path:
-        """Get the file path for a session."""
-        return self.sessions_path / f"session-{session_id}.jsonl"
-
     def _chunk_path(self, session_id: str, index: int) -> Path:
         """Get the file path for a session chunk."""
         return self.sessions_path / f"session-{session_id}.{index}.jsonl"
@@ -186,12 +182,16 @@ class HistoryStore:
                 return i
         return -1
 
-    def create_session(self, agent_id: str, session_id: str) -> dict[str, Any]:
+    def create_session(
+        self, agent_id: str, session_id: str, max_history: int = 50
+    ) -> dict[str, Any]:
         """Create a new conversation session."""
         now = _now_iso()
         session = HistorySession(
             id=session_id,
             agent_id=agent_id,
+            max_history=max_history,
+            chunk_count=1,
             title=None,
             message_count=0,
             created_at=now,
@@ -202,14 +202,15 @@ class HistoryStore:
         with open(self.index_path, "a") as f:
             f.write(session.model_dump_json() + "\n")
 
-        # Create empty session file
-        self._session_file_path(session_id).touch()
+        # Create first chunk file
+        self._chunk_path(session_id, 1).touch()
 
         return session.model_dump()
 
     def save_message(self, session_id: str, message: HistoryMessage) -> None:
         """Save a message to history."""
-        session_file = self._session_file_path(session_id)
+        # For now, use chunk 1 (chunking logic will be added in Task 4)
+        session_file = self._chunk_path(session_id, 1)
         if not session_file.exists():
             raise ValueError(f"Session not found: {session_id}")
 
@@ -254,7 +255,8 @@ class HistoryStore:
 
     def get_messages(self, session_id: str) -> list[HistoryMessage]:
         """Get all messages for a session."""
-        session_file = self._session_file_path(session_id)
+        # For now, use chunk 1 (multi-chunk reading will be added in Task 5)
+        session_file = self._chunk_path(session_id, 1)
         if not session_file.exists():
             return []
 

@@ -181,14 +181,29 @@ class TestCreateSession:
         assert entry["id"] == "session-123"
 
     def test_creates_empty_session_file(self, history_store):
-        """create_session should create empty session file."""
-        history_store.create_session("test-agent", "session-123")
+        """create_session should create chunk file with .1.jsonl extension."""
+        history_store.create_session("test-agent", "session-123", max_history=100)
 
-        session_file = history_store.sessions_path / "session-session-123.jsonl"
+        # Should create session-session-123.1.jsonl (chunk format)
+        session_file = history_store.sessions_path / "session-session-123.1.jsonl"
         assert session_file.exists()
         with open(session_file) as f:
             content = f.read()
         assert content == ""
+
+    def test_create_session_stores_max_history(self, history_store):
+        """create_session should store max_history in session metadata."""
+        history_store.create_session("test-agent", "session-123", max_history=200)
+
+        sessions = history_store.list_sessions()
+        assert sessions[0].max_history == 200
+
+    def test_create_session_default_max_history(self, history_store):
+        """create_session should use default max_history if not specified."""
+        history_store.create_session("test-agent", "session-123")
+
+        sessions = history_store.list_sessions()
+        assert sessions[0].max_history == 50  # Default value
 
     def test_multiple_sessions(self, history_store):
         """Multiple sessions should be appended to index."""
@@ -210,7 +225,8 @@ class TestSaveMessage:
         msg = HistoryMessage(role="user", content="Hello")
         history_store.save_message("session-1", msg)
 
-        session_file = history_store.sessions_path / "session-session-1.jsonl"
+        # Uses chunk format: session-session-1.1.jsonl
+        session_file = history_store.sessions_path / "session-session-1.1.jsonl"
         with open(session_file) as f:
             lines = f.readlines()
 
