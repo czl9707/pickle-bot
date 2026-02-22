@@ -1,5 +1,6 @@
 """Interactive onboarding wizard for pickle-bot."""
 
+import shutil
 from pathlib import Path
 
 import questionary
@@ -13,6 +14,8 @@ from picklebot.utils.config import Config
 
 class OnboardingWizard:
     """Guides users through initial configuration."""
+
+    DEFAULT_WORKSPACE = Path(__file__).parent.parent.parent / "default_workspace"
 
     def __init__(self, workspace: Path | None = None):
         """
@@ -211,3 +214,59 @@ class OnboardingWizard:
         console.print("\n[green]Configuration saved![/green]")
         console.print(f"Config file: {self.workspace / 'config.user.yaml'}")
         console.print("Edit this file to make changes.\n")
+
+    def copy_default_assets(self) -> None:
+        """Copy selected default agents and skills to workspace."""
+        default_agents = self._discover_defaults("agents")
+        default_skills = self._discover_defaults("skills")
+
+        if not default_agents and not default_skills:
+            return
+
+        console = Console()
+        console.print("\n[bold]Default assets available:[/bold]")
+
+        # Multi-select for agents
+        selected_agents = (
+            questionary.checkbox(
+                "Select agents to copy (will overwrite existing):",
+                choices=[
+                    questionary.Choice(f"agents/{name}", value=name, checked=True)
+                    for name in sorted(default_agents)
+                ],
+            ).ask()
+            or []
+        )
+
+        # Multi-select for skills
+        selected_skills = (
+            questionary.checkbox(
+                "Select skills to copy (will overwrite existing):",
+                choices=[
+                    questionary.Choice(f"skills/{name}", value=name, checked=True)
+                    for name in sorted(default_skills)
+                ],
+            ).ask()
+            or []
+        )
+
+        # Copy selected
+        for name in selected_agents:
+            self._copy_asset("agents", name)
+        for name in selected_skills:
+            self._copy_asset("skills", name)
+
+    def _discover_defaults(self, asset_type: str) -> list[str]:
+        """List available default assets of a type."""
+        path = self.DEFAULT_WORKSPACE / asset_type
+        if not path.exists():
+            return []
+        return [d.name for d in path.iterdir() if d.is_dir()]
+
+    def _copy_asset(self, asset_type: str, name: str) -> None:
+        """Copy a single asset from defaults to workspace."""
+        src = self.DEFAULT_WORKSPACE / asset_type / name
+        dst = self.workspace / asset_type / name
+        if dst.exists():
+            shutil.rmtree(dst)
+        shutil.copytree(src, dst)

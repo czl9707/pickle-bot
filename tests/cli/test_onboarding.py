@@ -190,3 +190,118 @@ def test_save_config_validates_with_pydantic():
 
         # Should handle validation error gracefully
         assert result is False or "error" in str(result).lower()
+
+
+def test_discover_defaults_returns_empty_if_no_defaults():
+    """Test _discover_defaults returns empty list if default_workspace missing."""
+    wizard = OnboardingWizard()
+    # Point to non-existent default workspace
+    wizard.DEFAULT_WORKSPACE = Path("/nonexistent")
+
+    result = wizard._discover_defaults("agents")
+    assert result == []
+
+
+def test_discover_defaults_returns_asset_names():
+    """Test _discover_defaults returns names of assets in default_workspace."""
+    wizard = OnboardingWizard()
+    # Will use actual default_workspace if it exists
+    result = wizard._discover_defaults("agents")
+    # Just verify it returns a list
+    assert isinstance(result, list)
+
+
+def test_copy_asset_copies_directory():
+    """Test _copy_asset copies asset from defaults to workspace."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workspace = Path(tmpdir) / "workspace"
+        workspace.mkdir()
+        (workspace / "agents").mkdir()
+
+        wizard = OnboardingWizard(workspace=workspace)
+
+        # Create a mock default asset
+        mock_defaults = Path(tmpdir) / "defaults"
+        mock_defaults.mkdir()
+        mock_agent = mock_defaults / "agents" / "test-agent"
+        mock_agent.mkdir(parents=True)
+        (mock_agent / "AGENT.md").write_text("# Test Agent")
+
+        wizard.DEFAULT_WORKSPACE = mock_defaults
+        wizard._copy_asset("agents", "test-agent")
+
+        # Verify copied
+        copied = workspace / "agents" / "test-agent"
+        assert copied.exists()
+        assert (copied / "AGENT.md").read_text() == "# Test Agent"
+
+
+def test_copy_asset_overwrites_existing():
+    """Test _copy_asset overwrites existing asset."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workspace = Path(tmpdir) / "workspace"
+        workspace.mkdir()
+        agents_dir = workspace / "agents"
+        agents_dir.mkdir()
+
+        # Create existing asset with old content
+        existing = agents_dir / "test-agent"
+        existing.mkdir()
+        (existing / "AGENT.md").write_text("# Old Content")
+
+        wizard = OnboardingWizard(workspace=workspace)
+
+        # Create mock default with new content
+        mock_defaults = Path(tmpdir) / "defaults"
+        mock_defaults.mkdir()
+        mock_agent = mock_defaults / "agents" / "test-agent"
+        mock_agent.mkdir(parents=True)
+        (mock_agent / "AGENT.md").write_text("# New Content")
+
+        wizard.DEFAULT_WORKSPACE = mock_defaults
+        wizard._copy_asset("agents", "test-agent")
+
+        # Verify overwritten
+        copied = workspace / "agents" / "test-agent"
+        assert (copied / "AGENT.md").read_text() == "# New Content"
+
+
+def test_copy_default_assets_prompts_user():
+    """Test copy_default_assets shows multi-select and copies selected."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workspace = Path(tmpdir) / "workspace"
+        workspace.mkdir()
+        (workspace / "agents").mkdir()
+        (workspace / "skills").mkdir()
+
+        wizard = OnboardingWizard(workspace=workspace)
+
+        # Create mock defaults
+        mock_defaults = Path(tmpdir) / "defaults"
+        mock_defaults.mkdir()
+        mock_agent = mock_defaults / "agents" / "pickle"
+        mock_agent.mkdir(parents=True)
+        (mock_agent / "AGENT.md").write_text("# Pickle")
+
+        wizard.DEFAULT_WORKSPACE = mock_defaults
+
+        with patch("questionary.checkbox") as mock_checkbox:
+            # User selects pickle agent, no skills
+            mock_checkbox.return_value.ask.side_effect = [["pickle"], []]
+
+            wizard.copy_default_assets()
+
+        # Verify copied
+        assert (workspace / "agents" / "pickle").exists()
+
+
+def test_copy_default_assets_skips_if_no_defaults():
+    """Test copy_default_assets does nothing if no default workspace."""
+    wizard = OnboardingWizard()
+    wizard.DEFAULT_WORKSPACE = Path("/nonexistent")
+
+    with patch("questionary.checkbox") as mock_checkbox:
+        wizard.copy_default_assets()
+
+    # Should not prompt user
+    mock_checkbox.assert_not_called()
