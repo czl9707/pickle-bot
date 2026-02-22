@@ -128,7 +128,17 @@ async def my_tool(arg: str) -> str:
 
 ### Config Loading
 
-Deep merge: `config.system.yaml` (defaults) <- `config.user.yaml` (overrides)
+Three-layer merge: `config.system.yaml` (defaults) <- `config.user.yaml` (user prefs) <- `config.runtime.yaml` (runtime state)
+
+- `config.user.yaml` - User preferences (edited via API or manually)
+- `config.runtime.yaml` - Runtime state (internal only, managed by application)
+
+Use `set_user()` and `set_runtime()` methods to update config:
+
+```python
+ctx.config.set_user("default_agent", "cookie")
+ctx.config.set_runtime("current_session_id", "abc123")
+```
 
 Paths are relative to workspace and auto-resolved:
 
