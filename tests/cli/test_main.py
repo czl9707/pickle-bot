@@ -20,26 +20,32 @@ def test_init_command_exists():
     )
 
 
-def test_auto_onboarding_when_config_missing():
-    """Test that onboarding is offered when config is missing."""
+def test_no_config_shows_init_instructions():
+    """Test that missing config shows instructions to run init."""
     runner = CliRunner()
 
     with tempfile.TemporaryDirectory() as tmpdir:
         workspace = Path(tmpdir) / "no-config"
 
-        with patch("picklebot.cli.main.questionary.confirm") as mock_confirm:
-            mock_confirm.return_value.ask.return_value = False
-            result = runner.invoke(app, ["--workspace", str(workspace), "chat"])
+        result = runner.invoke(app, ["--workspace", str(workspace), "chat"])
 
-        # Should prompt user for onboarding
-        mock_confirm.assert_called_once()
-        assert (
-            "No configuration found" in mock_confirm.call_args[0][0]
-            or "onboarding" in mock_confirm.call_args[0][0].lower()
-        )
+        # Should exit with error
+        assert result.exit_code == 1
+        # Should show instructions to run init
+        assert "picklebot init" in result.output.lower()
 
-        # Should exit gracefully after user declines onboarding
-        assert result.exit_code != 0
-        assert (
-            "init" in result.output.lower() or "configuration" in result.output.lower()
-        )
+
+def test_init_skips_config_check():
+    """Test that init command works without existing config."""
+    runner = CliRunner()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workspace = Path(tmpdir) / "no-config"
+
+        with patch("picklebot.cli.onboarding.OnboardingWizard.run") as mock_run:
+            result = runner.invoke(app, ["--workspace", str(workspace), "init"])
+
+        # Should call wizard exactly once
+        mock_run.assert_called_once()
+        # Should exit successfully
+        assert result.exit_code == 0
