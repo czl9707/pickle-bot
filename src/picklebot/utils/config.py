@@ -158,7 +158,6 @@ class Config(BaseModel):
         user_config = workspace_dir / "config.user.yaml"
         runtime_config = workspace_dir / "config.runtime.yaml"
 
-        # Deep merge user config
         if user_config.exists():
             with open(user_config) as f:
                 user_data = yaml.safe_load(f) or {}

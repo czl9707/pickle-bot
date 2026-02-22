@@ -59,7 +59,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ${WORKSPACE_PATH:-./workspace}:/app/workspace
+      - ${WORKSPACE_PATH:-~/.pickle-bot}:/app/workspace
     restart: unless-stopped
 ```
 
