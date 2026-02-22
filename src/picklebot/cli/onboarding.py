@@ -56,3 +56,93 @@ class OnboardingWizard:
 
         if api_base:
             self.state["llm"]["api_base"] = api_base
+
+    def configure_messagebus(self) -> None:
+        """Prompt user for MessageBus configuration."""
+        platforms = questionary.checkbox(
+            "Select messaging platforms to enable:",
+            choices=["telegram", "discord"],
+        ).ask()
+
+        if not platforms:
+            self.state["messagebus"] = {"enabled": False}
+            return
+
+        self.state["messagebus"] = {
+            "enabled": True,
+            "default_platform": platforms[0],
+        }
+
+        if "telegram" in platforms:
+            self.state["messagebus"]["telegram"] = self._configure_telegram()
+
+        if "discord" in platforms:
+            self.state["messagebus"]["discord"] = self._configure_discord()
+
+    def _configure_telegram(self) -> dict:
+        """Prompt for Telegram-specific configuration."""
+        bot_token = questionary.text("Telegram bot token:").ask()
+
+        allowed_users = questionary.text(
+            "Allowed user IDs (comma-separated, or press Enter for open access):",
+            default="",
+        ).ask()
+
+        default_chat = questionary.text(
+            "Default chat ID (optional, press Enter to skip):",
+            default="",
+        ).ask()
+
+        config: dict = {
+            "enabled": True,
+            "bot_token": bot_token,
+            "allowed_user_ids": [],
+        }
+
+        if allowed_users:
+            config["allowed_user_ids"] = [
+                uid.strip() for uid in allowed_users.split(",") if uid.strip()
+            ]
+
+        if default_chat:
+            config["default_chat_id"] = default_chat
+
+        return config
+
+    def _configure_discord(self) -> dict:
+        """Prompt for Discord-specific configuration."""
+        bot_token = questionary.text("Discord bot token:").ask()
+
+        channel_id = questionary.text(
+            "Channel ID to listen on (optional, press Enter for all channels):",
+            default="",
+        ).ask()
+
+        allowed_users = questionary.text(
+            "Allowed user IDs (comma-separated, or press Enter for open access):",
+            default="",
+        ).ask()
+
+        default_chat = questionary.text(
+            "Default channel ID for proactive posts (optional):",
+            default="",
+        ).ask()
+
+        config: dict = {
+            "enabled": True,
+            "bot_token": bot_token,
+            "allowed_user_ids": [],
+        }
+
+        if channel_id:
+            config["channel_id"] = channel_id
+
+        if allowed_users:
+            config["allowed_user_ids"] = [
+                uid.strip() for uid in allowed_users.split(",") if uid.strip()
+            ]
+
+        if default_chat:
+            config["default_chat_id"] = default_chat
+
+        return config
