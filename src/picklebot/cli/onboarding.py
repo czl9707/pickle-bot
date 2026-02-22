@@ -154,22 +154,18 @@ class OnboardingWizard:
 
     def save_config(self) -> bool:
         """
-        Write configuration to YAML files.
+        Write configuration to config.user.yaml.
 
         Returns:
             True if save succeeded, False if validation failed.
         """
-        # System defaults that will be written
-        system_defaults = {
-            "default_agent": "pickle",
-            "logging_path": ".logs",
-            "history_path": ".history",
-        }
+        # Set default_agent if not provided
+        if "default_agent" not in self.state:
+            self.state["default_agent"] = "pickle"
 
-        # Validate config structure (merge system defaults with user state)
+        # Validate config structure
         try:
             config_data = {"workspace": self.workspace}
-            config_data.update(system_defaults)
             config_data.update(self.state)
             Config.model_validate(config_data)
         except ValidationError as e:
@@ -181,12 +177,6 @@ class OnboardingWizard:
 
         # Ensure workspace exists
         self.workspace.mkdir(parents=True, exist_ok=True)
-
-        # Write system defaults (only if not exists)
-        system_config_path = self.workspace / "config.system.yaml"
-        if not system_config_path.exists():
-            with open(system_config_path, "w") as f:
-                yaml.dump(system_defaults, f, default_flow_style=False)
 
         # Write user config
         user_config_path = self.workspace / "config.user.yaml"

@@ -106,10 +106,11 @@ def test_save_config_writes_yaml():
 
         assert config["llm"]["provider"] == "openai"
         assert config["messagebus"]["enabled"] is False
+        assert config["default_agent"] == "pickle"  # auto-added
 
 
-def test_save_config_creates_system_defaults():
-    """Test that save_config creates config.system.yaml with defaults."""
+def test_save_config_no_system_file():
+    """Test that save_config does NOT create config.system.yaml."""
     with tempfile.TemporaryDirectory() as tmpdir:
         workspace = Path(tmpdir) / "test-workspace"
         wizard = OnboardingWizard(workspace=workspace)
@@ -122,13 +123,7 @@ def test_save_config_creates_system_defaults():
         wizard.save_config()
 
         system_config_path = workspace / "config.system.yaml"
-        assert system_config_path.exists()
-
-        with open(system_config_path) as f:
-            config = yaml.safe_load(f)
-
-        assert "default_agent" in config
-        assert "logging_path" in config
+        assert not system_config_path.exists()
 
 
 def test_run_orchestrates_all_steps():

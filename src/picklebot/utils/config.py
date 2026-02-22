@@ -98,12 +98,11 @@ class Config(BaseModel):
     Main configuration for pickle-bot.
 
     Configuration is loaded from ~/.pickle-bot/:
-    1. config.system.yaml - System defaults (shipped with the app)
-    2. config.user.yaml - User overrides (optional, overrides system)
-    3. config.runtime.yaml - Runtime state (optional, overrides user)
+    1. config.user.yaml - User configuration (required fields: llm, default_agent)
+    2. config.runtime.yaml - Runtime state (optional, overrides user)
 
-    Runtime config takes precedence over user config, which takes precedence
-    over system config.
+    Runtime config takes precedence over user config. Pydantic defaults are used
+    for optional fields not specified in config files.
     """
 
     workspace: Path
@@ -155,17 +154,10 @@ class Config(BaseModel):
 
         config_data: dict = {"workspace": workspace_dir}
 
-        system_config = workspace_dir / "config.system.yaml"
         user_config = workspace_dir / "config.user.yaml"
         runtime_config = workspace_dir / "config.runtime.yaml"
 
-        # Load system config (defaults)
-        if system_config.exists():
-            with open(system_config) as f:
-                system_data = yaml.safe_load(f) or {}
-            config_data.update(system_data)
-
-        # Deep merge user config (overrides system)
+        # Deep merge user config
         if user_config.exists():
             with open(user_config) as f:
                 user_data = yaml.safe_load(f) or {}

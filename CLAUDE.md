@@ -128,10 +128,10 @@ async def my_tool(arg: str) -> str:
 
 ### Config Loading
 
-Three-layer merge: `config.system.yaml` (defaults) <- `config.user.yaml` (user prefs) <- `config.runtime.yaml` (runtime state)
+Two-layer merge: `config.user.yaml` <- `config.runtime.yaml`
 
-- `config.user.yaml` - User preferences (edited via API or manually)
-- `config.runtime.yaml` - Runtime state (internal only, managed by application)
+- `config.user.yaml` - User configuration (required fields: `llm`, `default_agent`). Created by onboarding.
+- `config.runtime.yaml` - Runtime state (optional, internal only, managed by application)
 
 Use `set_user()` and `set_runtime()` methods to update config:
 

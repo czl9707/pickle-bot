@@ -18,7 +18,7 @@ def _make_context_with_messagebus(
     # Create minimal config
     tmp_path = Path("/tmp/test-picklebot")
     tmp_path.mkdir(exist_ok=True)
-    (tmp_path / "config.system.yaml").write_text(
+    (tmp_path / "config.user.yaml").write_text(
         """
 llm:
   provider: openai

@@ -8,9 +8,8 @@ Configuration and data are stored in `~/.pickle-bot/`:
 
 ```
 ~/.pickle-bot/
-├── config.system.yaml    # System defaults (version-controlled)
-├── config.user.yaml      # User preferences (api keys, custom settings)
-├── config.runtime.yaml   # Runtime state (internal, auto-managed)
+├── config.user.yaml      # User configuration (created by onboarding)
+├── config.runtime.yaml   # Runtime state (optional, internal, auto-managed)
 ├── agents/               # Agent definitions
 │   ├── pickle/
 │   │   └── AGENT.md
@@ -33,15 +32,24 @@ Configuration and data are stored in `~/.pickle-bot/`:
 
 ## Configuration Files
 
-### Three-Layer Config Merge
+### Two-Layer Config Merge
 
-Configuration uses a deep-merge pattern with three layers:
+Configuration uses a deep-merge pattern with two layers:
 
-- **config.system.yaml** - Version-controlled defaults
-- **config.user.yaml** - User preferences (api keys, personal settings)
-- **config.runtime.yaml** - Runtime state (internal, managed by application)
+- **config.user.yaml** - User configuration (required fields: `llm`, `default_agent`)
+- **config.runtime.yaml** - Runtime state (optional, internal, managed by application)
 
-Merge order: system <- user <- runtime. Later layers override earlier ones.
+Merge order: user <- runtime. Runtime config overrides user config for overlapping keys.
+
+### Initial Setup
+
+Run `picklebot init` to create your configuration interactively:
+
+```bash
+uv run picklebot init
+```
+
+This creates `config.user.yaml` with your LLM settings and default agent.
 
 ### Updating Config Programmatically
 
@@ -57,15 +65,10 @@ ctx.config.set_runtime("current_session_id", "abc123")
 
 ### Example Configuration
 
-**config.system.yaml:**
-```yaml
-default_agent: pickle
-logging_path: .logs
-history_path: .history
-```
-
 **config.user.yaml:**
 ```yaml
+default_agent: pickle
+
 llm:
   provider: zai
   model: "zai/glm-4.7"
