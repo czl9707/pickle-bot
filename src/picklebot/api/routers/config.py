@@ -16,6 +16,7 @@ class ConfigResponse(BaseModel):
     default_agent: str
     chat_max_history: int
     job_max_history: int
+    max_history_file_size: int
 
 
 @router.get("", response_model=ConfigResponse)
@@ -25,6 +26,7 @@ def get_config(ctx: SharedContext = Depends(get_context)) -> dict:
         "default_agent": ctx.config.default_agent,
         "chat_max_history": ctx.config.chat_max_history,
         "job_max_history": ctx.config.job_max_history,
+        "max_history_file_size": ctx.config.max_history_file_size,
     }
 
 
@@ -39,9 +41,12 @@ def update_config(
         ctx.config.set_user("chat_max_history", data.chat_max_history)
     if data.job_max_history is not None:
         ctx.config.set_user("job_max_history", data.job_max_history)
+    if data.max_history_file_size is not None:
+        ctx.config.set_user("max_history_file_size", data.max_history_file_size)
 
     return {
         "default_agent": ctx.config.default_agent,
         "chat_max_history": ctx.config.chat_max_history,
         "job_max_history": ctx.config.job_max_history,
+        "max_history_file_size": ctx.config.max_history_file_size,
     }
