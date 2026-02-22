@@ -205,3 +205,30 @@ class Config(BaseModel):
                 result[key] = value
 
         return result
+
+    def set_user(self, key: str, value: Any) -> None:
+        """
+        Update a config value in config.user.yaml.
+
+        Args:
+            key: Config key to update
+            value: New value
+        """
+        user_config_path = self.workspace / "config.user.yaml"
+
+        # Load existing or start fresh
+        if user_config_path.exists():
+            with open(user_config_path) as f:
+                user_data = yaml.safe_load(f) or {}
+        else:
+            user_data = {}
+
+        # Update the key
+        user_data[key] = value
+
+        # Write back
+        with open(user_config_path, "w") as f:
+            yaml.dump(user_data, f)
+
+        # Update in-memory config
+        setattr(self, key, value)
