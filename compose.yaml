@@ -1,0 +1,10 @@
+services:
+  picklebot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ${WORKSPACE_PATH:-./workspace}:/app/workspace
+    restart: unless-stopped

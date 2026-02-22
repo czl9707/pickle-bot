@@ -35,6 +35,26 @@ uv run black .          # Format code
 uv run ruff check .     # Lint
 ```
 
+## Docker
+
+Run pickle-bot in a container:
+
+```bash
+# Build and run with default workspace
+docker compose up -d
+
+# Or specify custom workspace path
+WORKSPACE_PATH=/path/to/workspace docker compose up -d
+
+# View logs
+docker compose logs -f picklebot
+
+# Stop
+docker compose down
+```
+
+The workspace directory contains all persistent data (agents, skills, crons, config).
+
 ## License
 
 MIT
