@@ -35,6 +35,7 @@ class TelegramConfig(BaseModel):
     bot_token: str
     allowed_user_ids: list[str] = Field(default_factory=list)
     default_chat_id: str | None = None  # Renamed from default_user_id
+    sessions: dict[str, str] = Field(default_factory=dict)  # user_id -> session_id
 
 
 class DiscordConfig(BaseModel):
@@ -45,6 +46,7 @@ class DiscordConfig(BaseModel):
     channel_id: str | None = None
     allowed_user_ids: list[str] = Field(default_factory=list)
     default_chat_id: str | None = None  # Renamed from default_user_id
+    sessions: dict[str, str] = Field(default_factory=dict)  # user_id -> session_id
 
 
 class ApiConfig(BaseModel):

@@ -34,7 +34,14 @@ class AgentWorker(Worker):
             agent = Agent(agent_def, self.context)
 
             if job.session_id:
-                session = agent.resume_session(job.session_id)
+                try:
+                    session = agent.resume_session(job.session_id)
+                except ValueError:
+                    # Session not found in history - create new with same ID
+                    self.logger.warning(
+                        f"Session {job.session_id} not found, creating new"
+                    )
+                    session = agent.new_session(job.mode, session_id=job.session_id)
             else:
                 session = agent.new_session(job.mode)
                 job.session_id = session.session_id

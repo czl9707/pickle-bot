@@ -21,15 +21,36 @@ class MessageBusWorker(Worker):
         self.buses = context.messagebus_buses
         self.bus_map = {bus.platform_name: bus for bus in self.buses}
 
+        # Load agent for session creation
         try:
-            agent_def = context.agent_loader.load(context.config.default_agent)
-            agent = Agent(agent_def, context)
-            self.global_session = agent.new_session(SessionMode.CHAT)
+            self.agent_def = context.agent_loader.load(context.config.default_agent)
+            self.agent = Agent(self.agent_def, context)
         except DefNotFoundError as e:
             self.logger.error(
                 f"Default agent not found: {context.config.default_agent}"
             )
             raise RuntimeError(f"Failed to initialize MessageBusWorker: {e}") from e
+
+    def _get_or_create_session_id(self, platform: str, user_id: str) -> str:
+        """Get existing session_id or create new session for this user."""
+        platform_config = getattr(self.context.config.messagebus, platform, None)
+        if not platform_config:
+            raise ValueError(f"No config for platform: {platform}")
+
+        session_id = platform_config.sessions.get(user_id)
+
+        if session_id:
+            return session_id
+
+        # No session - create new (creates in HistoryStore)
+        session = self.agent.new_session(SessionMode.CHAT)
+
+        # Persist session_id to runtime config
+        self.context.config.set_runtime(
+            f"messagebus.{platform}.sessions.{user_id}", session.session_id
+        )
+
+        return session.session_id
 
     async def run(self) -> None:
         """Start all buses and process incoming messages."""
@@ -58,11 +79,17 @@ class MessageBusWorker(Worker):
                     )
                     return
 
+                # Extract user_id from context
+                user_id = context.user_id
+
+                # Get or create session for this user
+                session_id = self._get_or_create_session_id(platform, user_id)
+
                 frontend = MessageBusFrontend(bus, context)
 
                 job = Job(
-                    session_id=self.global_session.session_id,
-                    agent_id=self.global_session.agent_id,
+                    session_id=session_id,
+                    agent_id=self.agent_def.id,
                     message=message,
                     frontend=frontend,
                     mode=SessionMode.CHAT,

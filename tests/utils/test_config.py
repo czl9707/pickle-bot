@@ -96,6 +96,17 @@ class TestPlatformConfig:
         assert config.allowed_user_ids == []
         assert config.default_chat_id is None
 
+    @pytest.mark.parametrize("config_class", [TelegramConfig, DiscordConfig])
+    def test_platform_config_has_sessions_field(self, config_class):
+        """Platform configs should have sessions field for storing user session IDs."""
+        config = config_class(enabled=True, bot_token="test-token")
+        assert config.sessions == {}
+
+        config_with_sessions = config_class(
+            enabled=True, bot_token="test-token", sessions={"123456": "uuid-abc-123"}
+        )
+        assert config_with_sessions.sessions == {"123456": "uuid-abc-123"}
+
 
 class TestSessionHistoryLimits:
     """Tests for session history config fields."""

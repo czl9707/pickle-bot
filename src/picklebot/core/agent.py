@@ -78,17 +78,20 @@ class Agent:
 
         return registry
 
-    def new_session(self, mode: SessionMode) -> "AgentSession":
+    def new_session(
+        self, mode: SessionMode, session_id: str | None = None
+    ) -> "AgentSession":
         """
         Create a new conversation session.
 
         Args:
             mode: Session mode (CHAT or JOB) determines history limit and tool availability
+            session_id: Optional session_id to use (for recovery scenarios)
 
         Returns:
             A new Session instance with mode-appropriate tools.
         """
-        session_id = str(uuid.uuid4())
+        session_id = session_id or str(uuid.uuid4())
 
         # Determine max_history based on mode
         if mode == SessionMode.CHAT:
