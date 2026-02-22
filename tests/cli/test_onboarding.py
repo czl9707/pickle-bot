@@ -129,3 +129,23 @@ def test_save_config_creates_system_defaults():
 
         assert "default_agent" in config
         assert "logging_path" in config
+
+
+def test_run_orchestrates_all_steps():
+    """Test that run() calls all steps in order."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workspace = Path(tmpdir) / "test-workspace"
+        wizard = OnboardingWizard(workspace=workspace)
+
+        with (
+            patch.object(wizard, "setup_workspace") as mock_setup,
+            patch.object(wizard, "configure_llm") as mock_llm,
+            patch.object(wizard, "configure_messagebus") as mock_bus,
+            patch.object(wizard, "save_config") as mock_save,
+        ):
+            wizard.run()
+
+        mock_setup.assert_called_once()
+        mock_llm.assert_called_once()
+        mock_bus.assert_called_once()
+        mock_save.assert_called_once()

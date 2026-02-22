@@ -5,6 +5,7 @@ from pathlib import Path
 import yaml
 
 import questionary
+from rich.console import Console
 
 
 class OnboardingWizard:
@@ -169,3 +170,19 @@ class OnboardingWizard:
         user_config_path = self.workspace / "config.user.yaml"
         with open(user_config_path, "w") as f:
             yaml.dump(self.state, f, default_flow_style=False)
+
+    def run(self) -> None:
+        """Run the complete onboarding flow."""
+        console = Console()
+
+        console.print("\n[bold cyan]Welcome to Pickle-Bot![/bold cyan]")
+        console.print("Let's set up your configuration.\n")
+
+        self.setup_workspace()
+        self.configure_llm()
+        self.configure_messagebus()
+        self.save_config()
+
+        console.print("\n[green]Configuration saved![/green]")
+        console.print(f"Config file: {self.workspace / 'config.user.yaml'}")
+        console.print("Edit this file to make changes.\n")
