@@ -113,12 +113,16 @@ class HistoryStore:
 
     @staticmethod
     def from_config(config: Config) -> "HistoryStore":
-        return HistoryStore(config.history_path)
+        return HistoryStore(
+            config.history_path,
+            max_history_file_size=config.max_history_file_size
+        )
 
-    def __init__(self, base_path: Path):
+    def __init__(self, base_path: Path, max_history_file_size: int = 500):
         self.base_path = Path(base_path)
         self.sessions_path = self.base_path / "sessions"
         self.index_path = self.base_path / "index.jsonl"
+        self.max_history_file_size = max_history_file_size
 
         self.base_path.mkdir(parents=True, exist_ok=True)
         self.sessions_path.mkdir(parents=True, exist_ok=True)
@@ -203,9 +207,7 @@ class HistoryStore:
 
         return session.model_dump()
 
-    def save_message(
-        self, session_id: str, message: HistoryMessage, max_history: int = 50
-    ) -> None:
+    def save_message(self, session_id: str, message: HistoryMessage) -> None:
         """Save a message to history."""
         # Get session to update
         sessions = self._read_index()
@@ -221,7 +223,7 @@ class HistoryStore:
         current_count = self._count_messages_in_chunk(current_chunk)
 
         # If current chunk is full, create new one
-        if current_count >= max_history:
+        if current_count >= self.max_history_file_size:
             current_idx += 1
             current_chunk = self._chunk_path(session_id, current_idx)
             session.chunk_count = current_idx

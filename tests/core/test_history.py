@@ -397,17 +397,16 @@ class TestSaveMessageChunking:
         """save_message should create new chunk when current is full."""
         history_store.create_session("agent", "session-1")
 
-        # Fill first chunk (3 messages = max_history)
+        # Fill first chunk (3 messages = max_history_file_size)
         for i in range(3):
             history_store.save_message(
                 "session-1",
                 HistoryMessage(role="user", content=f"msg{i}"),
-                max_history=3,
             )
 
         # Next message should create chunk 2
         history_store.save_message(
-            "session-1", HistoryMessage(role="user", content="msg3"), max_history=3
+            "session-1", HistoryMessage(role="user", content="msg3")
         )
 
         # Both chunks should exist
@@ -428,17 +427,20 @@ class TestSaveMessageChunking:
         """save_message should update chunk_count when creating new chunk."""
         history_store.create_session("agent", "session-1")
 
-        # Fill chunk 1
+        # Fill chunk 1 (max_history_file_size=3)
         history_store.save_message(
-            "session-1", HistoryMessage(role="user", content="a"), max_history=2
+            "session-1", HistoryMessage(role="user", content="a")
         )
         history_store.save_message(
-            "session-1", HistoryMessage(role="user", content="b"), max_history=2
+            "session-1", HistoryMessage(role="user", content="b")
+        )
+        history_store.save_message(
+            "session-1", HistoryMessage(role="user", content="c")
         )
 
         # Create chunk 2
         history_store.save_message(
-            "session-1", HistoryMessage(role="user", content="c"), max_history=2
+            "session-1", HistoryMessage(role="user", content="d")
         )
 
         sessions = history_store.list_sessions()
@@ -449,7 +451,7 @@ class TestSaveMessageChunking:
         history_store.create_session("agent", "session-1")
 
         history_store.save_message(
-            "session-1", HistoryMessage(role="user", content="hello"), max_history=100
+            "session-1", HistoryMessage(role="user", content="hello")
         )
 
         # Should still be on chunk 1
@@ -465,12 +467,11 @@ class TestGetMessagesChunking:
         """get_messages should load from multiple chunks, newest first."""
         history_store.create_session("agent", "session-1")
 
-        # Create 5 messages across 3 chunks (max_history=2 per chunk)
+        # Create 5 messages across 2 chunks (max_history_file_size=3 per chunk)
         for i in range(5):
             history_store.save_message(
                 "session-1",
                 HistoryMessage(role="user", content=f"msg{i}"),
-                max_history=2,
             )
 
         # max_history=2, so should only get last 2 messages
@@ -484,10 +485,10 @@ class TestGetMessagesChunking:
         history_store.create_session("agent", "session-1")
 
         history_store.save_message(
-            "session-1", HistoryMessage(role="user", content="a"), max_history=100
+            "session-1", HistoryMessage(role="user", content="a")
         )
         history_store.save_message(
-            "session-1", HistoryMessage(role="user", content="b"), max_history=100
+            "session-1", HistoryMessage(role="user", content="b")
         )
 
         messages = history_store.get_messages("session-1", max_history=100)
@@ -504,7 +505,6 @@ class TestGetMessagesChunking:
             history_store.save_message(
                 "session-1",
                 HistoryMessage(role="user", content=f"msg{i}"),
-                max_history=3,
             )
 
         # max_history=3, should get last 3 (1 from chunk 1, 2 from chunk 2)
