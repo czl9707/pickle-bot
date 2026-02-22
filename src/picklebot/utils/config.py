@@ -233,12 +233,20 @@ class Config(BaseModel):
             yaml.dump(data, f)
 
     def _update_in_memory(self, key: str, value: Any) -> None:
-        """Update in-memory config, supporting nested attributes."""
+        """Update in-memory config, supporting nested attributes and dict keys."""
         keys = key.split(".")
         obj = self
         for k in keys[:-1]:
-            obj = getattr(obj, k)
-        setattr(obj, keys[-1], value)
+            if isinstance(obj, dict):
+                obj = obj[k]
+            else:
+                obj = getattr(obj, k)
+
+        final_key = keys[-1]
+        if isinstance(obj, dict):
+            obj[final_key] = value
+        else:
+            setattr(obj, final_key, value)
 
     def set_user(self, key: str, value: Any) -> None:
         """
