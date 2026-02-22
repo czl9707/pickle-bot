@@ -22,7 +22,7 @@ console = Console()
 
 
 # Global workspace option callback
-def workspace_callback(ctx: typer.Context, workspace: str):
+def workspace_callback(ctx: typer.Context, workspace: str) -> Path:
     """Store workspace path in context for later use."""
     ctx.ensure_object(dict)
     ctx.obj["workspace"] = Path(workspace)
@@ -95,7 +95,7 @@ def init(
     ctx: typer.Context,
 ) -> None:
     """Initialize pickle-bot configuration with interactive onboarding."""
-    workspace = ctx.obj.get("workspace", Path.home() / ".pickle-bot")
+    workspace = ctx.obj["workspace"]
     wizard = OnboardingWizard(workspace=workspace)
     wizard.run()
 
