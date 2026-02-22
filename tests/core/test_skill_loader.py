@@ -3,20 +3,11 @@
 import pytest
 
 from picklebot.core.skill_loader import SkillDef, SkillLoader
-from picklebot.utils.config import Config, LLMConfig
 from picklebot.utils.def_loader import DefNotFoundError
 
 
 class TestSkillLoaderDiscovery:
     """Tests for SkillLoader.discover_skills() method."""
-
-    @pytest.fixture
-    def test_config(self, tmp_path):
-        return Config(
-            workspace=tmp_path,
-            llm=LLMConfig(provider="test", model="test-model", api_key="test-key"),
-            default_agent="test",
-        )
 
     def test_discover_skills_valid_skill(self, test_config):
         """Test discover_skills finds and parses valid skill with content."""
@@ -54,14 +45,6 @@ This is the skill content.
 
 class TestSkillLoaderLoad:
     """Tests for SkillLoader.load_skill() method."""
-
-    @pytest.fixture
-    def test_config(self, tmp_path):
-        return Config(
-            workspace=tmp_path,
-            llm=LLMConfig(provider="test", model="test-model", api_key="test-key"),
-            default_agent="test",
-        )
 
     def test_load_skill_returns_full_content(self, test_config):
         """Test load_skill returns SkillDef with full content."""
@@ -107,14 +90,6 @@ More content here.
 
 class TestSkillLoaderTemplateSubstitution:
     """Tests for template variable substitution in skill content."""
-
-    @pytest.fixture
-    def test_config(self, tmp_path):
-        return Config(
-            workspace=tmp_path,
-            llm=LLMConfig(provider="test", model="test-model", api_key="test-key"),
-            default_agent="test",
-        )
 
     def test_substitutes_template_variables(self, test_config):
         """Skill content can use template variables."""

@@ -5,19 +5,10 @@ import pytest
 from picklebot.core.skill_loader import SkillLoader
 from picklebot.frontend.base import SilentFrontend
 from picklebot.tools.skill_tool import create_skill_tool
-from picklebot.utils.config import Config, LLMConfig
 
 
 class TestCreateSkillTool:
     """Tests for create_skill_tool factory function."""
-
-    @pytest.fixture
-    def test_config(self, tmp_path):
-        return Config(
-            workspace=tmp_path,
-            llm=LLMConfig(provider="test", model="test-model", api_key="test-key"),
-            default_agent="test",
-        )
 
     def test_create_skill_tool_returns_none_when_no_skills(self, test_config):
         """create_skill_tool should return None when no skills available."""

@@ -2,20 +2,11 @@
 
 import pytest
 
-from picklebot.utils.config import Config, LLMConfig
 from picklebot.core.agent_loader import AgentLoader
 from picklebot.utils.def_loader import DefNotFoundError, InvalidDefError
 
 
 class TestAgentLoaderParsing:
-    @pytest.fixture
-    def test_config(self, tmp_path):
-        return Config(
-            workspace=tmp_path,
-            llm=LLMConfig(provider="test", model="test-model", api_key="test-key"),
-            default_agent="test",
-        )
-
     def test_parse_simple_agent(self, test_config):
         """Parse agent with name and prompt only."""
         agents_dir = test_config.agents_path
@@ -32,7 +23,7 @@ class TestAgentLoaderParsing:
         assert agent_def.id == "pickle"
         assert agent_def.name == "Pickle"
         assert agent_def.system_prompt == "You are a helpful assistant."
-        assert agent_def.llm.provider == "test"
+        assert agent_def.llm.provider == "openai"
 
     def test_parse_agent_with_llm_overrides(self, test_config):
         """Parse agent with LLM overrides."""
@@ -110,14 +101,6 @@ class TestAgentLoaderParsing:
 
 
 class TestAgentLoaderErrors:
-    @pytest.fixture
-    def test_config(self, tmp_path):
-        return Config(
-            workspace=tmp_path,
-            llm=LLMConfig(provider="test", model="test-model", api_key="test-key"),
-            default_agent="test",
-        )
-
     def test_raises_not_found_when_folder_missing(self, test_config):
         """Raise DefNotFoundError when folder doesn't exist."""
         agents_dir = test_config.agents_path
@@ -161,14 +144,6 @@ class TestAgentLoaderErrors:
 
 
 class TestAgentLoaderDiscover:
-    @pytest.fixture
-    def test_config(self, tmp_path):
-        return Config(
-            workspace=tmp_path,
-            llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
-            default_agent="test",
-        )
-
     def test_discover_agents_returns_all_agents(self, test_config):
         """discover_agents should return list of all valid AgentDef."""
         agents_dir = test_config.agents_path
@@ -205,14 +180,6 @@ You are {name}.
 
 
 class TestAgentLoaderTemplateSubstitution:
-    @pytest.fixture
-    def test_config(self, tmp_path):
-        return Config(
-            workspace=tmp_path,
-            llm=LLMConfig(provider="test", model="test-model", api_key="test-key"),
-            default_agent="test",
-        )
-
     def test_substitutes_memories_path(self, test_config):
         """AgentLoader substitutes {{memories_path}} in system prompt."""
         agents_dir = test_config.agents_path

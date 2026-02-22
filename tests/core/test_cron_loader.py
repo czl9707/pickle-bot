@@ -3,19 +3,10 @@
 import pytest
 
 from picklebot.core.cron_loader import CronLoader
-from picklebot.utils.config import Config, LLMConfig
 
 
 class TestCronLoader:
     """Test CronLoader class."""
-
-    @pytest.fixture
-    def test_config(self, tmp_path):
-        return Config(
-            workspace=tmp_path,
-            llm=LLMConfig(provider="test", model="test-model", api_key="test-key"),
-            default_agent="test",
-        )
 
     def test_load_simple_cron(self, test_config):
         """Parse cron with required fields."""

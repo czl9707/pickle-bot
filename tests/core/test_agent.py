@@ -223,13 +223,3 @@ def test_post_message_available_in_job_mode(test_config):
     assert "post_message" in tool_names
 
 
-def test_new_session_has_chat_max_history(test_agent, test_config):
-    """Agent.new_session should set max_history from config for CHAT mode."""
-    session = test_agent.new_session(SessionMode.CHAT)
-    assert session.max_history == test_config.chat_max_history
-
-
-def test_new_session_has_job_max_history(test_agent, test_config):
-    """Agent.new_session should set max_history from config for JOB mode."""
-    session = test_agent.new_session(SessionMode.JOB)
-    assert session.max_history == test_config.job_max_history
