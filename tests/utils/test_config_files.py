@@ -1,6 +1,5 @@
 """Tests for config file handling."""
 
-import pytest
 import yaml
 from pathlib import Path
 from picklebot.utils.config import Config
