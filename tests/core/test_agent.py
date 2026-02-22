@@ -221,3 +221,35 @@ def test_post_message_available_in_job_mode(test_config):
     tool_names = [schema["function"]["name"] for schema in tool_schemas]
 
     assert "post_message" in tool_names
+
+
+def test_new_session_passes_max_history_to_create_session(test_agent, test_config):
+    """Agent.new_session should pass max_history to history_store.create_session."""
+    # Create a session in CHAT mode
+    session = test_agent.new_session(SessionMode.CHAT)
+
+    # Verify the session was created with the correct max_history in HistoryStore
+    stored_session = None
+    for s in test_agent.context.history_store.list_sessions():
+        if s.id == session.session_id:
+            stored_session = s
+            break
+
+    assert stored_session is not None
+    assert stored_session.max_history == test_config.chat_max_history
+
+
+def test_new_session_passes_job_max_history_to_create_session(test_agent, test_config):
+    """Agent.new_session should pass job_max_history to history_store.create_session in JOB mode."""
+    # Create a session in JOB mode
+    session = test_agent.new_session(SessionMode.JOB)
+
+    # Verify the session was created with the correct max_history in HistoryStore
+    stored_session = None
+    for s in test_agent.context.history_store.list_sessions():
+        if s.id == session.session_id:
+            stored_session = s
+            break
+
+    assert stored_session is not None
+    assert stored_session.max_history == test_config.job_max_history
