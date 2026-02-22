@@ -41,13 +41,7 @@ class LLMProvider(ABC):
         """Friendly name for onboarding wizard."""
         ...
 
-    @property
-    @abstractmethod
-    def default_model(self) -> str:
-        """Default model for this provider."""
-        ...
-
-    # Optional class attributes (subclasses can override)
+    default_model: str | None = None
     env_var: str | None = None
     api_base: str | None = None
 

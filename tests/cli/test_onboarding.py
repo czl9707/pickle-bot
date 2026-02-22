@@ -41,9 +41,8 @@ def test_configure_llm_stores_state():
     ):
         # Mock select returns the provider config_name
         mock_select.return_value.ask.return_value = "openai"
-        # Model uses provider default - questionary returns default when user presses enter
-        # Then api_key (no default), then api_base not prompted for openai
-        mock_text.return_value.ask.side_effect = ["gpt-4o", "sk-test-key"]
+        # Model, api_key, then api_base (user presses enter to skip with empty default)
+        mock_text.return_value.ask.side_effect = ["gpt-4o", "sk-test-key", ""]
 
         wizard.configure_llm()
 
@@ -115,6 +114,7 @@ def test_save_config_writes_yaml():
     """Test that save_config writes valid YAML files."""
     with tempfile.TemporaryDirectory() as tmpdir:
         workspace = Path(tmpdir) / "test-workspace"
+        workspace.mkdir()  # Ensure workspace exists
         wizard = OnboardingWizard(workspace=workspace)
 
         wizard.state = {
@@ -139,6 +139,7 @@ def test_save_config_no_system_file():
     """Test that save_config does NOT create config.system.yaml."""
     with tempfile.TemporaryDirectory() as tmpdir:
         workspace = Path(tmpdir) / "test-workspace"
+        workspace.mkdir()  # Ensure workspace exists
         wizard = OnboardingWizard(workspace=workspace)
 
         wizard.state = {

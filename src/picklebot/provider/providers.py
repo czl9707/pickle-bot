@@ -8,8 +8,7 @@ class ZaiProvider(LLMProvider):
 
     provider_config_name = ["zai", "z_ai"]
     display_name = "Z.ai"
-    default_model = "zai-1.0"
-    env_var = "ZAI_API_KEY"
+    default_model = "GLM-5"
 
 
 class OpenAIProvider(LLMProvider):
@@ -18,7 +17,6 @@ class OpenAIProvider(LLMProvider):
     provider_config_name = ["openai"]
     display_name = "OpenAI"
     default_model = "gpt-4o"
-    env_var = "OPENAI_API_KEY"
 
 
 class AnthropicProvider(LLMProvider):
@@ -26,8 +24,7 @@ class AnthropicProvider(LLMProvider):
 
     provider_config_name = ["anthropic", "claude"]
     display_name = "Anthropic Claude"
-    default_model = "claude-3-5-sonnet-latest"
-    env_var = "ANTHROPIC_API_KEY"
+    default_model = "opus-4.5"
 
 
 class OtherProvider(LLMProvider):
@@ -35,4 +32,3 @@ class OtherProvider(LLMProvider):
 
     provider_config_name = ["other"]
     display_name = "Other (custom)"
-    default_model = ""
