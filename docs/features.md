@@ -314,6 +314,74 @@ Messages flow through queue-based system:
 
 This ensures messages are processed one at a time, preventing race conditions.
 
+## HTTP API
+
+Pickle-bot exposes a REST API for SDK-like access to all resources.
+
+### Enabling the API
+
+The API is enabled by default in server mode:
+
+```yaml
+api:
+  enabled: true
+  host: "127.0.0.1"
+  port: 8000
+```
+
+Start the server:
+```bash
+uv run picklebot server
+```
+
+### Available Endpoints
+
+All endpoints follow RESTful conventions:
+
+| Resource | Endpoints |
+|----------|-----------|
+| **Agents** | `GET/POST/PUT/DELETE /agents/{id}` |
+| **Skills** | `GET/POST/PUT/DELETE /skills/{id}` |
+| **Crons** | `GET/POST/PUT/DELETE /crons/{id}` |
+| **Sessions** | `GET/DELETE /sessions/{id}` (no POST - created by system) |
+| **Memories** | `GET/POST/PUT/DELETE /memories/{path}` |
+| **Config** | `GET/PATCH /config` |
+
+### Example Usage
+
+List all agents:
+```bash
+curl http://localhost:8000/agents
+```
+
+Get a specific agent:
+```bash
+curl http://localhost:8000/agents/pickle
+```
+
+Update config:
+```bash
+curl -X PATCH http://localhost:8000/config \
+  -H "Content-Type: application/json" \
+  -d '{"default_agent": "cookie"}'
+```
+
+### Creating Resources
+
+Create definitions with YAML frontmatter via the API:
+
+```bash
+curl -X POST http://localhost:8000/skills/my-skill \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My Skill",
+    "description": "A custom skill",
+    "content": "# My Skill\n\nInstructions here..."
+  }'
+```
+
+See [Architecture](architecture.md) for implementation details.
+
 ## Heartbeat & Continuous Work
 
 Pickle-bot can work continuously on projects through the heartbeat cron pattern.

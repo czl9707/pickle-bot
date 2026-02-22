@@ -115,6 +115,33 @@ logging_path: .logs          # Log files directory
 default_agent: pickle        # Agent used when no agent specified
 ```
 
+### History Settings
+
+Control how conversation history is managed:
+
+```yaml
+chat_max_history: 50         # Max messages for LLM context in chat mode
+job_max_history: 500         # Max messages for LLM context in job mode (crons)
+max_history_file_size: 500   # Max messages per history chunk file
+```
+
+- **chat_max_history** - Limits messages sent to LLM during interactive chat (smaller for faster responses)
+- **job_max_history** - Limits messages sent to LLM during cron jobs (larger for background work)
+- **max_history_file_size** - Controls how history is chunked on disk (separate from LLM context limits)
+
+### HTTP API Settings
+
+Enable the REST API for SDK-like access:
+
+```yaml
+api:
+  enabled: true              # Enable HTTP API (default: true)
+  host: "127.0.0.1"          # Bind address (default: 127.0.0.1)
+  port: 8000                 # Port number (default: 8000)
+```
+
+The API runs as part of `picklebot server` when enabled. See [Features](features.md#http-api) for available endpoints.
+
 ## MessageBus Configuration
 
 MessageBus enables chat via Telegram and Discord with shared conversation history.
