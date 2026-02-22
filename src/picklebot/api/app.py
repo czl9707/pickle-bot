@@ -1,6 +1,7 @@
 """FastAPI application factory."""
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from picklebot.api.routers import agents, config, crons, memories, sessions, skills
 from picklebot.core.context import SharedContext
@@ -14,6 +15,13 @@ def create_app(context: SharedContext) -> FastAPI:
         version="0.1.0",
     )
     app.state.context = context
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     app.include_router(agents.router, prefix="/agents", tags=["agents"])
     app.include_router(skills.router, prefix="/skills", tags=["skills"])
