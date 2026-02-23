@@ -1,12 +1,10 @@
 """Tests for CronWorker."""
 
-import asyncio
 import pytest
 from datetime import datetime
 from unittest.mock import patch
 
 from picklebot.server.cron_worker import CronWorker, find_due_jobs
-from picklebot.server.base import Job
 from picklebot.core.cron_loader import CronDef
 from picklebot.core.agent import SessionMode
 

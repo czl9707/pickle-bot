@@ -19,7 +19,7 @@ class TestServer:
         server = Server(context)
 
         assert server.context == context
-        assert server.agent_queue is not None
+        assert context.agent_queue is not None  # Queue is in context, not server
         assert server.workers == []
 
     @pytest.mark.anyio
