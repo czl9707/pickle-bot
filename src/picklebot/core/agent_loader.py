@@ -87,7 +87,9 @@ class AgentLoader:
         # Substitute template variables in body
         body = substitute_template(body, get_template_variables(self.config))
 
-        merged_llm = self._merge_llm_config(frontmatter)
+        # Extract nested llm config (optional)
+        llm_overrides = frontmatter.get("llm")
+        merged_llm = self._merge_llm_config(llm_overrides)
 
         try:
             return AgentDef(
