@@ -26,7 +26,7 @@ class TestAgentLoaderParsing:
         assert agent_def.llm.provider == "openai"
 
     def test_parse_agent_with_llm_overrides(self, test_config):
-        """Parse agent with LLM overrides."""
+        """Parse agent with nested LLM config."""
         agents_dir = test_config.agents_path
         agents_dir.mkdir()
         agent_dir = agents_dir / "pickle"
@@ -34,10 +34,11 @@ class TestAgentLoaderParsing:
         (agent_dir / "AGENT.md").write_text(
             "---\n"
             "name: Pickle\n"
-            "provider: openai\n"
-            "model: gpt-4\n"
-            "temperature: 0.5\n"
-            "max_tokens: 8192\n"
+            "llm:\n"
+            "  provider: openai\n"
+            "  model: gpt-4\n"
+            "  temperature: 0.5\n"
+            "  max_tokens: 8192\n"
             "---\n"
             "You are a helpful assistant."
         )
@@ -47,8 +48,8 @@ class TestAgentLoaderParsing:
 
         assert agent_def.llm.provider == "openai"
         assert agent_def.llm.model == "gpt-4"
-        assert agent_def.behavior.temperature == 0.5
-        assert agent_def.behavior.max_tokens == 8192
+        assert agent_def.llm.temperature == 0.5
+        assert agent_def.llm.max_tokens == 8192
 
     def test_parse_agent_with_allow_skills(self, test_config):
         """Test AgentLoader parses allow_skills from frontmatter."""
