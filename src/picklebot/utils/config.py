@@ -92,6 +92,19 @@ class MessageBusConfig(BaseModel):
         return self
 
 
+class WebSearchConfig(BaseModel):
+    """Configuration for web search provider."""
+
+    provider: str = "brave"
+    api_key: str
+
+
+class WebReadConfig(BaseModel):
+    """Configuration for web read provider."""
+
+    provider: str = "crawl4ai"
+
+
 # ============================================================================
 # Main Configuration Class
 # ============================================================================
@@ -120,6 +133,9 @@ class Config(BaseModel):
     memories_path: Path = Field(default=Path("memories"))
     messagebus: MessageBusConfig = Field(default_factory=MessageBusConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
+    # Web capabilities (optional)
+    websearch: WebSearchConfig | None = None
+    webread: WebReadConfig | None = None
     chat_max_history: int = Field(default=50, gt=0)
     job_max_history: int = Field(default=500, gt=0)
     max_history_file_size: int = Field(default=500, gt=0)
