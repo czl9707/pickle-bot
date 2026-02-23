@@ -100,6 +100,7 @@ class AgentLoader:
                 system_prompt=body.strip(),
                 llm=merged_llm,
                 allow_skills=frontmatter.get("allow_skills", False),
+                max_concurrency=frontmatter.get("max_concurrency", 1),
             )
         except ValidationError as e:
             raise InvalidDefError("agent", def_id, str(e))

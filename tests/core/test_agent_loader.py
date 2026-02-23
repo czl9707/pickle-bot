@@ -252,6 +252,49 @@ class TestAgentDefFields:
             )
 
 
+class TestAgentLoaderMaxConcurrency:
+    def test_load_agent_with_max_concurrency(self, test_config):
+        """AgentLoader parses max_concurrency from frontmatter."""
+        agents_dir = test_config.agents_path
+        agents_dir.mkdir()
+        agent_dir = agents_dir / "concurrent-agent"
+        agent_dir.mkdir()
+        (agent_dir / "AGENT.md").write_text(
+            """---
+name: Concurrent Agent
+description: An agent with high concurrency
+max_concurrency: 5
+---
+You are a concurrent assistant.
+"""
+        )
+
+        loader = AgentLoader(test_config)
+        agent_def = loader.load("concurrent-agent")
+
+        assert agent_def.max_concurrency == 5
+
+    def test_load_agent_without_max_concurrency_uses_default(self, test_config):
+        """AgentLoader defaults max_concurrency to 1 if not specified."""
+        agents_dir = test_config.agents_path
+        agents_dir.mkdir()
+        agent_dir = agents_dir / "default-agent"
+        agent_dir.mkdir()
+        (agent_dir / "AGENT.md").write_text(
+            """---
+name: Default Agent
+description: An agent with default concurrency
+---
+You are a default assistant.
+"""
+        )
+
+        loader = AgentLoader(test_config)
+        agent_def = loader.load("default-agent")
+
+        assert agent_def.max_concurrency == 1
+
+
 class TestAgentLoaderTemplateSubstitution:
     def test_substitutes_memories_path(self, test_config):
         """AgentLoader substitutes {{memories_path}} in system prompt."""
