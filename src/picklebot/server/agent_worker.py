@@ -13,6 +13,10 @@ if TYPE_CHECKING:
     from picklebot.core.agent_loader import AgentDef
 
 
+# Maximum number of retry attempts for failed sessions
+MAX_RETRIES = 3
+
+
 class SessionExecutor:
     """Executes a single agent session job."""
 
@@ -57,13 +61,24 @@ class SessionExecutor:
                 session = agent.new_session(self.job.mode)
                 self.job.session_id = session.session_id
 
-            await session.chat(self.job.message, self.job.frontend)
+            response = await session.chat(self.job.message, self.job.frontend)
             self.logger.info(f"Session completed: {session.session_id}")
+
+            # Set result on future if it exists
+            if self.job.result_future is not None:
+                self.job.result_future.set_result(response)
 
         except Exception as e:
             self.logger.error(f"Session failed: {e}")
-            self.job.message = "."
-            await self.agent_queue.put(self.job)
+
+            if self.job.retry_count < MAX_RETRIES:
+                self.job.retry_count += 1
+                self.job.message = "."
+                await self.agent_queue.put(self.job)
+            else:
+                # Max retries reached, set exception on future
+                if self.job.result_future is not None:
+                    self.job.result_future.set_exception(e)
 
 
 class AgentDispatcherWorker(Worker):

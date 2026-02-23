@@ -4,12 +4,18 @@ import asyncio
 import shutil
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from picklebot.server.base import Job
-from picklebot.server.agent_worker import SessionExecutor, AgentDispatcherWorker
 from picklebot.core.agent import SessionMode
+from picklebot.frontend.base import SilentFrontend
+from picklebot.server.agent_worker import (
+    MAX_RETRIES,
+    AgentDispatcherWorker,
+    SessionExecutor,
+)
+from picklebot.server.base import Job
 
 
 class FakeFrontend:
@@ -468,3 +474,147 @@ You are agent {i}.
     # agent-5 semaphore should be cleaned up
     assert "agent-5" not in router._semaphores
     assert len(router._semaphores) == 5
+
+
+# ============================================================================
+# Tests for Task 3: result future and retry logic
+# ============================================================================
+
+
+@pytest.mark.anyio
+async def test_session_executor_sets_result_on_success(test_context, tmp_path):
+    """SessionExecutor should set result on future when session succeeds."""
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir(parents=True)
+    test_agent_dir = agents_dir / "test-agent"
+    test_agent_dir.mkdir(parents=True)
+
+    agent_md = test_agent_dir / "AGENT.md"
+    agent_md.write_text(
+        """---
+name: Test Agent
+description: A test agent
+---
+You are a test assistant.
+"""
+    )
+
+    agent_def = test_context.agent_loader.load("test-agent")
+    semaphore = asyncio.Semaphore(1)
+    queue: asyncio.Queue[Job] = asyncio.Queue()
+
+    job = Job(
+        session_id=None,
+        agent_id="test-agent",
+        message="hello",
+        frontend=SilentFrontend(),
+        mode=SessionMode.CHAT,
+    )
+    job.result_future = asyncio.Future()  # Create future in async context
+
+    with patch("picklebot.server.agent_worker.Agent") as MockAgent:
+        mock_session = AsyncMock()
+        mock_session.chat = AsyncMock(return_value="response text")
+        mock_session.session_id = "session-123"
+
+        mock_agent = MagicMock()
+        mock_agent.new_session.return_value = mock_session
+        MockAgent.return_value = mock_agent
+
+        executor = SessionExecutor(test_context, agent_def, job, semaphore, queue)
+        await executor.run()
+
+    assert job.result_future.done()
+    assert job.result_future.result() == "response text"
+
+
+@pytest.mark.anyio
+async def test_session_executor_requeues_on_first_failure(test_context, tmp_path):
+    """SessionExecutor should requeue job with incremented retry_count on failure."""
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir(parents=True)
+    test_agent_dir = agents_dir / "test-agent"
+    test_agent_dir.mkdir(parents=True)
+
+    agent_md = test_agent_dir / "AGENT.md"
+    agent_md.write_text(
+        """---
+name: Test Agent
+description: A test agent
+---
+You are a test assistant.
+"""
+    )
+
+    agent_def = test_context.agent_loader.load("test-agent")
+    semaphore = asyncio.Semaphore(1)
+    queue: asyncio.Queue[Job] = asyncio.Queue()
+
+    job = Job(
+        session_id=None,
+        agent_id="test-agent",
+        message="hello",
+        frontend=SilentFrontend(),
+        mode=SessionMode.CHAT,
+        retry_count=0,
+    )
+    job.result_future = asyncio.Future()
+
+    with patch("picklebot.server.agent_worker.Agent") as MockAgent:
+        MockAgent.side_effect = Exception("boom")
+
+        executor = SessionExecutor(test_context, agent_def, job, semaphore, queue)
+        await executor.run()
+
+    # Job should be requeued
+    requeued_job = await queue.get()
+    assert requeued_job.retry_count == 1
+    assert requeued_job.message == "."
+
+
+@pytest.mark.anyio
+async def test_session_executor_sets_exception_after_max_retries(
+    test_context, tmp_path
+):
+    """SessionExecutor should set exception after MAX_RETRIES failures."""
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir(parents=True)
+    test_agent_dir = agents_dir / "test-agent"
+    test_agent_dir.mkdir(parents=True)
+
+    agent_md = test_agent_dir / "AGENT.md"
+    agent_md.write_text(
+        """---
+name: Test Agent
+description: A test agent
+---
+You are a test assistant.
+"""
+    )
+
+    agent_def = test_context.agent_loader.load("test-agent")
+    semaphore = asyncio.Semaphore(1)
+    queue: asyncio.Queue[Job] = asyncio.Queue()
+
+    job = Job(
+        session_id=None,
+        agent_id="test-agent",
+        message="hello",
+        frontend=SilentFrontend(),
+        mode=SessionMode.CHAT,
+        retry_count=MAX_RETRIES,  # Already at max
+    )
+    job.result_future = asyncio.Future()
+
+    with patch("picklebot.server.agent_worker.Agent") as MockAgent:
+        MockAgent.side_effect = Exception("final boom")
+
+        executor = SessionExecutor(test_context, agent_def, job, semaphore, queue)
+        await executor.run()
+
+    assert job.result_future.done()
+    assert isinstance(job.result_future.exception(), Exception)
+    assert str(job.result_future.exception()) == "final boom"
+
+    # Should NOT be requeued
+    assert queue.empty()
