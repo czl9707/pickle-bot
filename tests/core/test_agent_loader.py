@@ -1,6 +1,7 @@
 """Tests for AgentLoader."""
 
 import pytest
+from pydantic import ValidationError
 
 from picklebot.core.agent_loader import AgentLoader
 from picklebot.utils.def_loader import DefNotFoundError, InvalidDefError
@@ -205,6 +206,50 @@ You are {name}.
         agent_ids = {a.id for a in agents}
         assert "agent-one" in agent_ids
         assert "agent-two" in agent_ids
+
+
+class TestAgentDefFields:
+    def test_agent_def_has_max_concurrency_with_default(self):
+        """AgentDef has max_concurrency field with default value 1."""
+        from picklebot.core.agent_loader import AgentDef
+        from picklebot.utils.config import LLMConfig
+
+        llm = LLMConfig(provider="test", model="test", api_key="test")
+        agent_def = AgentDef(
+            id="test",
+            name="Test",
+            system_prompt="Test prompt",
+            llm=llm,
+        )
+
+        assert agent_def.max_concurrency == 1
+
+    def test_agent_def_max_concurrency_validation(self):
+        """max_concurrency must be >= 1."""
+        from picklebot.core.agent_loader import AgentDef
+        from picklebot.utils.config import LLMConfig
+
+        llm = LLMConfig(provider="test", model="test", api_key="test")
+
+        # Should fail with 0
+        with pytest.raises(ValidationError):
+            AgentDef(
+                id="test",
+                name="Test",
+                system_prompt="Test prompt",
+                llm=llm,
+                max_concurrency=0,
+            )
+
+        # Should fail with negative
+        with pytest.raises(ValidationError):
+            AgentDef(
+                id="test",
+                name="Test",
+                system_prompt="Test prompt",
+                llm=llm,
+                max_concurrency=-1,
+            )
 
 
 class TestAgentLoaderTemplateSubstitution:
