@@ -51,11 +51,7 @@ class Crawl4AIProvider(WebReadProvider):
 
                 return ReadResult(
                     url=url,
-                    title=(
-                        result.metadata.get("title", "")
-                        if result.metadata
-                        else ""
-                    ),
+                    title=(result.metadata.get("title", "") if result.metadata else ""),
                     content=result.markdown or "",
                     error=None,
                 )
