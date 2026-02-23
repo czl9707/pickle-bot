@@ -39,8 +39,7 @@ class FakeFrontend:
 
 @pytest.mark.anyio
 async def test_agent_worker_processes_job(test_context, tmp_path):
-    """AgentWorker processes a job from the queue."""
-    # Create a test agent definition
+    """AgentJobRouter processes a job from the queue."""
     agents_dir = tmp_path / "agents"
     agents_dir.mkdir(parents=True)
     test_agent_dir = agents_dir / "test-agent"
@@ -52,15 +51,13 @@ async def test_agent_worker_processes_job(test_context, tmp_path):
 name: Test Agent
 description: A test agent
 ---
-
 You are a test assistant. Respond briefly.
 """
     )
 
     queue: asyncio.Queue[Job] = asyncio.Queue()
-    worker = AgentWorker(test_context, queue)
+    router = AgentJobRouter(test_context, queue)
 
-    # Create a job
     job = Job(
         session_id=None,
         agent_id="test-agent",
@@ -70,24 +67,21 @@ You are a test assistant. Respond briefly.
     )
     await queue.put(job)
 
-    # Run worker for one iteration
-    async def process_one():
-        j = await queue.get()
-        await worker._process_job(j)
-        queue.task_done()
+    j = await queue.get()
+    router._dispatch_job(j)
+    queue.task_done()
 
-    await process_one()
+    await asyncio.sleep(0.5)
 
-    assert job.session_id is not None  # Session created
+    assert job.session_id is not None
 
 
 @pytest.mark.anyio
-async def test_agent_worker_does_not_requeue_nonexistent_agent(test_context):
-    """AgentWorker does not requeue job when agent doesn't exist (DefNotFoundError)."""
+async def test_agent_job_router_does_not_requeue_nonexistent_agent(test_context):
+    """AgentJobRouter does not requeue job when agent doesn't exist."""
     queue: asyncio.Queue[Job] = asyncio.Queue()
-    worker = AgentWorker(test_context, queue)
+    router = AgentJobRouter(test_context, queue)
 
-    # Create a job with invalid agent (will raise DefNotFoundError)
     job = Job(
         session_id=None,
         agent_id="nonexistent",
@@ -97,19 +91,17 @@ async def test_agent_worker_does_not_requeue_nonexistent_agent(test_context):
     )
     await queue.put(job)
 
-    # Process should fail but NOT requeue (DefNotFoundError is non-recoverable)
-    await queue.get()
-    await worker._process_job(job)
+    j = await queue.get()
+    router._dispatch_job(j)
+    queue.task_done()
 
-    # Job should NOT be modified or requeued
-    assert job.message == "Test"  # Original message unchanged
-    assert queue.empty()  # Job was not put back in queue
+    assert job.message == "Test"
+    assert queue.empty()
 
 
 @pytest.mark.anyio
-async def test_agent_worker_requeues_on_transient_error(test_context, tmp_path):
-    """AgentWorker requeues job with '.' message on transient errors."""
-    # Create a test agent definition
+async def test_session_executor_requeues_on_transient_error(test_context, tmp_path):
+    """SessionExecutor requeues job with '.' message on transient errors."""
     agents_dir = tmp_path / "agents"
     agents_dir.mkdir(parents=True)
     test_agent_dir = agents_dir / "test-agent"
@@ -125,10 +117,9 @@ You are a test assistant.
 """
     )
 
-    queue: asyncio.Queue[Job] = asyncio.Queue()
-    worker = AgentWorker(test_context, queue)
+    agent_def = test_context.agent_loader.load("test-agent")
+    semaphore = asyncio.Semaphore(1)
 
-    # Create a job with a frontend that raises a transient error
     class ErrorFrontend(FakeFrontend):
         async def show_message(self, content: str, agent_id: str | None = None) -> None:
             raise RuntimeError("Transient error")
@@ -140,21 +131,19 @@ You are a test assistant.
         frontend=ErrorFrontend(),
         mode=SessionMode.CHAT,
     )
-    await queue.put(job)
 
-    # Process should fail and requeue (transient error)
-    await queue.get()
-    await worker._process_job(job)
+    queue: asyncio.Queue[Job] = asyncio.Queue()
+    executor = SessionExecutor(test_context, agent_def, job, semaphore, queue)
 
-    # Job should be requeued with message = "."
+    await executor.run()
+
     assert job.message == "."
-    assert not queue.empty()  # Job was put back in queue
+    assert not queue.empty()
 
 
 @pytest.mark.anyio
-async def test_agent_worker_recovers_missing_session(test_context, tmp_path):
-    """AgentWorker creates new session with same ID if session not found in history."""
-    # Create a test agent definition
+async def test_session_executor_recovers_missing_session(test_context, tmp_path):
+    """SessionExecutor creates new session with same ID if session not found."""
     agents_dir = tmp_path / "agents"
     agents_dir.mkdir(parents=True)
     test_agent_dir = agents_dir / "test-agent"
@@ -170,10 +159,10 @@ You are a test assistant.
 """
     )
 
+    agent_def = test_context.agent_loader.load("test-agent")
+    semaphore = asyncio.Semaphore(1)
     queue: asyncio.Queue[Job] = asyncio.Queue()
-    worker = AgentWorker(test_context, queue)
 
-    # Create a job with a session_id that doesn't exist in history
     nonexistent_session_id = "nonexistent-session-uuid"
     job = Job(
         session_id=nonexistent_session_id,
@@ -183,9 +172,9 @@ You are a test assistant.
         mode=SessionMode.CHAT,
     )
 
-    await worker._process_job(job)
+    executor = SessionExecutor(test_context, agent_def, job, semaphore, queue)
+    await executor.run()
 
-    # Session should be created with the provided ID in history
     assert job.session_id == nonexistent_session_id
     session_ids = [s.id for s in test_context.history_store.list_sessions()]
     assert nonexistent_session_id in session_ids
