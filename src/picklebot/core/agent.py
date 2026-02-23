@@ -13,6 +13,8 @@ from picklebot.tools.registry import ToolRegistry
 from picklebot.tools.skill_tool import create_skill_tool
 from picklebot.tools.subagent_tool import create_subagent_dispatch_tool
 from picklebot.tools.post_message_tool import create_post_message_tool
+from picklebot.tools.websearch_tool import create_websearch_tool
+from picklebot.tools.webread_tool import create_webread_tool
 from picklebot.core.history import HistoryMessage
 
 from litellm.types.completion import (
@@ -69,6 +71,18 @@ class Agent:
         subagent_tool = create_subagent_dispatch_tool(self.agent_def.id, self.context)
         if subagent_tool:
             registry.register(subagent_tool)
+
+        # Register websearch tool if configured
+        if self.context.config.websearch:
+            websearch_tool = create_websearch_tool(self.context)
+            if websearch_tool:
+                registry.register(websearch_tool)
+
+        # Register webread tool if configured
+        if self.context.config.webread:
+            webread_tool = create_webread_tool(self.context)
+            if webread_tool:
+                registry.register(webread_tool)
 
         # Register post_message tool only in JOB mode
         if mode == SessionMode.JOB:
