@@ -229,6 +229,23 @@ class TestMessageBusConfig:
         assert config.messagebus.telegram.bot_token == "test_token"
 
 
+class TestLLMConfig:
+    """Tests for LLMConfig behavior fields."""
+
+    def test_llm_config_has_behavior_defaults(self):
+        """LLMConfig should have temperature and max_tokens with defaults."""
+        from picklebot.utils.config import LLMConfig
+
+        config = LLMConfig(
+            provider="openai",
+            model="gpt-4",
+            api_key="test-key",
+        )
+
+        assert config.temperature == 0.7
+        assert config.max_tokens == 2048
+
+
 class TestApiConfig:
     """Tests for HTTP API configuration."""
 

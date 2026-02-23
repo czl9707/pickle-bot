@@ -19,6 +19,8 @@ class LLMConfig(BaseModel):
     model: str
     api_key: str
     api_base: str | None = None
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    max_tokens: int = Field(default=2048, gt=0)
 
     @field_validator("api_base")
     @classmethod
