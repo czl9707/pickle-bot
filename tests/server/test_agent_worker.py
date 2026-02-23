@@ -1,6 +1,7 @@
 """Tests for AgentWorker."""
 
 import asyncio
+import shutil
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
@@ -402,3 +403,68 @@ You are {agent_name}.
     # Both sessions should be created
     assert job_a.session_id is not None
     assert job_b.session_id is not None
+
+
+@pytest.mark.anyio
+async def test_semaphore_cleanup_removes_stale_semaphores(test_context, tmp_path):
+    """AgentJobRouter removes semaphores for deleted agents when threshold exceeded."""
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir(parents=True)
+
+    # Create 6 agents (exceeds CLEANUP_THRESHOLD of 5)
+    for i in range(6):
+        agent_dir = agents_dir / f"agent-{i}"
+        agent_dir.mkdir(parents=True)
+        agent_md = agent_dir / "AGENT.md"
+        agent_md.write_text(
+            f"""---
+name: Agent {i}
+---
+You are agent {i}.
+"""
+        )
+
+    queue: asyncio.Queue[Job] = asyncio.Queue()
+    router = AgentJobRouter(test_context, queue)
+
+    # Dispatch jobs for all agents to create semaphores
+    for i in range(6):
+        job = Job(
+            session_id=None,
+            agent_id=f"agent-{i}",
+            message="Test",
+            frontend=FakeFrontend(),
+            mode=SessionMode.CHAT,
+        )
+        await queue.put(job)
+        j = await queue.get()
+        router._dispatch_job(j)
+        queue.task_done()
+
+    await asyncio.sleep(0.3)  # Let tasks start
+
+    # All 6 semaphores should exist
+    assert len(router._semaphores) == 6
+
+    # Delete agent-5
+    shutil.rmtree(agents_dir / "agent-5")
+
+    # Trigger cleanup by dispatching another job
+    job = Job(
+        session_id=None,
+        agent_id="agent-0",
+        message="Test",
+        frontend=FakeFrontend(),
+        mode=SessionMode.CHAT,
+    )
+    await queue.put(job)
+    j = await queue.get()
+    router._dispatch_job(j)
+    queue.task_done()
+
+    # Call cleanup explicitly (in run() this happens after task_done())
+    router._maybe_cleanup_semaphores()
+
+    # agent-5 semaphore should be cleaned up
+    assert "agent-5" not in router._semaphores
+    assert len(router._semaphores) == 5
