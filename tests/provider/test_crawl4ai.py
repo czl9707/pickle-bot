@@ -4,7 +4,8 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
 from picklebot.provider.web_read.crawl4ai import Crawl4AIProvider
-from picklebot.provider.web_read.base import ReadResult
+from picklebot.provider.web_read.base import ReadResult, WebReadProvider
+from picklebot.utils.config import Config, Crawl4AIWebReadConfig
 
 
 class TestCrawl4AIProvider:
@@ -15,9 +16,10 @@ class TestCrawl4AIProvider:
         provider = Crawl4AIProvider()
         assert provider is not None
 
-    def test_from_config(self, test_config):
+    def test_from_config(self, test_config: Config):
         """from_config should create provider from config."""
-        provider = Crawl4AIProvider.from_config(test_config)
+        test_config.webread = Crawl4AIWebReadConfig()
+        provider = WebReadProvider.from_config(test_config)
         assert isinstance(provider, Crawl4AIProvider)
 
     @pytest.mark.asyncio

@@ -3,13 +3,14 @@
 from typing import TYPE_CHECKING
 
 from picklebot.tools.base import BaseTool, tool
+from picklebot.provider.web_search import WebSearchProvider
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
     from picklebot.frontend import Frontend
 
 
-def create_websearch_tool(context: "SharedContext") -> BaseTool:
+def create_websearch_tool(context: "SharedContext") -> BaseTool | None:
     """Factory to create websearch tool with injected context.
 
     Args:
@@ -18,6 +19,10 @@ def create_websearch_tool(context: "SharedContext") -> BaseTool:
     Returns:
         Tool function for web search
     """
+    if not context.config.websearch:
+        return None
+
+    provider = WebSearchProvider.from_config(context.config)
 
     @tool(
         name="websearch",
@@ -46,9 +51,7 @@ def create_websearch_tool(context: "SharedContext") -> BaseTool:
         Returns:
             Formatted markdown string with search results
         """
-        from picklebot.provider.web_search import WebSearchProvider
 
-        provider = WebSearchProvider.from_config(context.config)
         results = await provider.search(query)
 
         if not results:

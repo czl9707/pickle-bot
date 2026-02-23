@@ -52,7 +52,7 @@ class WebSearchProvider(ABC):
             case "brave":
                 from .brave import BraveSearchProvider
 
-                return BraveSearchProvider.from_config(config)
+                return BraveSearchProvider(config)
             case _:
                 raise ValueError(
                     f"Unknown websearch provider: {config.websearch.provider}"

@@ -5,7 +5,12 @@ import pytest
 from picklebot.core.agent import Agent, SessionMode
 from picklebot.core.agent_loader import AgentDef
 from picklebot.core.context import SharedContext
-from picklebot.utils.config import Config, LLMConfig, WebSearchConfig, WebReadConfig
+from picklebot.utils.config import (
+    Config,
+    LLMConfig,
+    BraveWebSearchConfig,
+    Crawl4AIWebReadConfig,
+)
 
 
 @pytest.fixture
@@ -23,9 +28,7 @@ class TestAgentWebTools:
 
     def test_agent_loads_websearch_when_configured(self, web_test_config):
         """Agent should load websearch tool when config.websearch is set."""
-        web_test_config.websearch = WebSearchConfig(
-            provider="brave", api_key="test-key"
-        )
+        web_test_config.websearch = BraveWebSearchConfig(api_key="test-key")
         agent_def = AgentDef(
             id="test-agent",
             name="Test Agent",
@@ -43,7 +46,7 @@ class TestAgentWebTools:
 
     def test_agent_loads_webread_when_configured(self, web_test_config):
         """Agent should load webread tool when config.webread is set."""
-        web_test_config.webread = WebReadConfig()
+        web_test_config.webread = Crawl4AIWebReadConfig()
         agent_def = AgentDef(
             id="test-agent",
             name="Test Agent",

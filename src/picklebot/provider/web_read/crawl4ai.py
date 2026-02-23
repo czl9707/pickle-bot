@@ -1,12 +1,8 @@
 """Crawl4AI provider for web page reading."""
 
-from typing import TYPE_CHECKING
 from crawl4ai import AsyncWebCrawler
 
 from .base import WebReadProvider, ReadResult
-
-if TYPE_CHECKING:
-    from picklebot.utils.config import Config
 
 
 class Crawl4AIProvider(WebReadProvider):
@@ -15,18 +11,6 @@ class Crawl4AIProvider(WebReadProvider):
     def __init__(self):
         """Initialize Crawl4AI provider."""
         pass
-
-    @staticmethod
-    def from_config(config: "Config") -> "Crawl4AIProvider":
-        """Create provider from config.
-
-        Args:
-            config: Application config
-
-        Returns:
-            Crawl4AIProvider instance
-        """
-        return Crawl4AIProvider()
 
     async def read(self, url: str) -> ReadResult:
         """Read a web page using Crawl4AI.
@@ -42,12 +26,7 @@ class Crawl4AIProvider(WebReadProvider):
                 result = await crawler.arun(url=url)
 
                 if not result.success:
-                    return ReadResult(
-                        url=url,
-                        title="",
-                        content="",
-                        error=result.error_message or "Failed to crawl page",
-                    )
+                    raise Exception(result.error_message or "Failed to crawl page")
 
                 return ReadResult(
                     url=url,

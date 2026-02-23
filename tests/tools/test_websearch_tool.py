@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 from picklebot.tools.websearch_tool import create_websearch_tool
 from picklebot.provider.web_search.base import SearchResult
 from picklebot.core.context import SharedContext
-from picklebot.utils.config import WebSearchConfig
+from picklebot.utils.config import BraveWebSearchConfig
 from picklebot.frontend.base import SilentFrontend
 
 
@@ -15,7 +15,7 @@ class TestCreateWebsearchTool:
 
     def test_creates_tool(self, test_config):
         """Factory should create a tool."""
-        test_config.websearch = WebSearchConfig(provider="brave", api_key="test-key")
+        test_config.websearch = BraveWebSearchConfig(api_key="test-key")
         context = SharedContext(config=test_config)
 
         tool = create_websearch_tool(context)
@@ -25,7 +25,7 @@ class TestCreateWebsearchTool:
 
     def test_tool_has_correct_schema(self, test_config):
         """Tool should have correct name and parameters."""
-        test_config.websearch = WebSearchConfig(provider="brave", api_key="test-key")
+        test_config.websearch = BraveWebSearchConfig(api_key="test-key")
         context = SharedContext(config=test_config)
 
         tool = create_websearch_tool(context)
@@ -45,7 +45,7 @@ class TestWebsearchToolExecution:
     @pytest.mark.asyncio
     async def test_returns_formatted_results(self, test_config):
         """Tool should return formatted markdown results."""
-        test_config.websearch = WebSearchConfig(provider="brave", api_key="test-key")
+        test_config.websearch = BraveWebSearchConfig(api_key="test-key")
         context = SharedContext(config=test_config)
 
         mock_results = [
@@ -80,7 +80,7 @@ class TestWebsearchToolExecution:
     @pytest.mark.asyncio
     async def test_returns_no_results_message(self, test_config):
         """Tool should return message when no results found."""
-        test_config.websearch = WebSearchConfig(provider="brave", api_key="test-key")
+        test_config.websearch = BraveWebSearchConfig(api_key="test-key")
         context = SharedContext(config=test_config)
 
         with patch(

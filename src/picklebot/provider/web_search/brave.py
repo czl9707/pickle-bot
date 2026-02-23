@@ -14,25 +14,13 @@ class BraveSearchProvider(WebSearchProvider):
 
     BASE_URL = "https://api.search.brave.com/res/v1/web/search"
 
-    def __init__(self, api_key: str):
+    def __init__(self, config: "Config"):
         """Initialize Brave Search provider.
 
         Args:
             api_key: Brave Search API key
         """
-        self.api_key = api_key
-
-    @staticmethod
-    def from_config(config: "Config") -> "BraveSearchProvider":
-        """Create provider from config.
-
-        Args:
-            config: Application config
-
-        Returns:
-            Configured BraveSearchProvider
-        """
-        return BraveSearchProvider(api_key=config.websearch.api_key)
+        self.api_key = config.websearch.api_key
 
     async def search(self, query: str) -> list[SearchResult]:
         """Search the web using Brave Search API.

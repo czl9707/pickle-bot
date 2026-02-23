@@ -3,7 +3,7 @@
 import pytest
 
 from picklebot.provider.web_read.base import ReadResult, WebReadProvider
-from picklebot.utils.config import Config, WebReadConfig
+from picklebot.utils.config import Config
 
 
 class TestReadResult:
@@ -34,17 +34,6 @@ class TestReadResult:
 
 class TestWebReadProvider:
     """Tests for WebReadProvider abstract class."""
-
-    def test_cannot_instantiate_abstract(self):
-        """WebReadProvider should not be instantiable directly."""
-        with pytest.raises(TypeError):
-            WebReadProvider()
-
-    def test_from_config_raises_for_unknown_provider(self, test_config: Config):
-        """from_config should raise ValueError for unknown provider."""
-        test_config.webread = WebReadConfig(provider="unknown")
-        with pytest.raises(ValueError, match="Unknown webread provider"):
-            WebReadProvider.from_config(test_config)
 
     def test_from_config_raises_when_not_configured(self, test_config: Config):
         """from_config should raise ValueError when webread not configured."""

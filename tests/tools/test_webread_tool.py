@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 from picklebot.tools.webread_tool import create_webread_tool
 from picklebot.provider.web_read.base import ReadResult
 from picklebot.core.context import SharedContext
-from picklebot.utils.config import WebReadConfig
+from picklebot.utils.config import Crawl4AIWebReadConfig
 from picklebot.frontend.base import SilentFrontend
 
 
@@ -15,7 +15,7 @@ class TestCreateWebreadTool:
 
     def test_creates_tool(self, test_config):
         """Factory should create a tool."""
-        test_config.webread = WebReadConfig()
+        test_config.webread = Crawl4AIWebReadConfig()
         context = SharedContext(config=test_config)
 
         tool = create_webread_tool(context)
@@ -25,7 +25,7 @@ class TestCreateWebreadTool:
 
     def test_tool_has_correct_schema(self, test_config):
         """Tool should have correct name and parameters."""
-        test_config.webread = WebReadConfig()
+        test_config.webread = Crawl4AIWebReadConfig()
         context = SharedContext(config=test_config)
 
         tool = create_webread_tool(context)
@@ -45,7 +45,7 @@ class TestWebreadToolExecution:
     @pytest.mark.asyncio
     async def test_returns_markdown_content(self, test_config):
         """Tool should return markdown content."""
-        test_config.webread = WebReadConfig()
+        test_config.webread = Crawl4AIWebReadConfig()
         context = SharedContext(config=test_config)
 
         mock_result = ReadResult(
@@ -72,7 +72,7 @@ class TestWebreadToolExecution:
     @pytest.mark.asyncio
     async def test_returns_error_message(self, test_config):
         """Tool should return error message on failure."""
-        test_config.webread = WebReadConfig()
+        test_config.webread = Crawl4AIWebReadConfig()
         context = SharedContext(config=test_config)
 
         mock_result = ReadResult(

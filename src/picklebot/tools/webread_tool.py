@@ -3,13 +3,14 @@
 from typing import TYPE_CHECKING
 
 from picklebot.tools.base import BaseTool, tool
+from picklebot.provider.web_read import WebReadProvider
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
     from picklebot.frontend import Frontend
 
 
-def create_webread_tool(context: "SharedContext") -> BaseTool:
+def create_webread_tool(context: "SharedContext") -> BaseTool | None:
     """Factory to create webread tool with injected context.
 
     Args:
@@ -18,6 +19,10 @@ def create_webread_tool(context: "SharedContext") -> BaseTool:
     Returns:
         Tool function for web page reading
     """
+    if not context.config.webread:
+        return None
+
+    provider = WebReadProvider.from_config(context.config)
 
     @tool(
         name="webread",
@@ -46,9 +51,7 @@ def create_webread_tool(context: "SharedContext") -> BaseTool:
         Returns:
             Markdown content of the page or error message
         """
-        from picklebot.provider.web_read import WebReadProvider
 
-        provider = WebReadProvider.from_config(context.config)
         result = await provider.read(url)
 
         if result.error:

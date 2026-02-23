@@ -72,17 +72,13 @@ class Agent:
         if subagent_tool:
             registry.register(subagent_tool)
 
-        # Register websearch tool if configured
-        if self.context.config.websearch:
-            websearch_tool = create_websearch_tool(self.context)
-            if websearch_tool:
-                registry.register(websearch_tool)
+        websearch_tool = create_websearch_tool(self.context)
+        if websearch_tool:
+            registry.register(websearch_tool)
 
-        # Register webread tool if configured
-        if self.context.config.webread:
-            webread_tool = create_webread_tool(self.context)
-            if webread_tool:
-                registry.register(webread_tool)
+        webread_tool = create_webread_tool(self.context)
+        if webread_tool:
+            registry.register(webread_tool)
 
         # Register post_message tool only in JOB mode
         if mode == SessionMode.JOB:

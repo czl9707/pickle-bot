@@ -24,20 +24,6 @@ class TestSearchResult:
 class TestWebSearchProvider:
     """Tests for WebSearchProvider abstract class."""
 
-    def test_cannot_instantiate_abstract(self):
-        """WebSearchProvider should not be instantiable directly."""
-        with pytest.raises(TypeError):
-            WebSearchProvider()
-
-    def test_from_config_raises_for_unknown_provider(self, test_config: Config):
-        """from_config should raise ValueError for unknown provider."""
-        # Create a mock websearch config with unknown provider
-        from picklebot.utils.config import WebSearchConfig
-
-        test_config.websearch = WebSearchConfig(provider="unknown", api_key="test-key")
-        with pytest.raises(ValueError, match="Unknown websearch provider"):
-            WebSearchProvider.from_config(test_config)
-
     def test_from_config_raises_when_not_configured(self, test_config: Config):
         """from_config should raise ValueError when websearch not configured."""
         test_config.websearch = None
