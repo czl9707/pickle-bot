@@ -250,10 +250,11 @@ Create `~/.pickle-bot/agents/my-agent/AGENT.md`:
 ---
 name: Code Reviewer
 description: Reviews code for quality and best practices
-provider: anthropic
-model: claude-3-opus-20240229
-temperature: 0.3
-max_tokens: 4096
+llm:
+  provider: anthropic
+  model: claude-3-opus-20240229
+  temperature: 0.3
+  max_tokens: 4096
 ---
 
 You are a code review specialist...
@@ -273,11 +274,16 @@ Be thorough but concise...
 - `description` - Brief description (shown in subagent_dispatch)
 
 **Optional fields:**
-- `provider` - Override global LLM provider
-- `model` - Override global model
-- `temperature` - Sampling temperature (0-2)
-- `max_tokens` - Max response length
+- `llm` - Nested object to override LLM settings
+  - `provider` - Override global LLM provider
+  - `model` - Override global model
+  - `temperature` - Sampling temperature (0-2)
+  - `max_tokens` - Max response length
+  - `api_key` - Override API key
+  - `api_base` - Override API base URL
 - `allow_skills` - Enable skill tool
+
+The `llm` object uses deep merge with global config - only specify fields you want to override.
 
 ### System Prompt Guidelines
 
@@ -318,7 +324,8 @@ Store memories in:
 ---
 name: Code Reviewer
 description: Reviews code for quality
-temperature: 0.3
+llm:
+  temperature: 0.3
 ---
 
 You review code for:

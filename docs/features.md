@@ -14,10 +14,11 @@ Agents are defined in `AGENT.md` files with YAML frontmatter:
 ---
 name: Agent Name              # Required: Display name
 description: Brief desc       # Required: shown in subagent_dispatch tool
-provider: openai              # Optional: override shared LLM provider
-model: gpt-4                  # Optional: override shared model
-temperature: 0.7              # Optional: sampling temperature (0-2)
-max_tokens: 4096              # Optional: max response tokens
+llm:                          # Optional: override LLM settings
+  temperature: 0.7            #   Sampling temperature (0-2)
+  max_tokens: 4096            #   Max response tokens
+  provider: openai            #   Override provider (optional)
+  model: gpt-4                #   Override model (optional)
 allow_skills: true            # Optional: enable skill tool (default: false)
 ---
 
@@ -25,6 +26,8 @@ System prompt goes here...
 
 You can use multiple paragraphs and markdown formatting.
 ```
+
+The `llm` object uses deep merge with global config - only specify fields you want to override.
 
 ### Multi-Agent Support
 
@@ -38,18 +41,19 @@ Each agent maintains its own configuration and system prompt.
 
 ### Agent-Specific LLM Settings
 
-Agents can override global LLM settings:
+Agents can override global LLM settings via the nested `llm` object:
 
 ```markdown
 ---
 name: Code Reviewer
-provider: anthropic
-model: claude-3-opus-20240229
-temperature: 0.3
+llm:
+  provider: anthropic
+  model: claude-3-opus-20240229
+  temperature: 0.3
 ---
 ```
 
-This allows using different models for different tasks (e.g., cheaper model for simple tasks, more capable model for complex reasoning).
+This allows using different models for different tasks (e.g., cheaper model for simple tasks, more capable model for complex reasoning). Only specify the fields you want to override - others inherit from global config.
 
 ## Subagent Dispatch
 

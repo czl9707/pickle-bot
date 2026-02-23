@@ -147,6 +147,22 @@ agents_path: Path = Path("agents")   # resolves to workspace/agents
 skills_path: Path = Path("skills")   # resolves to workspace/skills
 ```
 
+### Nested LLM Config
+
+Agents can override any LLM setting via a nested `llm:` object in frontmatter:
+
+```yaml
+---
+name: Code Reviewer
+description: Reviews code for quality
+llm:
+  temperature: 0.3
+  max_tokens: 8192
+---
+```
+
+The `AgentLoader._merge_llm_config()` performs a shallow merge of agent overrides with global LLM defaults. Only specify fields you want to override.
+
 ## Key Conventions
 
 - **Workers** - Single responsibility, communicate via queues, restart on crash
