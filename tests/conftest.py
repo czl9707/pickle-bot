@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from picklebot.core.agent import Agent
-from picklebot.core.agent_loader import AgentBehaviorConfig, AgentDef
+from picklebot.core.agent_loader import AgentDef
 from picklebot.core.context import SharedContext
 from picklebot.core.history import HistoryStore
 from picklebot.utils.config import Config, LLMConfig
@@ -38,7 +38,6 @@ def test_agent_def(llm_config: LLMConfig) -> AgentDef:
         description="A test agent",
         system_prompt="You are a test assistant.",
         llm=llm_config,
-        behavior=AgentBehaviorConfig(),
     )
 
 

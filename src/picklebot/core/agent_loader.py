@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ValidationError
 
 from picklebot.utils.config import Config, LLMConfig
 from picklebot.utils.def_loader import (
@@ -15,13 +15,6 @@ from picklebot.utils.def_loader import (
 )
 
 
-class AgentBehaviorConfig(BaseModel):
-    """Agent behavior settings."""
-
-    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
-    max_tokens: int = Field(default=2048, gt=0)
-
-
 class AgentDef(BaseModel):
     """Loaded agent definition with merged settings."""
 
@@ -30,7 +23,6 @@ class AgentDef(BaseModel):
     description: str = ""  # Brief description for dispatch tool
     system_prompt: str
     llm: LLMConfig
-    behavior: AgentBehaviorConfig
     allow_skills: bool = False
 
 
@@ -104,10 +96,6 @@ class AgentLoader:
                 description=frontmatter.get("description", ""),
                 system_prompt=body.strip(),
                 llm=merged_llm,
-                behavior=AgentBehaviorConfig(
-                    temperature=frontmatter.get("temperature", 0.7),
-                    max_tokens=frontmatter.get("max_tokens", 2048),
-                ),
                 allow_skills=frontmatter.get("allow_skills", False),
             )
         except ValidationError as e:

@@ -3,7 +3,6 @@
 from .agent import Agent, AgentSession
 from .agent_loader import (
     AgentLoader,
-    AgentBehaviorConfig,
     AgentDef,
 )
 from .context import SharedContext
@@ -13,7 +12,6 @@ __all__ = [
     "Agent",
     "AgentSession",
     "AgentDef",
-    "AgentBehaviorConfig",
     "AgentLoader",
     "SharedContext",
     "HistoryStore",
