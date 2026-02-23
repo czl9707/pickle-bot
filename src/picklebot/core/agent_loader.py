@@ -103,19 +103,17 @@ class AgentLoader:
         except ValidationError as e:
             raise InvalidDefError("agent", def_id, str(e))
 
-    def _merge_llm_config(self, frontmatter: dict[str, Any]) -> LLMConfig:
+    def _merge_llm_config(self, agent_llm: dict[str, Any] | None) -> LLMConfig:
         """
-        Merge agent overrides with shared LLM config.
+        Deep merge agent's llm config with global defaults.
 
         Args:
-            frontmatter: Parsed frontmatter dict
+            agent_llm: Optional dict of llm overrides from agent frontmatter
 
         Returns:
             LLMConfig with merged settings
         """
-        return LLMConfig(
-            provider=frontmatter.get("provider", self.config.llm.provider),
-            model=frontmatter.get("model", self.config.llm.model),
-            api_key=frontmatter.get("api_key", self.config.llm.api_key),
-            api_base=frontmatter.get("api_base", self.config.llm.api_base),
-        )
+        base = self.config.llm.model_dump()
+        if agent_llm:
+            base = {**base, **agent_llm}
+        return LLMConfig(**base)
