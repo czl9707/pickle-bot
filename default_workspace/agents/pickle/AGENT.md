@@ -1,6 +1,7 @@
 ---
 name: Pickle
 description: A friendly general-purpose assistant
+max_concurrency: 3
 llm:
   temperature: 0.7
 ---

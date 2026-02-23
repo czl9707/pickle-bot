@@ -1,6 +1,7 @@
 """Tests for AgentLoader."""
 
 import pytest
+from pydantic import ValidationError
 
 from picklebot.core.agent_loader import AgentLoader
 from picklebot.utils.def_loader import DefNotFoundError, InvalidDefError
@@ -205,6 +206,93 @@ You are {name}.
         agent_ids = {a.id for a in agents}
         assert "agent-one" in agent_ids
         assert "agent-two" in agent_ids
+
+
+class TestAgentDefFields:
+    def test_agent_def_has_max_concurrency_with_default(self):
+        """AgentDef has max_concurrency field with default value 1."""
+        from picklebot.core.agent_loader import AgentDef
+        from picklebot.utils.config import LLMConfig
+
+        llm = LLMConfig(provider="test", model="test", api_key="test")
+        agent_def = AgentDef(
+            id="test",
+            name="Test",
+            system_prompt="Test prompt",
+            llm=llm,
+        )
+
+        assert agent_def.max_concurrency == 1
+
+    def test_agent_def_max_concurrency_validation(self):
+        """max_concurrency must be >= 1."""
+        from picklebot.core.agent_loader import AgentDef
+        from picklebot.utils.config import LLMConfig
+
+        llm = LLMConfig(provider="test", model="test", api_key="test")
+
+        # Should fail with 0
+        with pytest.raises(ValidationError):
+            AgentDef(
+                id="test",
+                name="Test",
+                system_prompt="Test prompt",
+                llm=llm,
+                max_concurrency=0,
+            )
+
+        # Should fail with negative
+        with pytest.raises(ValidationError):
+            AgentDef(
+                id="test",
+                name="Test",
+                system_prompt="Test prompt",
+                llm=llm,
+                max_concurrency=-1,
+            )
+
+
+class TestAgentLoaderMaxConcurrency:
+    def test_load_agent_with_max_concurrency(self, test_config):
+        """AgentLoader parses max_concurrency from frontmatter."""
+        agents_dir = test_config.agents_path
+        agents_dir.mkdir()
+        agent_dir = agents_dir / "concurrent-agent"
+        agent_dir.mkdir()
+        (agent_dir / "AGENT.md").write_text(
+            """---
+name: Concurrent Agent
+description: An agent with high concurrency
+max_concurrency: 5
+---
+You are a concurrent assistant.
+"""
+        )
+
+        loader = AgentLoader(test_config)
+        agent_def = loader.load("concurrent-agent")
+
+        assert agent_def.max_concurrency == 5
+
+    def test_load_agent_without_max_concurrency_uses_default(self, test_config):
+        """AgentLoader defaults max_concurrency to 1 if not specified."""
+        agents_dir = test_config.agents_path
+        agents_dir.mkdir()
+        agent_dir = agents_dir / "default-agent"
+        agent_dir.mkdir()
+        (agent_dir / "AGENT.md").write_text(
+            """---
+name: Default Agent
+description: An agent with default concurrency
+---
+You are a default assistant.
+"""
+        )
+
+        loader = AgentLoader(test_config)
+        agent_def = loader.load("default-agent")
+
+        assert agent_def.max_concurrency == 1
 
 
 class TestAgentLoaderTemplateSubstitution:

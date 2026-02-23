@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from picklebot.utils.config import Config, LLMConfig
 from picklebot.utils.def_loader import (
@@ -24,6 +24,7 @@ class AgentDef(BaseModel):
     system_prompt: str
     llm: LLMConfig
     allow_skills: bool = False
+    max_concurrency: int = Field(default=1, ge=1)
 
 
 class AgentLoader:
@@ -99,6 +100,7 @@ class AgentLoader:
                 system_prompt=body.strip(),
                 llm=merged_llm,
                 allow_skills=frontmatter.get("allow_skills", False),
+                max_concurrency=frontmatter.get("max_concurrency", 1),
             )
         except ValidationError as e:
             raise InvalidDefError("agent", def_id, str(e))
