@@ -1,6 +1,7 @@
 """Agent worker for executing agent jobs."""
 
 import asyncio
+import logging
 from typing import TYPE_CHECKING
 
 from picklebot.server.base import Worker, Job
@@ -9,6 +10,62 @@ from picklebot.utils.def_loader import DefNotFoundError
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
+    from picklebot.core.agent_loader import AgentDef
+
+
+class SessionExecutor:
+    """Executes a single agent session job."""
+
+    def __init__(
+        self,
+        context: "SharedContext",
+        agent_def: "AgentDef",
+        job: Job,
+        semaphore: asyncio.Semaphore,
+        agent_queue: asyncio.Queue[Job],
+    ):
+        self.context = context
+        self.agent_def = agent_def
+        self.job = job
+        self.semaphore = semaphore
+        self.agent_queue = agent_queue
+        self.logger = logging.getLogger(
+            f"picklebot.server.SessionExecutor.{agent_def.id}"
+        )
+
+    async def run(self) -> None:
+        """Wait for semaphore, execute session, release."""
+        async with self.semaphore:
+            await self._execute()
+
+    async def _execute(self) -> None:
+        """Run the actual agent session."""
+        try:
+            agent = Agent(self.agent_def, self.context)
+
+            if self.job.session_id:
+                try:
+                    session = agent.resume_session(self.job.session_id)
+                except ValueError:
+                    self.logger.warning(
+                        f"Session {self.job.session_id} not found, creating new"
+                    )
+                    session = agent.new_session(
+                        self.job.mode, session_id=self.job.session_id
+                    )
+            else:
+                session = agent.new_session(self.job.mode)
+                self.job.session_id = session.session_id
+
+            await session.chat(self.job.message, self.job.frontend)
+            self.logger.info(f"Session completed: {session.session_id}")
+
+        except DefNotFoundError:
+            self.logger.warning(f"Agent {self.agent_def.id} no longer exists")
+        except Exception as e:
+            self.logger.error(f"Session failed: {e}")
+            self.job.message = "."
+            await self.agent_queue.put(self.job)
 
 
 class AgentWorker(Worker):

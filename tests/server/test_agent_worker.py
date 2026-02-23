@@ -7,7 +7,7 @@ from typing import AsyncIterator
 import pytest
 
 from picklebot.server.base import Job
-from picklebot.server.agent_worker import AgentWorker
+from picklebot.server.agent_worker import AgentWorker, SessionExecutor
 from picklebot.core.agent import SessionMode
 
 
@@ -189,3 +189,101 @@ You are a test assistant.
     assert job.session_id == nonexistent_session_id
     session_ids = [s.id for s in test_context.history_store.list_sessions()]
     assert nonexistent_session_id in session_ids
+
+
+@pytest.mark.anyio
+async def test_session_executor_runs_session(test_context, tmp_path):
+    """SessionExecutor runs a session successfully."""
+    # Create a test agent definition
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir(parents=True)
+    test_agent_dir = agents_dir / "test-agent"
+    test_agent_dir.mkdir(parents=True)
+
+    agent_md = test_agent_dir / "AGENT.md"
+    agent_md.write_text(
+        """---
+name: Test Agent
+description: A test agent
+---
+You are a test assistant. Respond briefly.
+"""
+    )
+
+    # Load the agent definition
+    agent_def = test_context.agent_loader.load("test-agent")
+
+    # Create a semaphore (value=1 for single concurrency)
+    semaphore = asyncio.Semaphore(1)
+
+    # Create a job
+    job = Job(
+        session_id=None,
+        agent_id="test-agent",
+        message="Say hello",
+        frontend=FakeFrontend(),
+        mode=SessionMode.CHAT,
+    )
+
+    # Create queue for requeue
+    queue: asyncio.Queue[Job] = asyncio.Queue()
+
+    executor = SessionExecutor(test_context, agent_def, job, semaphore, queue)
+    await executor.run()
+
+    assert job.session_id is not None
+
+
+@pytest.mark.anyio
+async def test_session_executor_respects_semaphore(test_context, tmp_path):
+    """SessionExecutor waits on semaphore before executing."""
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir(parents=True)
+    test_agent_dir = agents_dir / "test-agent"
+    test_agent_dir.mkdir(parents=True)
+
+    agent_md = test_agent_dir / "AGENT.md"
+    agent_md.write_text(
+        """---
+name: Test Agent
+---
+You are a test assistant.
+"""
+    )
+
+    agent_def = test_context.agent_loader.load("test-agent")
+
+    # Create a semaphore with value 1
+    semaphore = asyncio.Semaphore(1)
+
+    job = Job(
+        session_id=None,
+        agent_id="test-agent",
+        message="Test",
+        frontend=FakeFrontend(),
+        mode=SessionMode.CHAT,
+    )
+
+    queue: asyncio.Queue[Job] = asyncio.Queue()
+
+    # Acquire the semaphore first
+    await semaphore.acquire()
+
+    # Start executor - it should wait
+    executor = SessionExecutor(test_context, agent_def, job, semaphore, queue)
+    task = asyncio.create_task(executor.run())
+
+    # Give it a moment to start waiting
+    await asyncio.sleep(0.1)
+
+    # Task should not be done (waiting on semaphore)
+    assert not task.done()
+
+    # Release semaphore
+    semaphore.release()
+
+    # Now task should complete
+    await task
+
+    # Clean up
+    assert job.session_id is not None
