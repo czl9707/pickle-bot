@@ -2,6 +2,7 @@
 
 from picklebot.provider.base import LLMProvider
 
+
 class TestGetOnboardingProviders:
     """Test get_onboarding_providers classmethod."""
 
