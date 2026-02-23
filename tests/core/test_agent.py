@@ -3,7 +3,7 @@
 import pytest
 
 from picklebot.core.agent import Agent, SessionMode
-from picklebot.core.agent_loader import AgentBehaviorConfig, AgentDef
+from picklebot.core.agent_loader import AgentDef
 from picklebot.core.context import SharedContext
 from picklebot.utils.config import LLMConfig, MessageBusConfig, TelegramConfig
 
@@ -61,7 +61,6 @@ def _create_agent_with_skills(test_config, allow_skills: bool) -> Agent:
         name="Test Agent",
         system_prompt="You are a test assistant.",
         llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
-        behavior=AgentBehaviorConfig(),
         allow_skills=allow_skills,
     )
     context = SharedContext(config=test_config)
@@ -138,7 +137,6 @@ def _create_agent_with_messagebus(test_config) -> Agent:
         name="Test Agent",
         system_prompt="You are a test assistant.",
         llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
-        behavior=AgentBehaviorConfig(),
     )
     context = SharedContext(config=test_config)
     return Agent(agent_def=agent_def, context=context)
