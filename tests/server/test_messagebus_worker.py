@@ -6,7 +6,6 @@ from unittest.mock import patch
 from dataclasses import dataclass
 
 from picklebot.server.messagebus_worker import MessageBusWorker
-from picklebot.server.base import Job
 from picklebot.messagebus.base import MessageContext
 
 
@@ -93,11 +92,10 @@ You are a test assistant.
 """
     )
 
-    queue: asyncio.Queue[Job] = asyncio.Queue()
     bus = FakeBusWithUser()
 
     with patch.object(test_context, "messagebus_buses", [bus]):
-        worker = MessageBusWorker(test_context, queue)
+        worker = MessageBusWorker(test_context)
         # Patch _get_or_create_session_id to return a known session ID for testing
         worker._get_or_create_session_id = lambda platform, user_id: "test-session-123"
 
@@ -112,7 +110,8 @@ You are a test assistant.
     except asyncio.CancelledError:
         pass
 
-    # Check queue has job
+    # Check queue has job (via context.agent_queue)
+    queue = test_context.agent_queue
     assert not queue.empty()
     job = await queue.get()
     assert job.message == "hello"
@@ -139,10 +138,9 @@ You are a test assistant.
 """
     )
 
-    queue: asyncio.Queue[Job] = asyncio.Queue()
     bus = BlockingBusWithUser()
     with patch.object(test_context, "messagebus_buses", [bus]):
-        worker = MessageBusWorker(test_context, queue)
+        worker = MessageBusWorker(test_context)
 
     task = asyncio.create_task(worker.run())
     await asyncio.sleep(0.1)
@@ -153,6 +151,7 @@ You are a test assistant.
         pass
 
     # Queue should be empty - message was blocked
+    queue = test_context.agent_queue
     assert queue.empty()
 
 
@@ -176,10 +175,9 @@ You are a test assistant.
 """
     )
 
-    queue: asyncio.Queue[Job] = asyncio.Queue()
     bus = FakeBusWithUser()
     with patch.object(test_context, "messagebus_buses", [bus]):
-        worker = MessageBusWorker(test_context, queue)
+        worker = MessageBusWorker(test_context)
 
     # Should NOT have global_session anymore
     assert not hasattr(worker, "global_session")
@@ -219,10 +217,9 @@ You are a test assistant.
         ),
     )
 
-    queue: asyncio.Queue[Job] = asyncio.Queue()
     bus = FakeTelegramBus()
     with patch.object(test_context, "messagebus_buses", [bus]):
-        worker = MessageBusWorker(test_context, queue)
+        worker = MessageBusWorker(test_context)  # No queue param
 
     # Start worker
     task = asyncio.create_task(worker.run())
@@ -236,6 +233,51 @@ You are a test assistant.
         pass
 
     # Check queue has job with the existing session_id
+    queue = test_context.agent_queue
     assert not queue.empty()
     job = await queue.get()
     assert job.session_id == "existing-session-uuid"
+
+
+@pytest.mark.anyio
+async def test_messagebus_worker_uses_context_queue(test_context, tmp_path):
+    """MessageBusWorker should get queue from context."""
+    # Create test agent
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir(parents=True)
+    test_agent_dir = agents_dir / "test"
+    test_agent_dir.mkdir(parents=True)
+
+    agent_md = test_agent_dir / "AGENT.md"
+    agent_md.write_text(
+        """---
+name: Test Agent
+description: A test agent
+---
+
+You are a test assistant.
+"""
+    )
+
+    bus = FakeBusWithUser()
+    with patch.object(test_context, "messagebus_buses", [bus]):
+        worker = MessageBusWorker(test_context)
+        worker._get_or_create_session_id = lambda platform, user_id: "test-session-123"
+
+    # Worker should use context's queue
+    assert worker.context.agent_queue is test_context.agent_queue
+
+    # Verify it dispatches to the context queue
+    task = asyncio.create_task(worker.run())
+    await asyncio.sleep(0.1)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    # Job should be in context's queue
+    queue = test_context.agent_queue
+    assert not queue.empty()
+    job = await queue.get()
+    assert job.message == "hello"
