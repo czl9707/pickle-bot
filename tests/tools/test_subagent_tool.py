@@ -1,5 +1,6 @@
 """Tests for subagent dispatch tool factory."""
 
+import asyncio
 import json
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
@@ -239,3 +240,158 @@ You are the target agent.
             assert call_args[0][0] == "caller"  # calling agent
             assert call_args[0][1] == "target-agent"  # target agent
             assert call_args[0][2] == "Do something"  # task
+
+
+class TestSubagentDispatchQueueMode:
+    """Tests for subagent dispatch queue-based mode (server mode)."""
+
+    @pytest.fixture
+    def mock_context_with_queue(self, test_config):
+        """Create a context with a real queue for testing server mode."""
+        # Create target agent
+        agent_dir = test_config.agents_path / "target-agent"
+        agent_dir.mkdir(parents=True)
+        agent_file = agent_dir / "AGENT.md"
+        agent_file.write_text(
+            """---
+name: Target Agent
+description: A target for dispatch testing
+---
+You are the target agent.
+"""
+        )
+        context = SharedContext(config=test_config)
+        # Initialize the queue (simulates server mode)
+        _ = context.agent_queue  # This creates the queue lazily
+        return context
+
+    @pytest.fixture
+    def mock_frontend(self):
+        """Create a mock frontend with show_dispatch context manager."""
+        mock_frontend = MagicMock(spec=SilentFrontend)
+        # Setup async context manager mock
+        mock_dispatch_context = AsyncMock()
+        mock_dispatch_context.__aenter__ = AsyncMock(return_value=None)
+        mock_dispatch_context.__aexit__ = AsyncMock(return_value=None)
+        mock_frontend.show_dispatch.return_value = mock_dispatch_context
+        return mock_frontend
+
+    @pytest.mark.anyio
+    async def test_subagent_dispatch_uses_queue_when_available(
+        self, mock_context_with_queue, mock_frontend
+    ):
+        """subagent_dispatch should dispatch through queue when available."""
+        tool_func = create_subagent_dispatch_tool("caller", mock_context_with_queue)
+        assert tool_func is not None
+
+        # Create a task that will resolve the future
+        async def resolve_future():
+            await asyncio.sleep(0.1)
+            # Get the job from queue and resolve it
+            job = await mock_context_with_queue.agent_queue.get()
+            job.session_id = "test-session"
+            job.result_future.set_result("task completed")
+
+        asyncio.create_task(resolve_future())
+
+        result = await tool_func.execute(
+            frontend=mock_frontend, agent_id="target-agent", task="do something"
+        )
+        assert "task completed" in result
+        assert "test-session" in result
+
+    @pytest.mark.anyio
+    async def test_subagent_dispatch_fallback_when_no_queue(
+        self, test_config, mock_frontend
+    ):
+        """subagent_dispatch should fall back to direct execution when no queue."""
+        # Create target agent
+        agent_dir = test_config.agents_path / "target-agent"
+        agent_dir.mkdir(parents=True)
+        agent_file = agent_dir / "AGENT.md"
+        agent_file.write_text(
+            """---
+name: Target Agent
+description: A target for dispatch testing
+---
+You are the target agent.
+"""
+        )
+
+        context = SharedContext(config=test_config)
+        # Ensure queue is None (CLI mode)
+        context._agent_queue = None
+
+        with patch("picklebot.core.agent.Agent") as MockAgent:
+            mock_session = AsyncMock()
+            mock_session.chat = AsyncMock(return_value="direct response")
+            mock_session.session_id = "direct-session"
+
+            mock_agent = MagicMock()
+            mock_agent.new_session.return_value = mock_session
+            MockAgent.return_value = mock_agent
+
+            tool_func = create_subagent_dispatch_tool("caller", context)
+            result = await tool_func.execute(
+                frontend=mock_frontend, agent_id="target-agent", task="do something"
+            )
+
+        assert "direct response" in result
+        assert "direct-session" in result
+
+    @pytest.mark.anyio
+    async def test_queue_mode_creates_job_with_correct_fields(
+        self, mock_context_with_queue, mock_frontend
+    ):
+        """Queue mode should create Job with correct agent_id, message, and mode."""
+        tool_func = create_subagent_dispatch_tool("caller", mock_context_with_queue)
+        assert tool_func is not None
+
+        captured_job = None
+
+        async def capture_and_resolve():
+            nonlocal captured_job
+            job = await mock_context_with_queue.agent_queue.get()
+            captured_job = job
+            job.session_id = "captured-session"
+            job.result_future.set_result("done")
+
+        asyncio.create_task(capture_and_resolve())
+
+        await tool_func.execute(
+            frontend=mock_frontend,
+            agent_id="target-agent",
+            task="test task",
+            context="some context",
+        )
+
+        assert captured_job is not None
+        assert captured_job.agent_id == "target-agent"
+        assert "test task" in captured_job.message
+        assert "some context" in captured_job.message
+
+    @pytest.mark.anyio
+    async def test_queue_mode_uses_silent_frontend_for_job(
+        self, mock_context_with_queue, mock_frontend
+    ):
+        """Queue mode should use SilentFrontend for the dispatched job."""
+        tool_func = create_subagent_dispatch_tool("caller", mock_context_with_queue)
+        assert tool_func is not None
+
+        captured_job = None
+
+        async def capture_and_resolve():
+            nonlocal captured_job
+            job = await mock_context_with_queue.agent_queue.get()
+            captured_job = job
+            job.session_id = "silent-session"
+            job.result_future.set_result("silent result")
+
+        asyncio.create_task(capture_and_resolve())
+
+        await tool_func.execute(
+            frontend=mock_frontend, agent_id="target-agent", task="task"
+        )
+
+        assert captured_job is not None
+        assert isinstance(captured_job.frontend, SilentFrontend)
