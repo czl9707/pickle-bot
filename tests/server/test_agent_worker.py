@@ -1,4 +1,4 @@
-"""Tests for AgentWorker."""
+"""Tests for AgentJobRouter and SessionExecutor."""
 
 import asyncio
 import shutil
@@ -8,7 +8,7 @@ from typing import AsyncIterator
 import pytest
 
 from picklebot.server.base import Job
-from picklebot.server.agent_worker import AgentWorker, SessionExecutor, AgentJobRouter
+from picklebot.server.agent_worker import SessionExecutor, AgentJobRouter
 from picklebot.core.agent import SessionMode
 
 

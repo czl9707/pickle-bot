@@ -24,15 +24,15 @@ class TestServer:
 
     @pytest.mark.anyio
     async def test_server_setup_workers_when_messagebus_disabled(self, test_config):
-        """Server sets up AgentWorker and CronWorker when messagebus disabled."""
+        """Server sets up AgentJobRouter and CronWorker when messagebus disabled."""
         context = SharedContext(test_config)
         server = Server(context)
         server._setup_workers()
 
-        # Should have 2 workers: AgentWorker and CronWorker
+        # Should have 2 workers: AgentJobRouter and CronWorker
         assert len(server.workers) == 2
         worker_types = [w.__class__.__name__ for w in server.workers]
-        assert "AgentWorker" in worker_types
+        assert "AgentJobRouter" in worker_types
         assert "CronWorker" in worker_types
         assert "MessageBusWorker" not in worker_types
 
@@ -51,10 +51,10 @@ class TestServer:
             server = Server(context)
             server._setup_workers()
 
-            # Should have 3 workers: AgentWorker, CronWorker, and MessageBusWorker
+            # Should have 3 workers: AgentJobRouter, CronWorker, and MessageBusWorker
             assert len(server.workers) == 3
             worker_types = [w.__class__.__name__ for w in server.workers]
-            assert "AgentWorker" in worker_types
+            assert "AgentJobRouter" in worker_types
             assert "CronWorker" in worker_types
             assert mock_worker_class.called  # MessageBusWorker was created
 
@@ -73,9 +73,9 @@ class TestServer:
         server = Server(context)
         server._setup_workers()
 
-        # Should have only 2 workers: AgentWorker and CronWorker
+        # Should have only 2 workers: AgentJobRouter and CronWorker
         assert len(server.workers) == 2
         worker_types = [w.__class__.__name__ for w in server.workers]
-        assert "AgentWorker" in worker_types
+        assert "AgentJobRouter" in worker_types
         assert "CronWorker" in worker_types
         assert "MessageBusWorker" not in worker_types
