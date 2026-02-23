@@ -7,7 +7,7 @@ from typing import AsyncIterator
 import pytest
 
 from picklebot.server.base import Job
-from picklebot.server.agent_worker import AgentWorker, SessionExecutor
+from picklebot.server.agent_worker import AgentWorker, SessionExecutor, AgentJobRouter
 from picklebot.core.agent import SessionMode
 
 
@@ -287,3 +287,129 @@ You are a test assistant.
 
     # Clean up
     assert job.session_id is not None
+
+
+@pytest.mark.anyio
+async def test_agent_job_router_creates_semaphore_per_agent(test_context, tmp_path):
+    """AgentJobRouter creates a semaphore for each agent on first job."""
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir(parents=True)
+
+    # Create two test agents
+    for agent_name in ["agent-a", "agent-b"]:
+        agent_dir = agents_dir / agent_name
+        agent_dir.mkdir(parents=True)
+        agent_md = agent_dir / "AGENT.md"
+        agent_md.write_text(
+            f"""---
+name: {agent_name}
+max_concurrency: 2
+---
+You are {agent_name}.
+"""
+        )
+
+    queue: asyncio.Queue[Job] = asyncio.Queue()
+    router = AgentJobRouter(test_context, queue)
+
+    # Initially no semaphores
+    assert len(router._semaphores) == 0
+
+    # Create jobs for both agents
+    job_a = Job(
+        session_id=None,
+        agent_id="agent-a",
+        message="Test A",
+        frontend=FakeFrontend(),
+        mode=SessionMode.CHAT,
+    )
+    job_b = Job(
+        session_id=None,
+        agent_id="agent-b",
+        message="Test B",
+        frontend=FakeFrontend(),
+        mode=SessionMode.CHAT,
+    )
+
+    await queue.put(job_a)
+    await queue.put(job_b)
+
+    # Process one job to trigger semaphore creation
+    j = await queue.get()
+    router._dispatch_job(j)
+    queue.task_done()
+
+    # Should have semaphore for agent-a
+    assert "agent-a" in router._semaphores
+    assert router._semaphores["agent-a"]._value == 2  # type: ignore
+
+    # Process second job
+    j = await queue.get()
+    router._dispatch_job(j)
+    queue.task_done()
+
+    # Should have semaphores for both agents
+    assert "agent-b" in router._semaphores
+    assert router._semaphores["agent-b"]._value == 2  # type: ignore
+
+    # Give tasks a moment to complete
+    await asyncio.sleep(0.5)
+
+
+@pytest.mark.anyio
+async def test_agent_job_router_concurrent_agents_dont_block(test_context, tmp_path):
+    """AgentJobRouter allows concurrent agents to run without blocking each other."""
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir(parents=True)
+
+    # Create two agents with concurrency 1 each
+    for agent_name in ["agent-a", "agent-b"]:
+        agent_dir = agents_dir / agent_name
+        agent_dir.mkdir(parents=True)
+        agent_md = agent_dir / "AGENT.md"
+        agent_md.write_text(
+            f"""---
+name: {agent_name}
+max_concurrency: 1
+---
+You are {agent_name}.
+"""
+        )
+
+    queue: asyncio.Queue[Job] = asyncio.Queue()
+    router = AgentJobRouter(test_context, queue)
+
+    # Create jobs for both agents
+    job_a = Job(
+        session_id=None,
+        agent_id="agent-a",
+        message="Test A",
+        frontend=FakeFrontend(),
+        mode=SessionMode.CHAT,
+    )
+    job_b = Job(
+        session_id=None,
+        agent_id="agent-b",
+        message="Test B",
+        frontend=FakeFrontend(),
+        mode=SessionMode.CHAT,
+    )
+
+    await queue.put(job_a)
+    await queue.put(job_b)
+
+    # Dispatch both jobs
+    j = await queue.get()
+    router._dispatch_job(j)
+    queue.task_done()
+
+    j = await queue.get()
+    router._dispatch_job(j)
+    queue.task_done()
+
+    # Both should be able to run concurrently (different agents)
+    await asyncio.sleep(0.5)
+
+    # Both sessions should be created
+    assert job_a.session_id is not None
+    assert job_b.session_id is not None

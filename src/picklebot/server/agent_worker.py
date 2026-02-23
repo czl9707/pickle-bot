@@ -68,49 +68,61 @@ class SessionExecutor:
             await self.agent_queue.put(self.job)
 
 
-class AgentWorker(Worker):
-    """Executes agent jobs from the queue."""
+class AgentJobRouter(Worker):
+    """Routes jobs to session executors with per-agent concurrency control."""
+
+    CLEANUP_THRESHOLD = 5
 
     def __init__(self, context: "SharedContext", agent_queue: asyncio.Queue[Job]):
         super().__init__(context)
         self.agent_queue = agent_queue
+        self._semaphores: dict[str, asyncio.Semaphore] = {}
 
     async def run(self) -> None:
-        """Process jobs from queue sequentially."""
-        self.logger.info("AgentWorker started")
+        """Process jobs sequentially, dispatch to executors."""
+        self.logger.info("AgentJobRouter started")
 
         while True:
             job = await self.agent_queue.get()
-            await self._process_job(job)
+            self._dispatch_job(job)
             self.agent_queue.task_done()
+            self._maybe_cleanup_semaphores()
 
-    async def _process_job(self, job: Job) -> None:
-        """Execute a single job with crash recovery."""
+    def _dispatch_job(self, job: Job) -> None:
+        """Create executor task for job."""
         try:
             agent_def = self.context.agent_loader.load(job.agent_id)
-            agent = Agent(agent_def, self.context)
-
-            if job.session_id:
-                try:
-                    session = agent.resume_session(job.session_id)
-                except ValueError:
-                    # Session not found in history - create new with same ID
-                    self.logger.warning(
-                        f"Session {job.session_id} not found, creating new"
-                    )
-                    session = agent.new_session(job.mode, session_id=job.session_id)
-            else:
-                session = agent.new_session(job.mode)
-                job.session_id = session.session_id
-
-            await session.chat(job.message, job.frontend)
-
-            self.logger.info(f"Job completed: session={job.session_id}")
-
         except DefNotFoundError as e:
             self.logger.error(f"Agent not found: {job.agent_id}: {e}")
-        except Exception as e:
-            self.logger.error(f"Job failed: {e}")
+            return
 
-            job.message = "."
-            await self.agent_queue.put(job)
+        sem = self._get_or_create_semaphore(agent_def)
+        asyncio.create_task(
+            SessionExecutor(self.context, agent_def, job, sem, self.agent_queue).run()
+        )
+
+    def _get_or_create_semaphore(self, agent_def: "AgentDef") -> asyncio.Semaphore:
+        """Get existing or create new semaphore for agent."""
+        if agent_def.id not in self._semaphores:
+            self._semaphores[agent_def.id] = asyncio.Semaphore(
+                agent_def.max_concurrency
+            )
+            self.logger.debug(
+                f"Created semaphore for {agent_def.id} with value {agent_def.max_concurrency}"
+            )
+        return self._semaphores[agent_def.id]
+
+    def _maybe_cleanup_semaphores(self) -> None:
+        """Remove semaphores for deleted agents."""
+        if len(self._semaphores) <= self.CLEANUP_THRESHOLD:
+            return
+
+        existing = {a.id for a in self.context.agent_loader.discover_agents()}
+        stale = set(self._semaphores.keys()) - existing
+        for agent_id in stale:
+            del self._semaphores[agent_id]
+            self.logger.debug(f"Cleaned up semaphore for deleted agent: {agent_id}")
+
+
+# Keep AgentWorker as an alias for backward compatibility
+AgentWorker = AgentJobRouter

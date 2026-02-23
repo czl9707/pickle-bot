@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import uvicorn
 
 from picklebot.server.base import Job, Worker
-from picklebot.server.agent_worker import AgentWorker
+from picklebot.server.agent_worker import AgentJobRouter
 from picklebot.server.cron_worker import CronWorker
 from picklebot.server.messagebus_worker import MessageBusWorker
 
@@ -47,7 +47,7 @@ class Server:
 
     def _setup_workers(self) -> None:
         """Create all workers."""
-        self.workers.append(AgentWorker(self.context, self.agent_queue))
+        self.workers.append(AgentJobRouter(self.context, self.agent_queue))
         self.workers.append(CronWorker(self.context, self.agent_queue))
 
         if self.context.config.messagebus.enabled:
