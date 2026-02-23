@@ -60,16 +60,14 @@ class SessionExecutor:
             await session.chat(self.job.message, self.job.frontend)
             self.logger.info(f"Session completed: {session.session_id}")
 
-        except DefNotFoundError:
-            self.logger.warning(f"Agent {self.agent_def.id} no longer exists")
         except Exception as e:
             self.logger.error(f"Session failed: {e}")
             self.job.message = "."
             await self.agent_queue.put(self.job)
 
 
-class AgentJobRouter(Worker):
-    """Routes jobs to session executors with per-agent concurrency control."""
+class AgentDispatcherWorker(Worker):
+    """Dispatches jobs to session executors with per-agent concurrency control."""
 
     CLEANUP_THRESHOLD = 5
 
@@ -80,7 +78,7 @@ class AgentJobRouter(Worker):
 
     async def run(self) -> None:
         """Process jobs sequentially, dispatch to executors."""
-        self.logger.info("AgentJobRouter started")
+        self.logger.info("AgentDispatcherWorker started")
 
         while True:
             job = await self.agent_queue.get()
@@ -125,4 +123,4 @@ class AgentJobRouter(Worker):
 
 
 # Keep AgentWorker as an alias for backward compatibility
-AgentWorker = AgentJobRouter
+AgentWorker = AgentDispatcherWorker

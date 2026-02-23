@@ -1,4 +1,4 @@
-"""Tests for AgentJobRouter and SessionExecutor."""
+"""Tests for AgentDispatcherWorker and SessionExecutor."""
 
 import asyncio
 import shutil
@@ -8,7 +8,7 @@ from typing import AsyncIterator
 import pytest
 
 from picklebot.server.base import Job
-from picklebot.server.agent_worker import SessionExecutor, AgentJobRouter
+from picklebot.server.agent_worker import SessionExecutor, AgentDispatcherWorker
 from picklebot.core.agent import SessionMode
 
 
@@ -40,7 +40,7 @@ class FakeFrontend:
 
 @pytest.mark.anyio
 async def test_agent_worker_processes_job(test_context, tmp_path):
-    """AgentJobRouter processes a job from the queue."""
+    """AgentDispatcherWorker processes a job from the queue."""
     agents_dir = tmp_path / "agents"
     agents_dir.mkdir(parents=True)
     test_agent_dir = agents_dir / "test-agent"
@@ -57,7 +57,7 @@ You are a test assistant. Respond briefly.
     )
 
     queue: asyncio.Queue[Job] = asyncio.Queue()
-    router = AgentJobRouter(test_context, queue)
+    router = AgentDispatcherWorker(test_context, queue)
 
     job = Job(
         session_id=None,
@@ -79,9 +79,9 @@ You are a test assistant. Respond briefly.
 
 @pytest.mark.anyio
 async def test_agent_job_router_does_not_requeue_nonexistent_agent(test_context):
-    """AgentJobRouter does not requeue job when agent doesn't exist."""
+    """AgentDispatcherWorker does not requeue job when agent doesn't exist."""
     queue: asyncio.Queue[Job] = asyncio.Queue()
-    router = AgentJobRouter(test_context, queue)
+    router = AgentDispatcherWorker(test_context, queue)
 
     job = Job(
         session_id=None,
@@ -281,7 +281,7 @@ You are a test assistant.
 
 @pytest.mark.anyio
 async def test_agent_job_router_creates_semaphore_per_agent(test_context, tmp_path):
-    """AgentJobRouter creates a semaphore for each agent on first job."""
+    """AgentDispatcherWorker creates a semaphore for each agent on first job."""
     agents_dir = tmp_path / "agents"
     agents_dir.mkdir(parents=True)
 
@@ -300,7 +300,7 @@ You are {agent_name}.
         )
 
     queue: asyncio.Queue[Job] = asyncio.Queue()
-    router = AgentJobRouter(test_context, queue)
+    router = AgentDispatcherWorker(test_context, queue)
 
     # Initially no semaphores
     assert len(router._semaphores) == 0
@@ -348,7 +348,7 @@ You are {agent_name}.
 
 @pytest.mark.anyio
 async def test_agent_job_router_concurrent_agents_dont_block(test_context, tmp_path):
-    """AgentJobRouter allows concurrent agents to run without blocking each other."""
+    """AgentDispatcherWorker allows concurrent agents to run without blocking each other."""
     agents_dir = tmp_path / "agents"
     agents_dir.mkdir(parents=True)
 
@@ -367,7 +367,7 @@ You are {agent_name}.
         )
 
     queue: asyncio.Queue[Job] = asyncio.Queue()
-    router = AgentJobRouter(test_context, queue)
+    router = AgentDispatcherWorker(test_context, queue)
 
     # Create jobs for both agents
     job_a = Job(
@@ -407,7 +407,7 @@ You are {agent_name}.
 
 @pytest.mark.anyio
 async def test_semaphore_cleanup_removes_stale_semaphores(test_context, tmp_path):
-    """AgentJobRouter removes semaphores for deleted agents when threshold exceeded."""
+    """AgentDispatcherWorker removes semaphores for deleted agents when threshold exceeded."""
     agents_dir = tmp_path / "agents"
     agents_dir.mkdir(parents=True)
 
@@ -425,7 +425,7 @@ You are agent {i}.
         )
 
     queue: asyncio.Queue[Job] = asyncio.Queue()
-    router = AgentJobRouter(test_context, queue)
+    router = AgentDispatcherWorker(test_context, queue)
 
     # Dispatch jobs for all agents to create semaphores
     for i in range(6):
