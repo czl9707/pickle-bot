@@ -100,6 +100,33 @@ class TestAgentLoaderParsing:
 
         assert agent_def.description == ""
 
+    def test_parse_agent_llm_deep_merges_with_global(self, test_config):
+        """Agent's llm config should deep merge with global config."""
+        agents_dir = test_config.agents_path
+        agents_dir.mkdir()
+        agent_dir = agents_dir / "pickle"
+        agent_dir.mkdir()
+        # Only override temperature, should inherit provider/model from global
+        (agent_dir / "AGENT.md").write_text(
+            "---\n"
+            "name: Pickle\n"
+            "llm:\n"
+            "  temperature: 0.3\n"
+            "---\n"
+            "You are a helpful assistant."
+        )
+
+        loader = AgentLoader(test_config)
+        agent_def = loader.load("pickle")
+
+        # Inherited from global config
+        assert agent_def.llm.provider == "openai"
+        assert agent_def.llm.model == "gpt-4"
+        # Overridden by agent
+        assert agent_def.llm.temperature == 0.3
+        # Default from LLMConfig
+        assert agent_def.llm.max_tokens == 2048
+
 
 class TestAgentLoaderErrors:
     def test_raises_not_found_when_folder_missing(self, test_config):
