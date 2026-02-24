@@ -1,0 +1,61 @@
+name: Publish to PyPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: "Release Type"
+        required: true
+        type: choice
+        default: "patch"
+        options:
+          - major
+          - minor
+          - patch
+
+permissions:
+  contents: write
+  id-token: write
+
+env:
+  PYTHON_VERSION: "3.13"
+
+jobs:
+  publish:
+    name: Build and Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Bump version
+        id: bump
+        uses: callowayproject/bump-my-version@master
+        env:
+          BUMPVERSION_TAG: "false"
+        with:
+          args: ${{ inputs.release_type }}
+          github-token: ${{ secrets.GH_TOKEN }}
+
+      - name: Build package
+        run: uv build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          name: pickle-bot v${{ steps.bump.outputs.current-version }}
+          tag: v${{ steps.bump.outputs.current-version }}
+          body: "Release v${{ steps.bump.outputs.current-version }}"
+          artifacts: dist/*
+          token: ${{ secrets.GH_TOKEN }}
+          generateReleaseNotes: true
