@@ -41,6 +41,7 @@ class OnboardingWizard:
 
         self.setup_workspace()
         self.configure_llm()
+        self.configure_web_tools()
         self.copy_default_assets()
         self.configure_messagebus()
 

@@ -207,6 +207,7 @@ def test_run_includes_copy_default_assets():
             patch.object(wizard, "check_existing_workspace", return_value=True),
             patch.object(wizard, "setup_workspace"),
             patch.object(wizard, "configure_llm"),
+            patch.object(wizard, "configure_web_tools"),
             patch.object(wizard, "copy_default_assets") as mock_copy,
             patch.object(wizard, "configure_messagebus"),
             patch.object(wizard, "save_config", return_value=True),
@@ -242,6 +243,7 @@ def test_run_orchestrates_all_steps():
             patch.object(wizard, "check_existing_workspace", return_value=True),
             patch.object(wizard, "setup_workspace") as mock_setup,
             patch.object(wizard, "configure_llm") as mock_llm,
+            patch.object(wizard, "configure_web_tools") as mock_web,
             patch.object(wizard, "copy_default_assets") as mock_copy,
             patch.object(wizard, "configure_messagebus") as mock_bus,
             patch.object(wizard, "save_config", return_value=True) as mock_save,
@@ -250,6 +252,7 @@ def test_run_orchestrates_all_steps():
 
         mock_setup.assert_called_once()
         mock_llm.assert_called_once()
+        mock_web.assert_called_once()
         mock_copy.assert_called_once()
         mock_bus.assert_called_once()
         mock_save.assert_called_once()
