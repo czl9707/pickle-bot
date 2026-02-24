@@ -257,6 +257,46 @@ Memory files use simple markdown:
 - Testing: pytest
 ```
 
+## Web Tools
+
+Pickle-bot can search the web and read web pages when configured.
+
+### Web Search
+
+Search the web for information using the `websearch` tool.
+
+**Configuration required:**
+```yaml
+websearch:
+  provider: brave
+  api_key: "your-brave-api-key"
+```
+
+Get your API key from https://brave.com/search/api/
+
+**Usage:** The agent can call `websearch` to find information. Results include titles, URLs, and snippets.
+
+### Web Read
+
+Read and extract content from web pages using the `webread` tool.
+
+**Configuration required:**
+```yaml
+webread:
+  provider: crawl4ai
+```
+
+No API key needed - uses a local browser for rendering.
+
+**Usage:** The agent can call `webread` to fetch a URL and return the content as markdown.
+
+### Web Tools Providers
+
+| Tool | Provider | API Key Required |
+|------|----------|------------------|
+| websearch | Brave | Yes |
+| webread | Crawl4AI | No |
+
 ## MessageBus
 
 MessageBus enables chat via Telegram and Discord with shared conversation history.
