@@ -66,8 +66,7 @@ class ConfigureLLMStep(BaseStep):
 
     def run(self, state: dict) -> bool:
         providers = sorted(
-            LLMProvider.get_onboarding_providers(), 
-            key=lambda x: str(x[1].display_name)
+            LLMProvider.get_onboarding_providers(), key=lambda x: str(x[1].display_name)
         )
 
         choices = [

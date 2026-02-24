@@ -1,7 +1,5 @@
 """Tests for server base classes."""
 
-import pytest
-
 from picklebot.server.base import Job
 from picklebot.core.agent import SessionMode
 from picklebot.frontend.base import SilentFrontend
