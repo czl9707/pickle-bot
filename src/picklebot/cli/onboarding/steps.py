@@ -65,7 +65,10 @@ class ConfigureLLMStep(BaseStep):
     """Prompt user for LLM configuration."""
 
     def run(self, state: dict) -> bool:
-        providers = LLMProvider.get_onboarding_providers()
+        providers = sorted(
+            LLMProvider.get_onboarding_providers(), 
+            key=lambda x: str(x[1].display_name)
+        )
 
         choices = [
             questionary.Choice(
