@@ -1,31 +1,43 @@
 # Pickle-Bot
 
-A personal AI assistant with pluggable tools and multi-agent support.
+A personal AI assistant framework with multi-agent support, pluggable skills, and web capabilities.
+
+## Installation
+
+```bash
+# From PyPI
+pip install pickle-bot
+
+# Or from source
+git clone https://github.com/zane-chen/pickle-bot.git
+cd pickle-bot
+uv sync
+```
 
 ## Quick Start
 
 ```bash
-git clone <repo-url>
-cd pickle-bot
-uv sync
-uv run picklebot chat
+picklebot init      # First run: interactive onboarding wizard
+picklebot chat      # Start chatting with your AI assistant
 ```
 
-## What It Does
+The first run will guide you through setup with an interactive wizard.
 
-- **Multi-Agent AI** - Specialized agents (Pickle for general tasks, Cookie for memory)
-- **Multiple Platforms** - Chat via CLI, Telegram, or Discord
-- **HTTP API** - RESTful API for SDK-like access to agents, skills, sessions, and more
-- **Scheduled Tasks** - Run cron jobs automatically in server mode
-- **Long-Term Memory** - Persistent context across conversations
-- **Extensible** - Add custom tools, skills, and agents
+## Features
+
+- **Multi-Agent AI** - Specialized agents with configurable LLM settings
+- **Web Tools** - Search and read web content (Brave Search, Crawl4AI)
+- **Skills** - On-demand capability loading for complex workflows
+- **Cron Jobs** - Scheduled automated tasks
+- **Memory System** - Long-term context storage
+- **Multi-Platform** - CLI, Telegram, Discord support
+- **HTTP API** - RESTful API for programmatic access
 
 ## Documentation
 
 - **[Configuration](docs/configuration.md)** - Setup and configuration guide
-- **[Features](docs/features.md)** - Agents, skills, crons, memory, and messaging
+- **[Features](docs/features.md)** - Agents, skills, crons, memory, web tools
 - **[Architecture](docs/architecture.md)** - Technical architecture details
-- **[Extending](docs/extending.md)** - How to add tools, providers, and agents
 
 ## Development
 
