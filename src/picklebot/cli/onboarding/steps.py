@@ -2,6 +2,7 @@
 
 import shutil
 from pathlib import Path
+from typing import Any
 
 import questionary
 import yaml
@@ -10,6 +11,7 @@ from rich.console import Console
 
 from picklebot.provider.llm import LLMProvider
 from picklebot.utils.config import Config
+from picklebot.utils.def_loader import discover_definitions
 
 
 class BaseStep:
@@ -144,15 +146,9 @@ class ConfigureExtraFunctionalityStep(BaseStep):
 class CopyDefaultAssetsStep(BaseStep):
     """Copy selected default agents and skills to workspace."""
 
-    # Map asset type to definition filename
-    DEFINITION_FILES = {
-        "agents": "AGENT.md",
-        "skills": "SKILL.md",
-    }
-
     def run(self, state: dict) -> bool:
-        default_agents = self._discover_defaults("agents")
-        default_skills = self._discover_defaults("skills")
+        default_agents = self._discover_defaults("agents", "AGENT.md")
+        default_skills = self._discover_defaults("skills", "SKILL.md")
 
         if not default_agents and not default_skills:
             return True
@@ -196,8 +192,12 @@ class CopyDefaultAssetsStep(BaseStep):
 
         return True
 
-    def _discover_defaults(self, asset_type: str) -> list[tuple[str, str]]:
+    def _discover_defaults(
+        self, asset_type: str, filename: str
+    ) -> list[tuple[str, str]]:
         """List available default assets with their descriptions.
+
+        Uses discover_definitions from def_loader to parse frontmatter.
 
         Returns:
             List of (name, description) tuples, sorted by name.
@@ -206,38 +206,14 @@ class CopyDefaultAssetsStep(BaseStep):
         if not path.exists():
             return []
 
-        results = []
-        for d in sorted(path.iterdir(), key=lambda x: x.name):
-            if d.is_dir():
-                name = d.name
-                desc = self._get_asset_description(asset_type, name)
-                results.append((name, desc))
-        return results
+        def parse_description(
+            def_id: str, frontmatter: dict[str, Any], body: str
+        ) -> tuple[str, str]:
+            """Parse just the id and description from frontmatter."""
+            return (def_id, frontmatter.get("description", ""))
 
-    def _get_asset_description(self, asset_type: str, name: str) -> str:
-        """Extract description from asset's definition file frontmatter."""
-        filename = self.DEFINITION_FILES.get(asset_type)
-        if not filename:
-            return ""
-
-        def_file = self.defaults / asset_type / name / filename
-        if not def_file.exists():
-            return ""
-
-        try:
-            content = def_file.read_text()
-            # Parse YAML frontmatter
-            if content.startswith("---\n"):
-                end = content.find("\n---\n", 4)
-                if end != -1:
-                    frontmatter_str = content[4:end]
-                    frontmatter = yaml.safe_load(frontmatter_str)
-                    if isinstance(frontmatter, dict):
-                        return frontmatter.get("description", "")
-        except Exception:
-            pass
-
-        return ""
+        results = discover_definitions(path, filename, parse_description)
+        return sorted(results, key=lambda x: x[0])
 
     def _copy_asset(self, asset_type: str, name: str) -> None:
         """Copy a single asset from defaults to workspace."""
