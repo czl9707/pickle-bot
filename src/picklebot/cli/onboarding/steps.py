@@ -38,3 +38,51 @@ class CheckWorkspaceStep(BaseStep):
             return proceed
 
         return True
+
+
+class SetupWorkspaceStep(BaseStep):
+    """Create workspace directory and required subdirectories."""
+
+    def run(self, state: dict) -> bool:
+        self.workspace.mkdir(parents=True, exist_ok=True)
+
+        subdirs = ["agents", "skills", "crons", "memories", ".history", ".logs"]
+        for subdir in subdirs:
+            (self.workspace / subdir).mkdir(exist_ok=True)
+
+        return True
+
+
+class ConfigureLLMStep(BaseStep):
+    """Configure LLM provider, model, and API key."""
+
+    def run(self, state: dict) -> bool:
+        raise NotImplementedError
+
+
+class ConfigureExtraFunctionalityStep(BaseStep):
+    """Configure optional features like websearch, webread, and API."""
+
+    def run(self, state: dict) -> bool:
+        raise NotImplementedError
+
+
+class CopyDefaultAssetsStep(BaseStep):
+    """Copy default agents and skills to workspace."""
+
+    def run(self, state: dict) -> bool:
+        raise NotImplementedError
+
+
+class ConfigureMessageBusStep(BaseStep):
+    """Configure message bus platforms (Telegram, Discord)."""
+
+    def run(self, state: dict) -> bool:
+        raise NotImplementedError
+
+
+class SaveConfigStep(BaseStep):
+    """Write config.user.yaml file."""
+
+    def run(self, state: dict) -> bool:
+        raise NotImplementedError
