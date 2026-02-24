@@ -163,7 +163,11 @@ JSON file-based persistence for conversation history.
 
 **Bidirectional conversion ensures** compatibility with LLM providers.
 
-### LLMProvider (provider/base.py)
+### Provider Architecture
+
+Modular provider system for LLM, web search, and web read capabilities.
+
+#### LLMProvider (provider/llm/base.py)
 
 Abstract base for LLM providers using litellm.
 
@@ -175,10 +179,38 @@ Abstract base for LLM providers using litellm.
 
 **Auto-registration:** Provider registers itself when class is defined.
 
-**Built-in Providers:**
+**Built-in Providers (provider/llm/providers.py):**
 - ZaiProvider (zai)
 - OpenAIProvider (openai)
 - AnthropicProvider (anthropic)
+
+#### WebSearchProvider (provider/web_search/base.py)
+
+Abstract base for web search providers.
+
+**Models:**
+- `SearchResult` - Unified search result with title, url, snippet
+
+**Key Methods:**
+- `search(query, max_results)` - Execute search, return list of SearchResult
+- `from_config(config)` - Factory method to instantiate configured provider
+
+**Implementations:**
+- `BraveSearchProvider` (provider/web_search/brave.py) - Brave Search API
+
+#### WebReadProvider (provider/web_read/base.py)
+
+Abstract base for web content reading providers.
+
+**Models:**
+- `ReadResult` - Unified read result with content, metadata
+
+**Key Methods:**
+- `read(url)` - Fetch and parse web content, return ReadResult
+- `from_config(config)` - Factory method to instantiate configured provider
+
+**Implementations:**
+- `Crawl4AIProvider` (provider/web_read/crawl4ai.py) - Crawl4AI-based reader
 
 ### ToolRegistry (tools/registry.py)
 
@@ -199,13 +231,72 @@ Shared utilities for parsing markdown files with YAML frontmatter.
 
 **Functions:**
 - `parse_definition(path, model_class)` - Parse single definition
-- `discover_definitions(path, model_class)` - Find all definitions
+- `discover_definitions(path, model_class)` - Find all definitions in directory
+- `write_definition(id, frontmatter, content, base_path, filename)` - Write definition with frontmatter
 
 **Returns:** Pydantic model instance with frontmatter fields + markdown body
 
 **Raises:**
 - `DefNotFoundError` - Definition folder/file doesn't exist
 - `InvalidDefError` - Definition file is malformed
+
+### Message Conversion
+
+`HistoryMessage` <-> litellm `Message` conversion for persistence and LLM context:
+
+```python
+from picklebot.core.history import HistoryMessage
+
+# Message -> HistoryMessage (for persistence)
+history_msg = HistoryMessage.from_message(message)
+
+# HistoryMessage -> Message (for LLM context)
+message = history_msg.to_message()
+```
+
+Bidirectional conversion ensures compatibility with all LLM providers via litellm.
+
+### Config Loading (utils/config.py)
+
+Two-layer deep merge: `config.user.yaml` <- `config.runtime.yaml`
+
+- **config.user.yaml** - User configuration (required fields: `llm`, `default_agent`). Created by onboarding.
+- **config.runtime.yaml** - Runtime state (optional, internal only, managed by application)
+
+**Programmatic updates:**
+
+```python
+# User preferences (persists to config.user.yaml)
+ctx.config.set_user("default_agent", "cookie")
+
+# Runtime state (persists to config.runtime.yaml)
+ctx.config.set_runtime("current_session_id", "abc123")
+```
+
+**Deep merge:** Nested objects merge recursively; scalar values are replaced.
+
+### HTTP API Internals
+
+FastAPI-based REST API using `SharedContext` via dependency injection:
+
+```python
+from picklebot.api.deps import get_context
+from picklebot.core.context import SharedContext
+from fastapi import Depends
+
+@router.get("/{agent_id}")
+def get_agent(agent_id: str, ctx: SharedContext = Depends(get_context)):
+    return ctx.agent_loader.load(agent_id)
+```
+
+**Creating definitions via API:**
+
+```python
+from picklebot.utils.def_loader import write_definition
+
+frontmatter = {"name": "My Agent", "temperature": 0.7}
+write_definition("my-agent", frontmatter, "System prompt...", agents_path, "AGENT.md")
+```
 
 ### Frontend (frontend/base.py)
 
@@ -342,7 +433,11 @@ src/picklebot/
 ├── cli/                    # CLI interface
 │   ├── main.py            # Main CLI app with Typer
 │   ├── chat.py            # Chat loop handler
-│   └── server.py          # Server command
+│   ├── server.py          # Server command
+│   └── onboarding/        # Onboarding wizard
+│       ├── wizard.py      # Main wizard orchestrator
+│       ├── steps.py       # Individual wizard steps
+│       └── __init__.py
 ├── core/                   # Core functionality
 │   ├── agent.py           # Agent orchestrator
 │   ├── agent_def.py       # Agent definition model
@@ -361,9 +456,16 @@ src/picklebot/
 │   ├── base.py            # MessageBus interface
 │   ├── telegram_bus.py    # Telegram implementation
 │   └── discord_bus.py     # Discord implementation
-├── provider/               # LLM abstraction
-│   ├── base.py            # LLMProvider base
-│   └── providers.py       # Built-in providers
+├── provider/               # Provider abstraction
+│   ├── llm/               # LLM providers
+│   │   ├── base.py        # LLMProvider base
+│   │   └── providers.py   # Built-in providers (zai, openai, anthropic)
+│   ├── web_search/        # Web search providers
+│   │   ├── base.py        # WebSearchProvider base, SearchResult model
+│   │   └── brave.py       # Brave Search implementation
+│   └── web_read/          # Web read providers
+│       ├── base.py        # WebReadProvider base, ReadResult model
+│       └── crawl4ai.py    # Crawl4AI implementation
 ├── tools/                  # Tool system
 │   ├── base.py            # BaseTool interface
 │   ├── registry.py        # Tool registration
