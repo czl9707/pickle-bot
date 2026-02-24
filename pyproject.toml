@@ -3,6 +3,18 @@ name = "pickle-bot"
 version = "0.1.0"
 description = "Personal AI assistant with pluggable skills"
 readme = "README.md"
+authors = [
+    { name = "zane", email = "czl970721@gmail.com" }
+]
+license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+]
+keywords = ["ai", "assistant", "llm", "chatbot"]
 requires-python = ">=3.13"
 dependencies = [
   "litellm>=1.0.0",
@@ -20,6 +32,11 @@ dependencies = [
   "httpx>=0.27.0",
   "crawl4ai>=0.4.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/zane-chen/pickle-bot"
+Repository = "https://github.com/zane-chen/pickle-bot"
+Issues = "https://github.com/zane-chen/pickle-bot/issues"
 
 [project.scripts]
 picklebot = "picklebot.cli.main:app"
