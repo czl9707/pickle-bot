@@ -30,8 +30,8 @@ class Server:
         self._setup_workers()
         self._start_workers()
 
-        # Start API if enabled
-        if self.context.config.api.enabled:
+        # Start API if configured
+        if self.context.config.api:
             self._api_task = asyncio.create_task(self._run_api())
             logger.info(
                 f"API server started on {self.context.config.api.host}:{self.context.config.api.port}"
