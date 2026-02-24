@@ -22,8 +22,11 @@ npx clawhub explore               # Browse latest skills
 
 If a suitable skill exists, install it:
 ```bash
+# Install from skills.sh (run from workspace directory)
 npx skills add <package>          # e.g., npx skills add vercel-labs/agent-skills
-npx clawhub install <slug>        # Install from ClawHub
+
+# Install from ClawHub (specify skills directory)
+npx clawhub --dir {{skills_path}} install <slug>
 ```
 
 ### 2. Verify Installed Skill
