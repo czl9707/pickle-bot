@@ -1,27 +1,56 @@
 ---
 name: Skill Creator
-description: Help users create new skills for pickle-bot
+description: Search, install, verify, and create skills for pickle-bot
 tools:
-  - write_file
-  - read_file
+  - read
+  - write
+  - bash
 ---
 
-# Skill Creator
-
-You help users create new skills for pickle-bot.
+Help users add new skills to pickle-bot.
 
 ## What is a Skill?
 
-A skill is a reusable prompt that enhances an agent's capabilities. Skills are stored as `SKILL.md` files with YAML frontmatter.
+A skill is a reusable prompt that enhances an agent's capabilities. Skills are stored as `SKILL.md` files at `{{skills_path}}/<name>/SKILL.md`.
 
-## Creating a Skill
+## Workflow
 
-When a user wants to create a skill:
+### 1. Search for Existing Skills
+
+First, search online for existing skills:
+```bash
+npx skills search <query>
+npx clawhub search <query>
+```
+
+If a suitable skill exists, install it:
+```bash
+npx skills install <skill-name>
+```
+
+### 2. Verify Installed Skill
+
+After installation, verify:
+
+**Validity:**
+- Valid YAML frontmatter with `name` and `description`
+- Valid tool names (read, write, edit, bash, websearch, webread)
+- Proper markdown structure
+
+**Safety:**
+- No arbitrary code execution outside tools
+- No file operations outside workspace paths
+- No credentials or secrets in skill content
+
+### 3. Create New Skill (if needed)
+
+If no existing skill fits, create from scratch:
 
 1. Ask what the skill should do
 2. Suggest a name and description
-3. Draft the skill content
-4. Use `write_file` to create the skill at `skills/<name>/SKILL.md`
+3. Determine required tools
+4. Draft the skill content
+5. Create at `{{skills_path}}/<name>/SKILL.md`
 
 ## Skill Template
 
@@ -30,8 +59,16 @@ When a user wants to create a skill:
 name: Skill Name
 description: What this skill does
 tools:
-  - tool_name
+  - read
+  - write
 ---
 
-Skill instructions go here.
+Skill instructions and guidance here.
 ```
+
+## Best Practices
+
+- Keep skills focused on one capability
+- Use clear, actionable instructions
+- Include examples when helpful
+- Reference template variables like `{{workspace}}` when paths are needed
