@@ -407,3 +407,26 @@ class TestConfigureWebTools:
 
         assert "websearch" not in wizard.state
         assert "webread" not in wizard.state
+
+    def test_configure_web_tools_websearch_only(self, tmp_path: Path, monkeypatch):
+        """User selects websearch with valid API key."""
+        wizard = OnboardingWizard(workspace=tmp_path)
+
+        # Mock checkbox to return websearch only
+        monkeypatch.setattr(
+            "questionary.checkbox",
+            MagicMock(return_value=MagicMock(ask=MagicMock(return_value=["websearch"])))
+        )
+        # Mock text input for API key
+        monkeypatch.setattr(
+            "questionary.text",
+            MagicMock(return_value=MagicMock(ask=MagicMock(return_value="test-api-key")))
+        )
+
+        wizard.configure_web_tools()
+
+        assert wizard.state["websearch"] == {
+            "provider": "brave",
+            "api_key": "test-api-key",
+        }
+        assert "webread" not in wizard.state

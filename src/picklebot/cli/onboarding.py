@@ -135,6 +135,22 @@ class OnboardingWizard:
         if "webread" in selected:
             self.state["webread"] = {"provider": "crawl4ai"}
 
+    def _configure_websearch(self) -> dict | None:
+        """Prompt for web search configuration."""
+        api_key = questionary.text("Brave Search API key:").ask()
+
+        if not api_key:
+            console = Console()
+            console.print(
+                "[yellow]API key is required for web search. Skipping websearch config.[/yellow]"
+            )
+            return None
+
+        return {
+            "provider": "brave",
+            "api_key": api_key,
+        }
+
     def copy_default_assets(self) -> None:
         """Copy selected default agents and skills to workspace."""
         default_agents = self._discover_defaults("agents")
