@@ -1,12 +1,10 @@
 """Tests for CronWorker."""
 
-import asyncio
 import pytest
 from datetime import datetime
 from unittest.mock import patch
 
 from picklebot.server.cron_worker import CronWorker, find_due_jobs
-from picklebot.server.base import Job
 from picklebot.core.cron_loader import CronDef
 from picklebot.core.agent import SessionMode
 
@@ -49,10 +47,21 @@ def test_find_due_jobs_empty_when_no_match():
 
 
 @pytest.mark.anyio
+async def test_cron_worker_uses_context_queue(test_context):
+    """CronWorker should get queue from context."""
+    # Get the context's queue reference before creating worker
+    context_queue = test_context.agent_queue
+
+    worker = CronWorker(test_context)
+
+    # Should not have its own agent_queue attribute, use context's
+    assert not hasattr(worker, "agent_queue") or worker.agent_queue is context_queue
+
+
+@pytest.mark.anyio
 async def test_cron_worker_dispatches_due_job(test_context):
     """CronWorker dispatches due jobs to the queue."""
-    queue: asyncio.Queue[Job] = asyncio.Queue()
-    worker = CronWorker(test_context, queue)
+    worker = CronWorker(test_context)
 
     # Create a mock cron job that is due
     mock_cron = CronDef(
@@ -74,8 +83,8 @@ async def test_cron_worker_dispatches_due_job(test_context):
             await worker._tick()
 
     # Verify job was dispatched to queue
-    assert not queue.empty()
-    job = queue.get_nowait()
+    assert not test_context.agent_queue.empty()
+    job = test_context.agent_queue.get_nowait()
     assert job.session_id is None
     assert job.agent_id == "pickle"
     assert job.message == "Test prompt from cron"
@@ -92,8 +101,7 @@ async def test_cron_worker_dispatches_due_job(test_context):
 )
 async def test_one_off_cron_deletion(test_context, one_off, should_delete):
     """CronWorker deletes one-off crons but keeps recurring crons."""
-    queue: asyncio.Queue[Job] = asyncio.Queue()
-    worker = CronWorker(test_context, queue)
+    worker = CronWorker(test_context)
 
     mock_cron = CronDef(
         id="test-cron",
@@ -114,8 +122,8 @@ async def test_one_off_cron_deletion(test_context, one_off, should_delete):
                 await worker._tick()
 
     # Verify job was dispatched
-    assert not queue.empty()
-    job = queue.get_nowait()
+    assert not test_context.agent_queue.empty()
+    job = test_context.agent_queue.get_nowait()
     assert job.message == "Test task"
 
     # Verify deletion behavior

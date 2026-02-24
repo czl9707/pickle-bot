@@ -1,5 +1,6 @@
 """Subagent dispatch tool factory for creating dynamic dispatch tool."""
 
+import asyncio
 import json
 from typing import TYPE_CHECKING
 
@@ -82,27 +83,43 @@ def create_subagent_dispatch_tool(
         """
         # Import here to avoid circular dependency
         from picklebot.core.agent import Agent, SessionMode
+        from picklebot.server.base import Job
 
         try:
             target_def = shared_context.agent_loader.load(agent_id)
         except DefNotFoundError:
             raise ValueError(f"Agent '{agent_id}' not found")
 
-        subagent = Agent(target_def, shared_context)
-
         user_message = task
         if context:
             user_message = f"{task}\n\nContext:\n{context}"
 
-        async with frontend.show_dispatch(current_agent_id, agent_id, task):
-            session = subagent.new_session(SessionMode.JOB)
-            # Might need revisit this piece later to find out a more flexible way of communicating with ouside.
-            response = await session.chat(user_message, SilentFrontend())
+        if shared_context._agent_queue is not None:
+            # Server mode: dispatch through queue
+            job = Job(
+                session_id=None,
+                agent_id=agent_id,
+                message=user_message,
+                frontend=SilentFrontend(),
+                mode=SessionMode.JOB,
+            )
+            job.result_future = asyncio.Future()  # Create future in async context
 
-        result = {
-            "result": response,
-            "session_id": session.session_id,
-        }
+            async with frontend.show_dispatch(current_agent_id, agent_id, task):
+                await shared_context.agent_queue.put(job)
+                response = await job.result_future
+
+            result = {"result": response, "session_id": job.session_id}
+        else:
+            # CLI fallback: direct execution
+            subagent = Agent(target_def, shared_context)
+
+            async with frontend.show_dispatch(current_agent_id, agent_id, task):
+                session = subagent.new_session(SessionMode.JOB)
+                response = await session.chat(user_message, SilentFrontend())
+
+            result = {"result": response, "session_id": session.session_id}
+
         return json.dumps(result)
 
     return subagent_dispatch

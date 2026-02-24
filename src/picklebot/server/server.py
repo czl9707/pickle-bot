@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import uvicorn
 
-from picklebot.server.base import Job, Worker
+from picklebot.server.base import Worker
 from picklebot.server.agent_worker import AgentDispatcherWorker
 from picklebot.server.cron_worker import CronWorker
 from picklebot.server.messagebus_worker import MessageBusWorker
@@ -22,7 +22,6 @@ class Server:
 
     def __init__(self, context: "SharedContext"):
         self.context = context
-        self.agent_queue: asyncio.Queue[Job] = asyncio.Queue()
         self.workers: list[Worker] = []
         self._api_task: asyncio.Task | None = None
 
@@ -47,13 +46,13 @@ class Server:
 
     def _setup_workers(self) -> None:
         """Create all workers."""
-        self.workers.append(AgentDispatcherWorker(self.context, self.agent_queue))
-        self.workers.append(CronWorker(self.context, self.agent_queue))
+        self.workers.append(AgentDispatcherWorker(self.context))
+        self.workers.append(CronWorker(self.context))
 
         if self.context.config.messagebus.enabled:
             buses = self.context.messagebus_buses
             if buses:
-                self.workers.append(MessageBusWorker(self.context, self.agent_queue))
+                self.workers.append(MessageBusWorker(self.context))
                 logger.info(f"MessageBus enabled with {len(buses)} bus(es)")
             else:
                 logger.warning("MessageBus enabled but no buses configured")

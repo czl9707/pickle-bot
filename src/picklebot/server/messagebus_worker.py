@@ -15,9 +15,8 @@ if TYPE_CHECKING:
 class MessageBusWorker(Worker):
     """Ingests messages from platforms, dispatches to agent queue."""
 
-    def __init__(self, context: "SharedContext", agent_queue: asyncio.Queue[Job]):
+    def __init__(self, context: "SharedContext"):
         super().__init__(context)
-        self.agent_queue = agent_queue
         self.buses = context.messagebus_buses
         self.bus_map = {bus.platform_name: bus for bus in self.buses}
 
@@ -94,7 +93,7 @@ class MessageBusWorker(Worker):
                     frontend=frontend,
                     mode=SessionMode.CHAT,
                 )
-                await self.agent_queue.put(job)
+                await self.context.agent_queue.put(job)
                 self.logger.debug(f"Dispatched message from {platform}")
             except Exception as e:
                 self.logger.error(f"Error processing message from {platform}: {e}")

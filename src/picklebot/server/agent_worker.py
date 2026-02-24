@@ -13,6 +13,10 @@ if TYPE_CHECKING:
     from picklebot.core.agent_loader import AgentDef
 
 
+# Maximum number of retry attempts for failed sessions
+MAX_RETRIES = 3
+
+
 class SessionExecutor:
     """Executes a single agent session job."""
 
@@ -22,13 +26,11 @@ class SessionExecutor:
         agent_def: "AgentDef",
         job: Job,
         semaphore: asyncio.Semaphore,
-        agent_queue: asyncio.Queue[Job],
     ):
         self.context = context
         self.agent_def = agent_def
         self.job = job
         self.semaphore = semaphore
-        self.agent_queue = agent_queue
         self.logger = logging.getLogger(
             f"picklebot.server.SessionExecutor.{agent_def.id}"
         )
@@ -57,13 +59,24 @@ class SessionExecutor:
                 session = agent.new_session(self.job.mode)
                 self.job.session_id = session.session_id
 
-            await session.chat(self.job.message, self.job.frontend)
+            response = await session.chat(self.job.message, self.job.frontend)
             self.logger.info(f"Session completed: {session.session_id}")
+
+            # Set result on future if it exists
+            if self.job.result_future is not None:
+                self.job.result_future.set_result(response)
 
         except Exception as e:
             self.logger.error(f"Session failed: {e}")
-            self.job.message = "."
-            await self.agent_queue.put(self.job)
+
+            if self.job.retry_count < MAX_RETRIES:
+                self.job.retry_count += 1
+                self.job.message = "."
+                await self.context.agent_queue.put(self.job)
+            else:
+                # Max retries reached, set exception on future
+                if self.job.result_future is not None:
+                    self.job.result_future.set_exception(e)
 
 
 class AgentDispatcherWorker(Worker):
@@ -71,9 +84,8 @@ class AgentDispatcherWorker(Worker):
 
     CLEANUP_THRESHOLD = 5
 
-    def __init__(self, context: "SharedContext", agent_queue: asyncio.Queue[Job]):
+    def __init__(self, context: "SharedContext"):
         super().__init__(context)
-        self.agent_queue = agent_queue
         self._semaphores: dict[str, asyncio.Semaphore] = {}
 
     async def run(self) -> None:
@@ -81,9 +93,9 @@ class AgentDispatcherWorker(Worker):
         self.logger.info("AgentDispatcherWorker started")
 
         while True:
-            job = await self.agent_queue.get()
+            job = await self.context.agent_queue.get()
             self._dispatch_job(job)
-            self.agent_queue.task_done()
+            self.context.agent_queue.task_done()
             self._maybe_cleanup_semaphores()
 
     def _dispatch_job(self, job: Job) -> None:
@@ -95,9 +107,7 @@ class AgentDispatcherWorker(Worker):
             return
 
         sem = self._get_or_create_semaphore(agent_def)
-        asyncio.create_task(
-            SessionExecutor(self.context, agent_def, job, sem, self.agent_queue).run()
-        )
+        asyncio.create_task(SessionExecutor(self.context, agent_def, job, sem).run())
 
     def _get_or_create_semaphore(self, agent_def: "AgentDef") -> asyncio.Semaphore:
         """Get existing or create new semaphore for agent."""

@@ -55,9 +55,8 @@ def find_due_jobs(
 class CronWorker(Worker):
     """Finds due cron jobs, dispatches to agent queue."""
 
-    def __init__(self, context: "SharedContext", agent_queue: asyncio.Queue[Job]):
+    def __init__(self, context: "SharedContext"):
         super().__init__(context)
-        self.agent_queue = agent_queue
 
     async def run(self) -> None:
         """Check every minute for due jobs."""
@@ -84,7 +83,7 @@ class CronWorker(Worker):
                 frontend=SilentFrontend(),
                 mode=SessionMode.JOB,
             )
-            await self.agent_queue.put(job)
+            await self.context.agent_queue.put(job)
             self.logger.info(f"Dispatched cron job: {cron_def.id}")
 
             # Delete one-off crons after dispatching

@@ -64,3 +64,22 @@ async def test_server_monitor_restarts_crashed_worker(test_context):
 
     # Cleanup
     await server._stop_all()
+
+
+def test_server_uses_context_queue():
+    """Server should not create its own queue, use context's."""
+    from unittest.mock import MagicMock, patch
+
+    context = MagicMock()
+    context.agent_queue = asyncio.Queue()
+    context.config.messagebus.enabled = False
+    context.config.api.enabled = False
+
+    with (
+        patch("picklebot.server.server.AgentDispatcherWorker"),
+        patch("picklebot.server.server.CronWorker"),
+    ):
+        server = Server(context)
+
+        # Server should not have its own agent_queue
+        assert not hasattr(server, "agent_queue")
