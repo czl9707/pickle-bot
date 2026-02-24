@@ -54,7 +54,6 @@ class DiscordConfig(BaseModel):
 class ApiConfig(BaseModel):
     """HTTP API configuration."""
 
-    enabled: bool = True
     host: str = "127.0.0.1"
     port: int = Field(default=8000, gt=0, lt=65536)
 
@@ -132,7 +131,7 @@ class Config(BaseModel):
     crons_path: Path = Field(default=Path("crons"))
     memories_path: Path = Field(default=Path("memories"))
     messagebus: MessageBusConfig = Field(default_factory=MessageBusConfig)
-    api: ApiConfig = Field(default_factory=ApiConfig)
+    api: ApiConfig | None = None
     websearch: BraveWebSearchConfig | None = None
     webread: Crawl4AIWebReadConfig | None = None
     chat_max_history: int = Field(default=50, gt=0)
