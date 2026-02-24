@@ -403,7 +403,7 @@ class TestConfigureWebTools:
         # Mock checkbox to return empty selection
         monkeypatch.setattr(
             "questionary.checkbox",
-            MagicMock(return_value=MagicMock(ask=MagicMock(return_value=[])))
+            MagicMock(return_value=MagicMock(ask=MagicMock(return_value=[]))),
         )
 
         wizard.configure_web_tools()
@@ -418,12 +418,16 @@ class TestConfigureWebTools:
         # Mock checkbox to return websearch only
         monkeypatch.setattr(
             "questionary.checkbox",
-            MagicMock(return_value=MagicMock(ask=MagicMock(return_value=["websearch"])))
+            MagicMock(
+                return_value=MagicMock(ask=MagicMock(return_value=["websearch"]))
+            ),
         )
         # Mock text input for API key
         monkeypatch.setattr(
             "questionary.text",
-            MagicMock(return_value=MagicMock(ask=MagicMock(return_value="test-api-key")))
+            MagicMock(
+                return_value=MagicMock(ask=MagicMock(return_value="test-api-key"))
+            ),
         )
 
         wizard.configure_web_tools()
@@ -434,17 +438,21 @@ class TestConfigureWebTools:
         }
         assert "webread" not in wizard.state
 
-    def test_configure_web_tools_websearch_empty_key(self, tmp_path: Path, monkeypatch, capsys):
+    def test_configure_web_tools_websearch_empty_key(
+        self, tmp_path: Path, monkeypatch, capsys
+    ):
         """User selects websearch but provides empty key - should skip."""
         wizard = OnboardingWizard(workspace=tmp_path)
 
         monkeypatch.setattr(
             "questionary.checkbox",
-            MagicMock(return_value=MagicMock(ask=MagicMock(return_value=["websearch"])))
+            MagicMock(
+                return_value=MagicMock(ask=MagicMock(return_value=["websearch"]))
+            ),
         )
         monkeypatch.setattr(
             "questionary.text",
-            MagicMock(return_value=MagicMock(ask=MagicMock(return_value="")))
+            MagicMock(return_value=MagicMock(ask=MagicMock(return_value=""))),
         )
 
         wizard.configure_web_tools()
@@ -460,7 +468,7 @@ class TestConfigureWebTools:
 
         monkeypatch.setattr(
             "questionary.checkbox",
-            MagicMock(return_value=MagicMock(ask=MagicMock(return_value=["webread"])))
+            MagicMock(return_value=MagicMock(ask=MagicMock(return_value=["webread"]))),
         )
 
         wizard.configure_web_tools()
@@ -474,11 +482,17 @@ class TestConfigureWebTools:
 
         monkeypatch.setattr(
             "questionary.checkbox",
-            MagicMock(return_value=MagicMock(ask=MagicMock(return_value=["websearch", "webread"])))
+            MagicMock(
+                return_value=MagicMock(
+                    ask=MagicMock(return_value=["websearch", "webread"])
+                )
+            ),
         )
         monkeypatch.setattr(
             "questionary.text",
-            MagicMock(return_value=MagicMock(ask=MagicMock(return_value="test-api-key")))
+            MagicMock(
+                return_value=MagicMock(ask=MagicMock(return_value="test-api-key"))
+            ),
         )
 
         wizard.configure_web_tools()
