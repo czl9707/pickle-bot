@@ -1,10 +1,6 @@
 ---
-name: Skill Creator
+name: skill-creator
 description: Search, install, verify, and create skills for pickle-bot
-tools:
-  - read
-  - write
-  - bash
 ---
 
 Help users add new skills to pickle-bot.
@@ -34,7 +30,6 @@ After installation, verify:
 
 **Validity:**
 - Valid YAML frontmatter with `name` and `description`
-- Valid tool names (read, write, edit, bash, websearch, webread)
 - Proper markdown structure
 
 **Safety:**
@@ -48,19 +43,15 @@ If no existing skill fits, create from scratch:
 
 1. Ask what the skill should do
 2. Suggest a name and description
-3. Determine required tools
-4. Draft the skill content
-5. Create at `{{skills_path}}/<name>/SKILL.md`
+3. Draft the skill content
+4. Create at `{{skills_path}}/<name>/SKILL.md`
 
 ## Skill Template
 
 ```markdown
 ---
-name: Skill Name
+name: skill-name
 description: What this skill does
-tools:
-  - read
-  - write
 ---
 
 Skill instructions and guidance here.
@@ -68,7 +59,7 @@ Skill instructions and guidance here.
 
 ## Best Practices
 
+- Skill name in frontmatter should match the folder name
 - Keep skills focused on one capability
 - Use clear, actionable instructions
-- Include examples when helpful
 - Reference template variables like `{{workspace}}` when paths are needed
