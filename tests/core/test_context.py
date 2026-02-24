@@ -5,11 +5,6 @@ import asyncio
 import pytest
 
 
-def test_shared_context_has_agent_queue(test_context):
-    """SharedContext should have an agent_queue property."""
-    assert hasattr(test_context, "agent_queue")
-
-
 @pytest.mark.anyio
 async def test_agent_queue_is_lazy(test_context):
     """agent_queue should be created lazily on first access."""

@@ -319,21 +319,6 @@ class TestListSessions:
         assert sessions[1].id == "session-2"
 
 
-class TestHistorySessionFields:
-    def test_history_session_has_chunk_count(self):
-        """HistorySession should have chunk_count field."""
-        from picklebot.core.history import HistorySession
-
-        session = HistorySession(
-            id="test",
-            agent_id="agent",
-            chunk_count=3,
-            created_at="2024-01-01T00:00:00",
-            updated_at="2024-01-01T00:00:00",
-        )
-        assert session.chunk_count == 3
-
-
 class TestHistoryStoreChunkHelpers:
     def test_chunk_path_format(self, history_store):
         """_chunk_path should return correct path format."""

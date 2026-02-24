@@ -13,24 +13,14 @@ from picklebot.frontend.base import SilentFrontend
 class TestCreateWebsearchTool:
     """Tests for create_websearch_tool factory."""
 
-    def test_creates_tool(self, test_config):
-        """Factory should create a tool."""
+    def test_creates_tool_with_correct_schema(self, test_config):
+        """Factory should create a tool with correct name, description, and parameters."""
         test_config.websearch = BraveWebSearchConfig(api_key="test-key")
         context = SharedContext(config=test_config)
 
         tool = create_websearch_tool(context)
 
         assert tool is not None
-        assert tool.name == "websearch"
-
-    def test_tool_has_correct_schema(self, test_config):
-        """Tool should have correct name and parameters."""
-        test_config.websearch = BraveWebSearchConfig(api_key="test-key")
-        context = SharedContext(config=test_config)
-
-        tool = create_websearch_tool(context)
-
-        # Check tool properties
         assert tool.name == "websearch"
         assert "search the web" in tool.description.lower()
         assert tool.parameters["type"] == "object"

@@ -16,35 +16,8 @@ class TestCreateSkillTool:
         tool_func = create_skill_tool(loader)
         assert tool_func is None
 
-    def test_create_skill_tool_returns_callable(self, test_config):
-        """create_skill_tool should return a callable tool function."""
-        # Setup - create a valid skill
-        skills_dir = test_config.skills_path
-        skills_dir.mkdir(parents=True, exist_ok=True)
-
-        skill_dir = skills_dir / "test-skill"
-        skill_dir.mkdir()
-        skill_file = skill_dir / "SKILL.md"
-        skill_file.write_text(
-            """---
-name: Test Skill
-description: A test skill
----
-
-# Test Skill
-"""
-        )
-
-        loader = SkillLoader(test_config)
-        tool_func = create_skill_tool(loader)
-
-        # Should be a FunctionTool with execute method
-        assert tool_func is not None
-        assert hasattr(tool_func, "execute")
-        assert callable(tool_func.execute)
-
-    def test_skill_tool_has_correct_schema(self, test_config):
-        """Skill tool should have correct name, description, and parameters."""
+    def test_creates_tool_with_correct_schema(self, test_config):
+        """create_skill_tool should return a tool with correct name, description, and parameters."""
         # Setup - create skills
         skills_dir = test_config.skills_path
         skills_dir.mkdir(parents=True, exist_ok=True)
@@ -70,6 +43,8 @@ description: {desc}
         tool_func = create_skill_tool(loader)
 
         assert tool_func is not None
+        assert hasattr(tool_func, "execute")
+        assert callable(tool_func.execute)
         # Check tool properties
         assert tool_func.name == "skill"
         assert "Load and invoke a specialized skill" in tool_func.description
