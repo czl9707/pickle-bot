@@ -2,7 +2,7 @@
 
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import yaml
 
@@ -388,3 +388,22 @@ def test_copy_default_assets_skips_if_no_defaults():
 
     # Should not prompt user
     mock_checkbox.assert_not_called()
+
+
+class TestConfigureWebTools:
+    """Tests for web tools onboarding configuration."""
+
+    def test_configure_web_tools_none(self, tmp_path: Path, monkeypatch):
+        """User selects nothing - no web tools in state."""
+        wizard = OnboardingWizard(workspace=tmp_path)
+
+        # Mock checkbox to return empty selection
+        monkeypatch.setattr(
+            "questionary.checkbox",
+            MagicMock(return_value=MagicMock(ask=MagicMock(return_value=[])))
+        )
+
+        wizard.configure_web_tools()
+
+        assert "websearch" not in wizard.state
+        assert "webread" not in wizard.state

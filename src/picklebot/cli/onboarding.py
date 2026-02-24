@@ -112,6 +112,29 @@ class OnboardingWizard:
         if api_base:
             self.state["llm"]["api_base"] = api_base
 
+    def configure_web_tools(self) -> None:
+        """Prompt user for web search and web read configuration."""
+        selected = (
+            questionary.checkbox(
+                "Select web tools to enable:",
+                choices=[
+                    questionary.Choice(
+                        "websearch (Brave Search API)", value="websearch"
+                    ),
+                    questionary.Choice("webread (local web scraping)", value="webread"),
+                ],
+            ).ask()
+            or []
+        )
+
+        if "websearch" in selected:
+            config = self._configure_websearch()
+            if config:
+                self.state["websearch"] = config
+
+        if "webread" in selected:
+            self.state["webread"] = {"provider": "crawl4ai"}
+
     def copy_default_assets(self) -> None:
         """Copy selected default agents and skills to workspace."""
         default_agents = self._discover_defaults("agents")
