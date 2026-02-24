@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -98,7 +98,7 @@ You are {name}.
 
     @pytest.mark.anyio
     async def test_tool_dispatches_to_subagent(self, test_config):
-        """Subagent dispatch tool should create session and return result + session_id."""
+        """Subagent dispatch tool should dispatch through queue and return result + session_id."""
         # Create target agent
         agent_dir = test_config.agents_path / "target-agent"
         agent_dir.mkdir(parents=True)
@@ -114,32 +114,29 @@ You are the target agent.
         )
 
         context = SharedContext(config=test_config)
+        _ = context.agent_queue  # Initialize queue
 
         tool_func = create_subagent_dispatch_tool("caller", context)
         assert tool_func is not None
 
-        # Simpler approach: mock Agent and Session
-        mock_response = "Task completed successfully"
+        # Create a task that will resolve the future
+        async def resolve_future():
+            job = await context.agent_queue.get()
+            job.session_id = "test-session-123"
+            job.result_future.set_result("Task completed successfully")
 
-        with patch("picklebot.core.agent.Agent") as mock_agent_class:
-            mock_agent = mock_agent_class.return_value
-            mock_session = mock_agent.new_session.return_value
-            mock_session.session_id = "test-session-123"
-            mock_session.chat = AsyncMock(return_value=mock_response)
+        asyncio.create_task(resolve_future())
 
-            # Execute
-            frontend = SilentFrontend()
-            result = await tool_func.execute(
-                frontend=frontend, agent_id="target-agent", task="Do something"
-            )
+        # Execute
+        frontend = SilentFrontend()
+        result = await tool_func.execute(
+            frontend=frontend, agent_id="target-agent", task="Do something"
+        )
 
-            # Verify
-            parsed = json.loads(result)
-            assert parsed["result"] == "Task completed successfully"
-            assert parsed["session_id"] == "test-session-123"
-
-            # Verify session.chat was called with correct message
-            mock_session.chat.assert_called_once_with("Do something", ANY)
+        # Verify
+        parsed = json.loads(result)
+        assert parsed["result"] == "Task completed successfully"
+        assert parsed["session_id"] == "test-session-123"
 
     @pytest.mark.anyio
     async def test_tool_includes_context_in_message(self, test_config):
@@ -159,32 +156,36 @@ You are the target agent.
         )
 
         context = SharedContext(config=test_config)
+        _ = context.agent_queue  # Initialize queue
 
         tool_func = create_subagent_dispatch_tool("caller", context)
         assert tool_func is not None
 
-        with patch("picklebot.core.agent.Agent") as mock_agent_class:
-            mock_agent = mock_agent_class.return_value
-            mock_session = mock_agent.new_session.return_value
-            mock_session.session_id = "test-session-456"
-            mock_session.chat = AsyncMock(return_value="Done")
+        captured_job = None
 
-            # Execute with context
-            frontend = SilentFrontend()
-            await tool_func.execute(
-                frontend=frontend,
-                agent_id="target-agent",
-                task="Review this",
-                context="The code is in src/main.py",
-            )
+        async def capture_and_resolve():
+            nonlocal captured_job
+            job = await context.agent_queue.get()
+            captured_job = job
+            job.session_id = "test-session-456"
+            job.result_future.set_result("Done")
 
-            # Verify context was included
-            mock_session.chat.assert_called_once()
-            call_args = mock_session.chat.call_args
-            message = call_args[0][0]
-            assert "Review this" in message
-            assert "Context:" in message
-            assert "The code is in src/main.py" in message
+        asyncio.create_task(capture_and_resolve())
+
+        # Execute with context
+        frontend = SilentFrontend()
+        await tool_func.execute(
+            frontend=frontend,
+            agent_id="target-agent",
+            task="Review this",
+            context="The code is in src/main.py",
+        )
+
+        # Verify context was included in job message
+        assert captured_job is not None
+        assert "Review this" in captured_job.message
+        assert "Context:" in captured_job.message
+        assert "The code is in src/main.py" in captured_job.message
 
 
 class TestSubagentDispatchFrontendCalls:
@@ -208,6 +209,7 @@ You are the target agent.
         )
 
         context = SharedContext(config=test_config)
+        _ = context.agent_queue  # Initialize queue
 
         tool_func = create_subagent_dispatch_tool("caller", context)
         assert tool_func is not None
@@ -220,26 +222,28 @@ You are the target agent.
         mock_dispatch_context.__aexit__ = AsyncMock(return_value=None)
         mock_frontend.show_dispatch.return_value = mock_dispatch_context
 
-        with patch("picklebot.core.agent.Agent") as mock_agent_class:
-            mock_agent = mock_agent_class.return_value
-            mock_session = mock_agent.new_session.return_value
-            mock_session.session_id = "test-session-789"
-            mock_session.chat = AsyncMock(return_value="Task done")
+        # Create a task that will resolve the future
+        async def resolve_future():
+            job = await context.agent_queue.get()
+            job.session_id = "test-session-789"
+            job.result_future.set_result("Task done")
 
-            # Execute
-            await tool_func.execute(
-                frontend=mock_frontend,
-                agent_id="target-agent",
-                task="Do something",
-            )
+        asyncio.create_task(resolve_future())
 
-            # Verify show_dispatch was called with correct args
-            mock_frontend.show_dispatch.assert_called_once()
-            call_args = mock_frontend.show_dispatch.call_args
-            # Verify calling agent, target agent, and task are passed
-            assert call_args[0][0] == "caller"  # calling agent
-            assert call_args[0][1] == "target-agent"  # target agent
-            assert call_args[0][2] == "Do something"  # task
+        # Execute
+        await tool_func.execute(
+            frontend=mock_frontend,
+            agent_id="target-agent",
+            task="Do something",
+        )
+
+        # Verify show_dispatch was called with correct args
+        mock_frontend.show_dispatch.assert_called_once()
+        call_args = mock_frontend.show_dispatch.call_args
+        # Verify calling agent, target agent, and task are passed
+        assert call_args[0][0] == "caller"  # calling agent
+        assert call_args[0][1] == "target-agent"  # target agent
+        assert call_args[0][2] == "Do something"  # task
 
 
 class TestSubagentDispatchQueueMode:
@@ -299,45 +303,6 @@ You are the target agent.
         )
         assert "task completed" in result
         assert "test-session" in result
-
-    @pytest.mark.anyio
-    async def test_subagent_dispatch_fallback_when_no_queue(
-        self, test_config, mock_frontend
-    ):
-        """subagent_dispatch should fall back to direct execution when no queue."""
-        # Create target agent
-        agent_dir = test_config.agents_path / "target-agent"
-        agent_dir.mkdir(parents=True)
-        agent_file = agent_dir / "AGENT.md"
-        agent_file.write_text(
-            """---
-name: Target Agent
-description: A target for dispatch testing
----
-You are the target agent.
-"""
-        )
-
-        context = SharedContext(config=test_config)
-        # Ensure queue is None (CLI mode)
-        context._agent_queue = None
-
-        with patch("picklebot.core.agent.Agent") as MockAgent:
-            mock_session = AsyncMock()
-            mock_session.chat = AsyncMock(return_value="direct response")
-            mock_session.session_id = "direct-session"
-
-            mock_agent = MagicMock()
-            mock_agent.new_session.return_value = mock_session
-            MockAgent.return_value = mock_agent
-
-            tool_func = create_subagent_dispatch_tool("caller", context)
-            result = await tool_func.execute(
-                frontend=mock_frontend, agent_id="target-agent", task="do something"
-            )
-
-        assert "direct response" in result
-        assert "direct-session" in result
 
     @pytest.mark.anyio
     async def test_queue_mode_creates_job_with_correct_fields(
