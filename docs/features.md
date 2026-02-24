@@ -147,7 +147,6 @@ REST API for programmatic access. Enabled by default in server mode.
 
 ```yaml
 api:
-  enabled: true
   host: "127.0.0.1"
   port: 8000
 ```
