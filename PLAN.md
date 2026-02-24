@@ -18,9 +18,8 @@ Core features are implemented and production-ready:
 ## Documentation
 
 - **[Configuration](docs/configuration.md)** - Setup and configuration guide
-- **[Features](docs/features.md)** - Agents, skills, crons, memory, messaging, API
+- **[Features](docs/features.md)** - Agents, skills, crons, memory, web tools
 - **[Architecture](docs/architecture.md)** - Technical architecture details
-- **[Extending](docs/extending.md)** - How to add tools, providers, and agents
 
 ## Development
 
