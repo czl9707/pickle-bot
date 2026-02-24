@@ -93,10 +93,48 @@ class ConfigureLLMStep(BaseStep):
 
 
 class ConfigureExtraFunctionalityStep(BaseStep):
-    """Configure optional features like websearch, webread, and API."""
+    """Prompt user for web tools and API configuration."""
 
     def run(self, state: dict) -> bool:
-        raise NotImplementedError
+        selected = (
+            questionary.checkbox(
+                "Select extra functionality to enable:",
+                choices=[
+                    questionary.Choice("Web Search (Brave API)", value="websearch"),
+                    questionary.Choice("Web Read (local scraping)", value="webread"),
+                    questionary.Choice("API Server", value="api"),
+                ],
+            ).ask()
+            or []
+        )
+
+        if "websearch" in selected:
+            config = self._configure_websearch()
+            if config:
+                state["websearch"] = config
+
+        if "webread" in selected:
+            state["webread"] = {"provider": "crawl4ai"}
+
+        if "api" in selected:
+            state["api"] = {"enabled": True}
+
+        return True
+
+    def _configure_websearch(self) -> dict | None:
+        """Prompt for web search configuration."""
+        api_key = questionary.text("Brave Search API key:").ask()
+
+        if not api_key:
+            self.console.print(
+                "[yellow]API key is required for web search. Skipping websearch config.[/yellow]"
+            )
+            return None
+
+        return {
+            "provider": "brave",
+            "api_key": api_key,
+        }
 
 
 class CopyDefaultAssetsStep(BaseStep):
