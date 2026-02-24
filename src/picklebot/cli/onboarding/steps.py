@@ -5,6 +5,8 @@ from pathlib import Path
 import questionary
 from rich.console import Console
 
+from picklebot.provider.base import LLMProvider
+
 
 class BaseStep:
     """Base class for onboarding steps."""
@@ -54,10 +56,40 @@ class SetupWorkspaceStep(BaseStep):
 
 
 class ConfigureLLMStep(BaseStep):
-    """Configure LLM provider, model, and API key."""
+    """Prompt user for LLM configuration."""
 
     def run(self, state: dict) -> bool:
-        raise NotImplementedError
+        providers = LLMProvider.get_onboarding_providers()
+
+        choices = [
+            questionary.Choice(
+                title=f"{p.display_name} (default: {p.default_model})",
+                value=config_name,
+            )
+            for config_name, p in providers
+        ]
+        choices.append(questionary.Choice("Other (custom)", value="other"))
+
+        provider = questionary.select("Select LLM provider:", choices=choices).ask()
+
+        provider_cls = LLMProvider.name2provider[provider]
+        model = questionary.text(
+            "Model name:",
+            default=provider_cls.default_model or "",
+        ).ask()
+
+        api_key = questionary.text("API key:").ask()
+
+        api_base = questionary.text(
+            "API base URL (optional):",
+            default=provider_cls.api_base or "",
+        ).ask()
+
+        state["llm"] = {"provider": provider, "model": model, "api_key": api_key}
+        if api_base:
+            state["llm"]["api_base"] = api_base
+
+        return True
 
 
 class ConfigureExtraFunctionalityStep(BaseStep):
