@@ -54,9 +54,9 @@ Pickle is my cat, as mentioned at the beginning. She is really talktive, definit
 
 Cookie is her Step brother, thats why he manage memories on behalf of Pickle.
 
-### She's youY Cat, Why Matters to Me?
+### She's your Cat, Why Matters to Me?
 
-Create your own agents by dropping a file in `agents/{name}/AGENT.md`. Give them a name, a personality. Give them skills. See what happens.
+Create your own agents by dropping a file in `agents/{name}/AGENT.md`. Give them a name, a personality. Give them skills.
 
 ## Development
 
