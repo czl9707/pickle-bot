@@ -15,13 +15,15 @@ A skill is a reusable prompt that enhances an agent's capabilities. Skills are s
 
 First, search online for existing skills:
 ```bash
-npx skills search <query>
-npx clawhub search <query>
+npx skills find <query>           # Search skills.sh registry
+npx clawhub search <query>        # Search ClawHub registry
+npx clawhub explore               # Browse latest skills
 ```
 
 If a suitable skill exists, install it:
 ```bash
-npx skills install <skill-name>
+npx skills add <package>          # e.g., npx skills add vercel-labs/agent-skills
+npx clawhub install <slug>        # Install from ClawHub
 ```
 
 ### 2. Verify Installed Skill
