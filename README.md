@@ -6,6 +6,8 @@ Pickle-bot is a yet another lightweight version of [Openclaw](https://github.com
 
 The project started with the mindset of building-you-own-openclaw, but end up staying on my raspberry PI, dealing with all daily manners.
 
+<img style="width: 100%;" src="PickleBotCover.png">
+
 ## Installation
 
 ```bash
