@@ -361,6 +361,59 @@ class TestCopyDefaultAssetsStep:
             workspace / "agents" / "pickle" / "AGENT.md"
         ).read_text() == "# New Content"
 
+    def test_shows_description_in_choices(self, tmp_path: Path):
+        """Shows asset description from frontmatter in checkbox choices."""
+        console = Console()
+        defaults = tmp_path / "defaults"
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        (workspace / "agents").mkdir()
+
+        # Create agent with frontmatter description
+        mock_agent = defaults / "agents" / "pickle"
+        mock_agent.mkdir(parents=True)
+        (mock_agent / "AGENT.md").write_text(
+            "---\nname: Pickle\ndescription: A helpful assistant agent\n---\n# Pickle Agent"
+        )
+
+        step = CopyDefaultAssetsStep(workspace, console, defaults)
+
+        with patch("questionary.checkbox") as mock_checkbox:
+            mock_checkbox.return_value.ask.side_effect = [["pickle"], []]
+            step.run({})
+
+        # Verify the choice title includes the description
+        call_args = mock_checkbox.call_args_list[0]
+        choices = call_args[1]["choices"]
+        assert len(choices) == 1
+        assert "pickle" in choices[0].title
+        assert "A helpful assistant agent" in choices[0].title
+
+    def test_handles_missing_description(self, tmp_path: Path):
+        """Handles agent without frontmatter description gracefully."""
+        console = Console()
+        defaults = tmp_path / "defaults"
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        (workspace / "agents").mkdir()
+
+        # Create agent without frontmatter
+        mock_agent = defaults / "agents" / "pickle"
+        mock_agent.mkdir(parents=True)
+        (mock_agent / "AGENT.md").write_text("# Pickle Agent")
+
+        step = CopyDefaultAssetsStep(workspace, console, defaults)
+
+        with patch("questionary.checkbox") as mock_checkbox:
+            mock_checkbox.return_value.ask.side_effect = [["pickle"], []]
+            step.run({})
+
+        # Verify the choice title is just the name (no description)
+        call_args = mock_checkbox.call_args_list[0]
+        choices = call_args[1]["choices"]
+        assert len(choices) == 1
+        assert choices[0].title == "pickle"
+
 
 class TestConfigureMessageBusStep:
     """Tests for ConfigureMessageBusStep."""

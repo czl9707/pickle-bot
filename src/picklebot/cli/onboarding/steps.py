@@ -8,7 +8,7 @@ import yaml
 from pydantic import ValidationError
 from rich.console import Console
 
-from picklebot.provider.base import LLMProvider
+from picklebot.provider.llm import LLMProvider
 from picklebot.utils.config import Config
 
 
@@ -144,6 +144,12 @@ class ConfigureExtraFunctionalityStep(BaseStep):
 class CopyDefaultAssetsStep(BaseStep):
     """Copy selected default agents and skills to workspace."""
 
+    # Map asset type to definition filename
+    DEFINITION_FILES = {
+        "agents": "AGENT.md",
+        "skills": "SKILL.md",
+    }
+
     def run(self, state: dict) -> bool:
         default_agents = self._discover_defaults("agents")
         default_skills = self._discover_defaults("skills")
@@ -157,8 +163,12 @@ class CopyDefaultAssetsStep(BaseStep):
             questionary.checkbox(
                 "Select agents to copy (will overwrite existing):",
                 choices=[
-                    questionary.Choice(f"agents/{name}", value=name, checked=True)
-                    for name in sorted(default_agents)
+                    questionary.Choice(
+                        title=f"{name} - {desc}" if desc else name,
+                        value=name,
+                        checked=True,
+                    )
+                    for name, desc in default_agents
                 ],
             ).ask()
             or []
@@ -168,8 +178,12 @@ class CopyDefaultAssetsStep(BaseStep):
             questionary.checkbox(
                 "Select skills to copy (will overwrite existing):",
                 choices=[
-                    questionary.Choice(f"skills/{name}", value=name, checked=True)
-                    for name in sorted(default_skills)
+                    questionary.Choice(
+                        title=f"{name} - {desc}" if desc else name,
+                        value=name,
+                        checked=True,
+                    )
+                    for name, desc in default_skills
                 ],
             ).ask()
             or []
@@ -182,12 +196,48 @@ class CopyDefaultAssetsStep(BaseStep):
 
         return True
 
-    def _discover_defaults(self, asset_type: str) -> list[str]:
-        """List available default assets of a type."""
+    def _discover_defaults(self, asset_type: str) -> list[tuple[str, str]]:
+        """List available default assets with their descriptions.
+
+        Returns:
+            List of (name, description) tuples, sorted by name.
+        """
         path = self.defaults / asset_type
         if not path.exists():
             return []
-        return [d.name for d in path.iterdir() if d.is_dir()]
+
+        results = []
+        for d in sorted(path.iterdir(), key=lambda x: x.name):
+            if d.is_dir():
+                name = d.name
+                desc = self._get_asset_description(asset_type, name)
+                results.append((name, desc))
+        return results
+
+    def _get_asset_description(self, asset_type: str, name: str) -> str:
+        """Extract description from asset's definition file frontmatter."""
+        filename = self.DEFINITION_FILES.get(asset_type)
+        if not filename:
+            return ""
+
+        def_file = self.defaults / asset_type / name / filename
+        if not def_file.exists():
+            return ""
+
+        try:
+            content = def_file.read_text()
+            # Parse YAML frontmatter
+            if content.startswith("---\n"):
+                end = content.find("\n---\n", 4)
+                if end != -1:
+                    frontmatter_str = content[4:end]
+                    frontmatter = yaml.safe_load(frontmatter_str)
+                    if isinstance(frontmatter, dict):
+                        return frontmatter.get("description", "")
+        except Exception:
+            pass
+
+        return ""
 
     def _copy_asset(self, asset_type: str, name: str) -> None:
         """Copy a single asset from defaults to workspace."""
