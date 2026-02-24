@@ -1,6 +1,6 @@
 """Concrete LLM provider implementations."""
 
-from picklebot.provider.base import LLMProvider
+from .base import LLMProvider
 
 
 class ZaiProvider(LLMProvider):

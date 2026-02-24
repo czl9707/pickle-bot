@@ -8,7 +8,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 from picklebot.core.context import SharedContext
-from picklebot.provider import LLMProvider
+from picklebot.provider.llm import LLMProvider
 from picklebot.tools.registry import ToolRegistry
 from picklebot.tools.skill_tool import create_skill_tool
 from picklebot.tools.subagent_tool import create_subagent_dispatch_tool

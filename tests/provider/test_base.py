@@ -1,6 +1,6 @@
 """Tests for LLMProvider base class."""
 
-from picklebot.provider.base import LLMProvider
+from picklebot.provider.llm import LLMProvider
 
 
 class TestGetOnboardingProviders:
