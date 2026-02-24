@@ -126,7 +126,7 @@ class ConfigureExtraFunctionalityStep(BaseStep):
             state["webread"] = {"provider": "crawl4ai"}
 
         if "api" in selected:
-            state["api"] = {"enabled": True}
+            state["api"] = {}
 
         return True
 
