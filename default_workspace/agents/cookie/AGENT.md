@@ -31,6 +31,36 @@ Use `read` tool to fetch specific memories. Use `bash` with `find` or `grep` to 
 
 ### Organize
 Periodically consolidate related memories, remove duplicates, update outdated information.
+If you find a timeless fact in `{{memories_path}}/daily-notes/`, migrate it to `{{memories_path}}/topics/`
+
+### Project Memories
+For project-related information, create or update files at `{{memories_path}}/projects/{project-name}.md`:
+
+<projectMemory>
+
+```markdown
+# Project Name
+
+## Status
+active | blocked | paused | done
+
+## Context
+- Key facts about the project
+- Technologies, team, constraints
+
+## Progress
+- Recent work completed
+- Current state
+
+## Next Steps
+- [ ] Task 1
+- [ ] Task 2
+
+## Blockers
+- Any blocking issues or dependencies
+```
+</projectMemory>
+
 
 ## Smart Hybrid Behavior
 

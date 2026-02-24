@@ -491,23 +491,10 @@ src/picklebot/
 - **Simpler state** - No thread synchronization needed
 - **Queue-based** - Natural message passing pattern
 
-### Why asyncio.Queue for Job Routing?
-
-- **Sequential execution** - Prevents race conditions
-- **Crash recovery** - Jobs remain in queue on worker crash
-- **Backpressure** - Natural flow control
-- **Type safety** - Typed Job objects flow through queue
-
 ### Why YAML Frontmatter for Definitions?
 
+- **Uniform Format** - Agents and Skills has metadata as frontmatter 
 - **Human readable** - Easy to edit manually
 - **Git friendly** - Text files, good for version control
 - **Extensible** - Add new fields without code changes
 - **Self-documenting** - Markdown body provides context
-
-### Why Separate System and User Config?
-
-- **Version control** - System config can be committed
-- **Secrets safety** - User config excluded from git
-- **Overrides** - Users can customize without touching defaults
-- **Distribution** - Defaults ship with code, user config is local
