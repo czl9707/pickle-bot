@@ -1,11 +1,15 @@
 """Onboarding step classes."""
 
+import shutil
 from pathlib import Path
 
 import questionary
+import yaml
+from pydantic import ValidationError
 from rich.console import Console
 
 from picklebot.provider.base import LLMProvider
+from picklebot.utils.config import Config
 
 
 class BaseStep:
@@ -138,21 +142,179 @@ class ConfigureExtraFunctionalityStep(BaseStep):
 
 
 class CopyDefaultAssetsStep(BaseStep):
-    """Copy default agents and skills to workspace."""
+    """Copy selected default agents and skills to workspace."""
 
     def run(self, state: dict) -> bool:
-        raise NotImplementedError
+        default_agents = self._discover_defaults("agents")
+        default_skills = self._discover_defaults("skills")
+
+        if not default_agents and not default_skills:
+            return True
+
+        self.console.print("\n[bold]Default assets available:[/bold]")
+
+        selected_agents = (
+            questionary.checkbox(
+                "Select agents to copy (will overwrite existing):",
+                choices=[
+                    questionary.Choice(f"agents/{name}", value=name, checked=True)
+                    for name in sorted(default_agents)
+                ],
+            ).ask()
+            or []
+        )
+
+        selected_skills = (
+            questionary.checkbox(
+                "Select skills to copy (will overwrite existing):",
+                choices=[
+                    questionary.Choice(f"skills/{name}", value=name, checked=True)
+                    for name in sorted(default_skills)
+                ],
+            ).ask()
+            or []
+        )
+
+        for name in selected_agents:
+            self._copy_asset("agents", name)
+        for name in selected_skills:
+            self._copy_asset("skills", name)
+
+        return True
+
+    def _discover_defaults(self, asset_type: str) -> list[str]:
+        """List available default assets of a type."""
+        path = self.defaults / asset_type
+        if not path.exists():
+            return []
+        return [d.name for d in path.iterdir() if d.is_dir()]
+
+    def _copy_asset(self, asset_type: str, name: str) -> None:
+        """Copy a single asset from defaults to workspace."""
+        src = self.defaults / asset_type / name
+        dst = self.workspace / asset_type / name
+        if dst.exists():
+            shutil.rmtree(dst)
+        shutil.copytree(src, dst)
 
 
 class ConfigureMessageBusStep(BaseStep):
-    """Configure message bus platforms (Telegram, Discord)."""
+    """Prompt user for MessageBus configuration."""
 
     def run(self, state: dict) -> bool:
-        raise NotImplementedError
+        platforms = questionary.checkbox(
+            "Select messaging platforms to enable:",
+            choices=["telegram", "discord"],
+        ).ask()
+
+        if not platforms:
+            state["messagebus"] = {"enabled": False}
+            return True
+
+        state["messagebus"] = {
+            "enabled": True,
+            "default_platform": platforms[0],
+        }
+
+        if "telegram" in platforms:
+            state["messagebus"]["telegram"] = self._configure_telegram()
+
+        if "discord" in platforms:
+            state["messagebus"]["discord"] = self._configure_discord()
+
+        return True
+
+    def _configure_telegram(self) -> dict:
+        """Prompt for Telegram-specific configuration."""
+        bot_token = questionary.text("Telegram bot token:").ask()
+
+        allowed_users = questionary.text(
+            "Allowed user IDs (comma-separated, or press Enter for open access):",
+            default="",
+        ).ask()
+
+        default_chat = questionary.text(
+            "Default chat ID to proactively post to (optional, press Enter to skip):",
+            default="",
+        ).ask()
+
+        config: dict = {
+            "enabled": True,
+            "bot_token": bot_token,
+            "allowed_user_ids": [],
+        }
+
+        if allowed_users:
+            config["allowed_user_ids"] = [
+                uid.strip() for uid in allowed_users.split(",") if uid.strip()
+            ]
+
+        if default_chat:
+            config["default_chat_id"] = default_chat
+
+        return config
+
+    def _configure_discord(self) -> dict:
+        """Prompt for Discord-specific configuration."""
+        bot_token = questionary.text("Discord bot token:").ask()
+
+        channel_id = questionary.text(
+            "Channel ID to listen on (optional, press Enter for all channels):",
+            default="",
+        ).ask()
+
+        allowed_users = questionary.text(
+            "Allowed user IDs (comma-separated, or press Enter for open access):",
+            default="",
+        ).ask()
+
+        default_chat = questionary.text(
+            "Default channel ID for proactive posts (optional):",
+            default="",
+        ).ask()
+
+        config: dict = {
+            "enabled": True,
+            "bot_token": bot_token,
+            "allowed_user_ids": [],
+        }
+
+        if channel_id:
+            config["channel_id"] = channel_id
+
+        if allowed_users:
+            config["allowed_user_ids"] = [
+                uid.strip() for uid in allowed_users.split(",") if uid.strip()
+            ]
+
+        if default_chat:
+            config["default_chat_id"] = default_chat
+
+        return config
 
 
 class SaveConfigStep(BaseStep):
-    """Write config.user.yaml file."""
+    """Write configuration to config.user.yaml."""
 
     def run(self, state: dict) -> bool:
-        raise NotImplementedError
+        # Set default_agent if not provided
+        if "default_agent" not in state:
+            state["default_agent"] = "pickle"
+
+        # Validate config structure
+        try:
+            config_data = {"workspace": self.workspace}
+            config_data.update(state)
+            Config.model_validate(config_data)
+        except ValidationError as e:
+            self.console.print("\n[red]Configuration validation failed:[/red]")
+            for error in e.errors():
+                self.console.print(f"  - {error['loc'][0]}: {error['msg']}")
+            return False
+
+        # Write user config
+        user_config_path = self.workspace / "config.user.yaml"
+        with open(user_config_path, "w") as f:
+            yaml.dump(state, f, default_flow_style=False)
+
+        return True
