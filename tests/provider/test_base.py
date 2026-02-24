@@ -20,7 +20,6 @@ class TestGetOnboardingProviders:
         providers = LLMProvider.get_onboarding_providers()
         config_names = [name for name, _ in providers]
         assert "openai" in config_names
-        assert "anthropic" in config_names
         assert "zai" in config_names
 
     def test_returns_provider_classes(self):

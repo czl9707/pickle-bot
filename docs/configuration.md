@@ -59,7 +59,7 @@ Below is a comprehensive example showing all available options with inline comme
 default_agent: pickle
 
 llm:
-  provider: zai                    # Provider name (zai, openai, anthropic)
+  provider: zai                    # Provider name (zai, openai)
   model: "zai/glm-4.7"             # Model identifier
   api_key: "your-api-key"          # Your API key
   api_base: "https://..."          # Optional: custom API endpoint

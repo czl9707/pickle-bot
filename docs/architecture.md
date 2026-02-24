@@ -182,7 +182,6 @@ Abstract base for LLM providers using litellm.
 **Built-in Providers (provider/llm/providers.py):**
 - ZaiProvider (zai)
 - OpenAIProvider (openai)
-- AnthropicProvider (anthropic)
 
 #### WebSearchProvider (provider/web_search/base.py)
 
@@ -459,7 +458,7 @@ src/picklebot/
 ├── provider/               # Provider abstraction
 │   ├── llm/               # LLM providers
 │   │   ├── base.py        # LLMProvider base
-│   │   └── providers.py   # Built-in providers (zai, openai, anthropic)
+│   │   └── providers.py   # Built-in providers (zai, openai)
 │   ├── web_search/        # Web search providers
 │   │   ├── base.py        # WebSearchProvider base, SearchResult model
 │   │   └── brave.py       # Brave Search implementation
