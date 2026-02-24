@@ -1,370 +1,149 @@
 # Features Reference
 
-Comprehensive guide to pickle-bot features.
+Guide to pickle-bot features. See [Architecture](architecture.md) for implementation details.
 
 ## Agents
 
-Agents are the core of pickle-bot. Each agent has a unique personality, system prompt, and can use different LLM models.
+Each agent has a unique personality, system prompt, and LLM settings.
 
-### Agent Definition Format
-
-Agents are defined in `AGENT.md` files with YAML frontmatter:
-
-```markdown
----
-name: Agent Name              # Required: Display name
-description: Brief desc       # Required: shown in subagent_dispatch tool
-llm:                          # Optional: override LLM settings
-  temperature: 0.7            #   Sampling temperature (0-2)
-  max_tokens: 4096            #   Max response tokens
-  provider: openai            #   Override provider (optional)
-  model: gpt-4                #   Override model (optional)
-allow_skills: true            # Optional: enable skill tool (default: false)
----
-
-System prompt goes here...
-
-You can use multiple paragraphs and markdown formatting.
-```
-
-The `llm` object uses deep merge with global config - only specify fields you want to override.
-
-### Multi-Agent Support
-
-Pickle-bot supports multiple agents for different purposes:
-
-- **Pickle** - General-purpose assistant (default agent)
+**Default agents:**
+- **Pickle** - General-purpose assistant
 - **Cookie** - Memory management specialist
-- Custom agents - Create your own for specialized tasks
 
-Each agent maintains its own configuration and system prompt.
-
-### Agent-Specific LLM Settings
-
-Agents can override global LLM settings via the nested `llm` object:
-
+**Definition format** (`agents/{id}/AGENT.md`):
 ```markdown
 ---
-name: Code Reviewer
-llm:
-  provider: anthropic
-  model: claude-3-opus-20240229
-  temperature: 0.3
+name: Agent Name
+description: Brief description for subagent dispatch
+llm:                          # Optional: override global settings
+  temperature: 0.7
+  max_tokens: 4096
+allow_skills: true            # Enable skill loading (default: false)
 ---
+
+System prompt here...
 ```
 
-This allows using different models for different tasks (e.g., cheaper model for simple tasks, more capable model for complex reasoning). Only specify the fields you want to override - others inherit from global config.
+LLM settings use deep merge - only specify what you want to override.
 
-## Subagent Dispatch
+### Subagent Dispatch
 
-Agents can delegate specialized work to other agents through the `subagent_dispatch` tool.
+Agents can delegate to other agents via `subagent_dispatch`:
 
-### How It Works
+```
+subagent_dispatch(agent_id="cookie", task="Remember this: ...")
+```
 
-1. Calling agent invokes: `subagent_dispatch(agent_id="reviewer", task="Review this code")`
-2. Target agent receives task with fresh session
-3. Target agent processes and returns result
-4. Calling agent receives JSON: `{"result": "...", "session_id": "uuid"}`
-
-### Automatic Tool Registration
-
-The `subagent_dispatch` tool is automatically registered when:
-- Multiple agents exist in the system
-- The calling agent is excluded from the dispatchable list (prevents infinite loops)
-
-### Use Cases
-
-- **Pickle -> Cookie** - Delegate memory storage and retrieval
-- **Code agent -> Review agent** - Separate implementation from review
-- **Research agent -> Writer agent** - Separate research from writing
-
-### Session Persistence
-
-Each dispatch creates a separate session that persists to history. This allows:
-- Reviewing subagent conversations later
-- Resuming interrupted work
-- Auditing agent interactions
+Each dispatch creates a fresh session that persists to history. Automatically registered when multiple agents exist.
 
 ## Skills
 
-Skills are user-defined capabilities loaded on-demand by the LLM. Unlike tools (always available), skills are loaded only when needed.
+On-demand capabilities loaded by the LLM. Unlike tools (always available), skills load only when needed.
 
-### Skill Definition Format
-
-Skills are defined in `SKILL.md` files:
-
+**Definition format** (`skills/{id}/SKILL.md`):
 ```markdown
 ---
 name: Brainstorming
-description: Turn ideas into fully formed designs through collaborative dialogue
+description: Turn ideas into designs through dialogue
 ---
 
-# Brainstorming Ideas Into Designs
-
-[Detailed skill instructions...]
-
-## Process
-1. Understand the idea
-2. Ask clarifying questions
-3. Propose approaches
-4. Present design
+[Detailed instructions...]
 ```
 
-### Enabling Skills
-
-Add `allow_skills: true` to agent frontmatter:
-
+**Enable in agent:**
 ```markdown
 ---
-name: Pickle
 allow_skills: true
 ---
 ```
 
-This registers a `skill` tool that the agent can call to:
-1. List available skills
-2. Load a specific skill
-3. Follow skill instructions
-
-### When to Create Skills
-
-Create a skill when:
-- Workflow has multiple steps
-- Requires domain knowledge
-- Benefits from structured approach
-- Will be reused across conversations
-
-Create a tool when:
-- Simple, single operation
-- Technical/programmatic action
-- Always available (not context-dependent)
+**Create a skill when:** workflow has multiple steps, needs domain knowledge, benefits from structure.
+**Create a tool when:** simple single operation, programmatic action, always available.
 
 ## Crons
 
-Cron jobs run scheduled agent invocations automatically.
+Scheduled agent invocations.
 
-### Cron Definition Format
-
+**Definition format** (`crons/{id}/CRON.md`):
 ```markdown
 ---
-name: Inbox Check
-agent: pickle              # Which agent to run
-schedule: "*/15 * * * *"   # Cron syntax
+name: Daily Summary
+agent: pickle
+schedule: "0 9 * * *"    # 9 AM daily
 ---
 
-Check my inbox and summarize unread messages.
+Task description...
 ```
 
-### Schedule Syntax
-
-Uses standard cron syntax: `minute hour day month weekday`
-
-Examples:
+**Schedule syntax:** `minute hour day month weekday`
 - `"*/15 * * * *"` - Every 15 minutes
 - `"0 9 * * *"` - Daily at 9 AM
 - `"0 */2 * * *"` - Every 2 hours
 
-### Server Mode
+**Requirements:** Server mode (`picklebot server`), minimum 5-minute granularity, sequential execution.
 
-Cron jobs require server mode:
-
-```bash
-uv run picklebot server
-```
-
-The server runs CronWorker which:
-1. Checks for due jobs every 60 seconds
-2. Dispatches jobs to agent queue
-3. Executes sequentially (one job at a time)
-
-### Cron Requirements
-
-- **Minimum granularity:** 5 minutes (prevent spam)
-- **Fresh session:** Each run starts with empty context
-- **Sequential execution:** Jobs processed one at a time
-- **Silent frontend:** No console output during execution
-
-### Proactive Messaging
-
-Cron jobs can send messages to user via `post_message` tool:
-- Messages sent to `default_platform` -> `default_chat_id`
-- Useful for notifications, reminders, status updates
-- Requires MessageBus to be enabled
+**Proactive messaging:** Crons can use `post_message` tool to send to configured default platform.
 
 ## Memory System
 
-Long-term memories are managed by the Cookie agent (a specialized subagent).
+Long-term memories managed by Cookie agent.
 
-### Organizational Structure
+**Structure:**
+- `topics/` - Timeless facts (preferences, relationships, identity)
+- `projects/` - Project state and context
+- `daily-notes/` - Day-specific events
 
-Memory files are organized along three axes:
+**Flows:**
+- **Storage:** User shares info → Pickle dispatches to Cookie → Cookie writes to file
+- **Retrieval:** User asks → Pickle dispatches → Cookie searches → Returns context
 
-**topics/** - Timeless facts about the user
-```
-preferences.md      # User preferences
-relationships.md    # Important relationships
-identity.md         # Core identity information
-```
-
-**projects/** - Project state and context
-```
-pickle-bot.md       # Pickle-bot project status
-work-project.md     # Work project details
-```
-
-**daily-notes/** - Day-specific events
-```
-2024-02-20.md       # Events from Feb 20
-2024-02-21.md       # Events from Feb 21
-```
-
-### Memory Flows
-
-**Real-Time Storage:**
-1. User shares information during conversation
-2. Pickle recognizes it as memorable
-3. Pickle dispatches to Cookie agent
-4. Cookie writes to appropriate memory file
-
-**Scheduled Capture:**
-1. Daily cron runs at 2 AM
-2. Reviews conversations from past day
-3. Extracts missed memories
-4. Stores in appropriate files
-
-**On-Demand Retrieval:**
-1. User asks about past information
-2. Pickle dispatches to Cookie
-3. Cookie searches memory files
-4. Returns relevant context
-
-### Memory File Format
-
-Memory files use simple markdown:
-
-```markdown
-# User Preferences
-
-- Prefers dark mode in all applications
-- Works best in the morning (9 AM - 12 PM)
-- Likes concise, action-oriented responses
-- Uses vim for text editing
-
-## Programming
-
-- Primary language: Python
-- Framework: FastAPI
-- Testing: pytest
-```
+**File format:** Simple markdown with headings.
 
 ## Web Tools
 
-Pickle-bot can search the web and read web pages when configured.
-
 ### Web Search
 
-Search the web for information using the `websearch` tool.
+Search via `websearch` tool using Brave Search.
 
-**Configuration required:**
 ```yaml
 websearch:
   provider: brave
   api_key: "your-brave-api-key"
 ```
 
-Get your API key from https://brave.com/search/api/
-
-**Usage:** The agent can call `websearch` to find information. Results include titles, URLs, and snippets.
+Get API key at https://brave.com/search/api/
 
 ### Web Read
 
-Read and extract content from web pages using the `webread` tool.
+Read web pages via `webread` tool using Crawl4AI.
 
-**Configuration required:**
 ```yaml
 webread:
   provider: crawl4ai
 ```
 
-No API key needed - uses a local browser for rendering.
-
-**Usage:** The agent can call `webread` to fetch a URL and return the content as markdown.
-
-### Web Tools Providers
-
-| Tool | Provider | API Key Required |
-|------|----------|------------------|
-| websearch | Brave | Yes |
-| webread | Crawl4AI | No |
+No API key needed - uses local browser.
 
 ## MessageBus
 
-MessageBus enables chat via Telegram and Discord with shared conversation history.
+Chat via Telegram and Discord with shared conversation history.
 
-### Platform Support
+**Platforms:** Telegram, Discord
 
-- **Telegram** - Full support via python-telegram-bot
-- **Discord** - Full support via discord.py
+**Features:**
+- Switch platforms mid-conversation (history carries over)
+- User whitelist for access control
+- Proactive messaging via `post_message` tool
 
-### Shared Session Architecture
-
-All platforms share a single AgentSession:
-- User can switch platforms mid-conversation
-- Context and history carry over
-- Single source of truth for conversation state
-
-### Platform Routing
-
-Messages are routed based on origin:
-
-**User-initiated:**
-- User sends message on Telegram
-- Agent responds on Telegram
-- Platform preserved in context
-
-**Agent-initiated (crons):**
-- Cron job completes
-- Agent sends to `default_platform`
-- Uses `default_chat_id` from config
-
-**Proactive messaging:**
-- Agent calls `post_message` tool
-- Message sent to `default_platform` -> `default_chat_id`
-- Useful for notifications and alerts
-
-### User Whitelist
-
-Control who can interact with the bot:
-
+**Whitelist config:**
 ```yaml
 telegram:
-  allowed_chat_ids: ["123456789"]
+  allowed_chat_ids: ["123456789"]  # Empty = allow all
 ```
-
-- **Empty list** - Allow all users
-- **Non-empty list** - Only allow listed users
-- Non-whitelisted messages are silently ignored
-
-### Event-Driven Processing
-
-Messages flow through queue-based system:
-
-1. Platform receives message -> creates context
-2. MessageBusWorker validates whitelist
-3. Job added to asyncio.Queue
-4. AgentWorker picks up job
-5. Agent processes sequentially
-6. Response routed to originating platform
-
-This ensures messages are processed one at a time, preventing race conditions.
 
 ## HTTP API
 
-Pickle-bot exposes a REST API for SDK-like access to all resources.
-
-### Enabling the API
-
-The API is enabled by default in server mode:
+REST API for programmatic access. Enabled by default in server mode.
 
 ```yaml
 api:
@@ -373,66 +152,26 @@ api:
   port: 8000
 ```
 
-Start the server:
-```bash
-uv run picklebot server
-```
-
-### Available Endpoints
-
-All endpoints follow RESTful conventions:
+**Endpoints:**
 
 | Resource | Endpoints |
 |----------|-----------|
-| **Agents** | `GET/POST/PUT/DELETE /agents/{id}` |
-| **Skills** | `GET/POST/PUT/DELETE /skills/{id}` |
-| **Crons** | `GET/POST/PUT/DELETE /crons/{id}` |
-| **Sessions** | `GET/DELETE /sessions/{id}` (no POST - created by system) |
-| **Memories** | `GET/POST/PUT/DELETE /memories/{path}` |
-| **Config** | `GET/PATCH /config` |
+| Agents | `GET/POST/PUT/DELETE /agents/{id}` |
+| Skills | `GET/POST/PUT/DELETE /skills/{id}` |
+| Crons | `GET/POST/PUT/DELETE /crons/{id}` |
+| Sessions | `GET/DELETE /sessions/{id}` |
+| Memories | `GET/POST/PUT/DELETE /memories/{path}` |
+| Config | `GET/PATCH /config` |
 
-### Example Usage
-
-List all agents:
+**Example:**
 ```bash
 curl http://localhost:8000/agents
-```
-
-Get a specific agent:
-```bash
 curl http://localhost:8000/agents/pickle
 ```
 
-Update config:
-```bash
-curl -X PATCH http://localhost:8000/config \
-  -H "Content-Type: application/json" \
-  -d '{"default_agent": "cookie"}'
-```
+## Heartbeat
 
-### Creating Resources
-
-Create definitions with YAML frontmatter via the API:
-
-```bash
-curl -X POST http://localhost:8000/skills/my-skill \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "My Skill",
-    "description": "A custom skill",
-    "content": "# My Skill\n\nInstructions here..."
-  }'
-```
-
-See [Architecture](architecture.md) for implementation details.
-
-## Heartbeat & Continuous Work
-
-Pickle-bot can work continuously on projects through the heartbeat cron pattern.
-
-### Heartbeat Cron
-
-Create a cron that checks on active projects:
+Continuous work pattern using cron jobs. Create a heartbeat cron that checks active projects periodically:
 
 ```markdown
 ---
@@ -442,35 +181,7 @@ schedule: "*/30 * * * *"
 ---
 
 ## Active Tasks
-
-- [ ] Check on project X progress
-- [ ] Monitor build status for project Y
-
-## Completed
-
-<!-- Move completed tasks here -->
+- [ ] Monitor project X
 ```
 
-### Workflow
-
-1. **Assign project** - User asks Pickle to monitor project
-2. **Cookie creates memory** - `memories/projects/{name}.md` created
-3. **Add to heartbeat** - Pickle adds task to heartbeat CRON.md
-4. **Periodic checks** - Heartbeat fires every 30 minutes
-5. **Act if needed** - Pickle checks project state, takes action
-6. **Remove when done** - User asks to stop, task removed
-
-### Benefits
-
-- Agents work autonomously between user interactions
-- Continuous monitoring without user presence
-- Automatic notifications on important events
-- Task tracking in CRON.md body
-
-### Example Tasks
-
-- Monitor CI/CD pipeline status
-- Check for new pull requests
-- Review overnight test results
-- Validate deployment health
-- Track deadline approaches
+Pickle checks project state and takes action autonomously between user interactions.

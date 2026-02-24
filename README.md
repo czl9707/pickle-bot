@@ -1,6 +1,8 @@
 # Pickle-Bot
 
-A personal AI assistant framework with multi-agent support, pluggable skills, and web capabilities.
+Build your own AI companion. Name it. Talk to it. Teach it things.
+
+Pickle-bot is a framework for creating personal AI assistants - the kind you can chat with, assign tasks to, and watch grow smarter over time. Pickle and Cookie started as cats in my life, and now they're AI agents who help me every day.
 
 ## Installation
 
@@ -17,27 +19,34 @@ uv sync
 ## Quick Start
 
 ```bash
-picklebot init      # First run: interactive onboarding wizard
-picklebot chat      # Start chatting with your AI assistant
+picklebot init      # First run: meet your new companion
+picklebot chat      # Start chatting
+picklebot server    # Run background tasks (crons, Telegram, Discord)
 ```
 
-The first run will guide you through setup with an interactive wizard.
+The first run guides you through setup. Pick your LLM, configure your agent, and you're ready.
 
 ## Features
 
-- **Multi-Agent AI** - Specialized agents with configurable LLM settings
-- **Web Tools** - Search and read web content (Brave Search, Crawl4AI)
-- **Skills** - On-demand capability loading for complex workflows
-- **Cron Jobs** - Scheduled automated tasks
-- **Memory System** - Long-term context storage
-- **Multi-Platform** - CLI, Telegram, Discord support
-- **HTTP API** - RESTful API for programmatic access
+- **Multi-Agent AI** - Create specialized agents for different tasks (Pickle for general chat, Cookie for memories, or build your own)
+- **Web Tools** - Search the web, read pages, do research
+- **Skills** - Teach your agent new tricks by writing markdown files
+- **Cron Jobs** - Schedule recurring tasks and reminders
+- **Memory System** - Your agent remembers things across conversations
+- **Multi-Platform** - CLI, Telegram, Discord - same agent, different places
+- **HTTP API** - Hook your agent into other apps
+
+## The Pets
+
+Pickle and Cookie are cats. There's a puppy coming soon. The point is: these are companions, not tools. You name them, you teach them, you talk to them. They remember what matters and help with what you need.
+
+Create your own agents by dropping a file in `agents/{name}/AGENT.md`. Give them a personality. Give them skills. See what happens.
 
 ## Documentation
 
-- **[Configuration](docs/configuration.md)** - Setup and configuration guide
-- **[Features](docs/features.md)** - Agents, skills, crons, memory, web tools
-- **[Architecture](docs/architecture.md)** - Technical architecture details
+- **[Configuration](docs/configuration.md)** - Full config reference
+- **[Features](docs/features.md)** - How to use each feature
+- **[Architecture](docs/architecture.md)** - How it works under the hood
 
 ## Development
 
@@ -49,23 +58,10 @@ uv run ruff check .     # Lint
 
 ## Docker
 
-Run pickle-bot in a container:
-
 ```bash
-# Build and run with default workspace
 docker compose up -d
-
-# Or specify custom workspace path
-WORKSPACE_PATH=/path/to/workspace docker compose up -d
-
-# View logs
 docker compose logs -f picklebot
-
-# Stop
-docker compose down
 ```
-
-The workspace directory contains all persistent data (agents, skills, crons, config).
 
 ## License
 
