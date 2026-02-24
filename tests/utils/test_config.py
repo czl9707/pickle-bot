@@ -250,13 +250,22 @@ class TestApiConfig:
     """Tests for HTTP API configuration."""
 
     def test_config_has_api_config(self, llm_config):
-        """Config should include api configuration."""
+        """Config should include api configuration when provided."""
         config = Config(
             workspace=Path("/tmp/test-workspace"),
             llm=llm_config,
             default_agent="pickle",
-            api=ApiConfig(enabled=True, host="0.0.0.0", port=3000),
+            api=ApiConfig(host="0.0.0.0", port=3000),
         )
-        assert config.api.enabled is True
+        assert config.api is not None
         assert config.api.host == "0.0.0.0"
         assert config.api.port == 3000
+
+    def test_config_api_defaults_to_none(self, llm_config):
+        """Config should have api=None by default."""
+        config = Config(
+            workspace=Path("/tmp/test-workspace"),
+            llm=llm_config,
+            default_agent="pickle",
+        )
+        assert config.api is None

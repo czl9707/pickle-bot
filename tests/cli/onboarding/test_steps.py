@@ -258,7 +258,7 @@ class TestConfigureExtraFunctionalityStep:
             result = step.run(state)
 
         assert result is True
-        assert state["api"] == {"enabled": True}
+        assert state["api"] == {}
 
     def test_all_selections(self, tmp_path: Path):
         """All features can be selected together."""
