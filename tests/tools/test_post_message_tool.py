@@ -69,18 +69,12 @@ class TestCreatePostMessageTool:
         tool = create_post_message_tool(context)
         assert tool is None
 
-    def test_returns_tool_when_messagebus_enabled(self):
-        """Should return a tool when messagebus is enabled."""
+    def test_creates_tool_with_correct_schema(self):
+        """Should return a tool with correct name and parameters when messagebus is enabled."""
         context = _make_context_with_messagebus(enabled=True)
         tool = create_post_message_tool(context)
+
         assert tool is not None
-        assert tool.name == "post_message"
-
-    def test_tool_has_correct_schema(self):
-        """Tool should have correct name and parameters."""
-        context = _make_context_with_messagebus(enabled=True)
-        tool = create_post_message_tool(context)
-
         assert tool.name == "post_message"
         schema = tool.get_tool_schema()
         assert "content" in schema["function"]["parameters"]["properties"]

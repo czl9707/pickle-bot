@@ -13,24 +13,14 @@ from picklebot.frontend.base import SilentFrontend
 class TestCreateWebreadTool:
     """Tests for create_webread_tool factory."""
 
-    def test_creates_tool(self, test_config):
-        """Factory should create a tool."""
+    def test_creates_tool_with_correct_schema(self, test_config):
+        """Factory should create a tool with correct name, description, and parameters."""
         test_config.webread = Crawl4AIWebReadConfig()
         context = SharedContext(config=test_config)
 
         tool = create_webread_tool(context)
 
         assert tool is not None
-        assert tool.name == "webread"
-
-    def test_tool_has_correct_schema(self, test_config):
-        """Tool should have correct name and parameters."""
-        test_config.webread = Crawl4AIWebReadConfig()
-        context = SharedContext(config=test_config)
-
-        tool = create_webread_tool(context)
-
-        # Check tool properties
         assert tool.name == "webread"
         assert "extract content" in tool.description.lower()
         assert tool.parameters["type"] == "object"
