@@ -430,3 +430,58 @@ class TestConfigureWebTools:
             "api_key": "test-api-key",
         }
         assert "webread" not in wizard.state
+
+    def test_configure_web_tools_websearch_empty_key(self, tmp_path: Path, monkeypatch, capsys):
+        """User selects websearch but provides empty key - should skip."""
+        wizard = OnboardingWizard(workspace=tmp_path)
+
+        monkeypatch.setattr(
+            "questionary.checkbox",
+            MagicMock(return_value=MagicMock(ask=MagicMock(return_value=["websearch"])))
+        )
+        monkeypatch.setattr(
+            "questionary.text",
+            MagicMock(return_value=MagicMock(ask=MagicMock(return_value="")))
+        )
+
+        wizard.configure_web_tools()
+
+        assert "websearch" not in wizard.state
+        # Check warning was printed
+        captured = capsys.readouterr()
+        assert "Skipping websearch config" in captured.out
+
+    def test_configure_web_tools_webread_only(self, tmp_path: Path, monkeypatch):
+        """User selects webread only - no additional prompts needed."""
+        wizard = OnboardingWizard(workspace=tmp_path)
+
+        monkeypatch.setattr(
+            "questionary.checkbox",
+            MagicMock(return_value=MagicMock(ask=MagicMock(return_value=["webread"])))
+        )
+
+        wizard.configure_web_tools()
+
+        assert wizard.state["webread"] == {"provider": "crawl4ai"}
+        assert "websearch" not in wizard.state
+
+    def test_configure_web_tools_both(self, tmp_path: Path, monkeypatch):
+        """User selects both tools - configure both."""
+        wizard = OnboardingWizard(workspace=tmp_path)
+
+        monkeypatch.setattr(
+            "questionary.checkbox",
+            MagicMock(return_value=MagicMock(ask=MagicMock(return_value=["websearch", "webread"])))
+        )
+        monkeypatch.setattr(
+            "questionary.text",
+            MagicMock(return_value=MagicMock(ask=MagicMock(return_value="test-api-key")))
+        )
+
+        wizard.configure_web_tools()
+
+        assert wizard.state["websearch"] == {
+            "provider": "brave",
+            "api_key": "test-api-key",
+        }
+        assert wizard.state["webread"] == {"provider": "crawl4ai"}
