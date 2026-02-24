@@ -22,7 +22,6 @@ def test_wizard_custom_workspace():
 
 def test_steps_list_defined():
     """OnboardingWizard has STEPS list defined."""
-    from picklebot.cli.onboarding.steps import BaseStep
 
     assert hasattr(OnboardingWizard, "STEPS")
     assert isinstance(OnboardingWizard.STEPS, list)
@@ -34,9 +33,7 @@ def test_run_orchestrates_steps(tmp_path: Path):
     wizard = OnboardingWizard(workspace=workspace)
 
     # Mock all steps to succeed
-    with (
-        patch.object(wizard, "STEPS", []),
-    ):
+    with (patch.object(wizard, "STEPS", []),):
         # Empty steps list should succeed
         result = wizard.run()
         assert result is True

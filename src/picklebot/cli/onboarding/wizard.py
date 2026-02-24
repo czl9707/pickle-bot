@@ -20,9 +20,7 @@ from picklebot.cli.onboarding.steps import (
 class OnboardingWizard:
     """Guides users through initial configuration."""
 
-    DEFAULT_WORKSPACE = (
-        Path(__file__).parent.parent.parent.parent / "default_workspace"
-    )
+    DEFAULT_WORKSPACE = Path(__file__).parent.parent.parent.parent / "default_workspace"
 
     STEPS: list[type[BaseStep]] = [
         CheckWorkspaceStep,

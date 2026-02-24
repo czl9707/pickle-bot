@@ -2,7 +2,7 @@
 """Unit tests for onboarding step classes."""
 
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 from rich.console import Console
@@ -327,7 +327,9 @@ class TestCopyDefaultAssetsStep:
 
         assert result is True
         assert (workspace / "agents" / "pickle").exists()
-        assert (workspace / "agents" / "pickle" / "AGENT.md").read_text() == "# Pickle Agent"
+        assert (
+            workspace / "agents" / "pickle" / "AGENT.md"
+        ).read_text() == "# Pickle Agent"
 
     def test_overwrites_existing(self, tmp_path: Path):
         """Overwrites existing assets in workspace."""
@@ -355,7 +357,9 @@ class TestCopyDefaultAssetsStep:
             result = step.run({})
 
         assert result is True
-        assert (workspace / "agents" / "pickle" / "AGENT.md").read_text() == "# New Content"
+        assert (
+            workspace / "agents" / "pickle" / "AGENT.md"
+        ).read_text() == "# New Content"
 
 
 class TestConfigureMessageBusStep:
