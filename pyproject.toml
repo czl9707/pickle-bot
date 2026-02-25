@@ -43,7 +43,7 @@ picklebot = "picklebot.cli.main:app"
 
 [tool.uv.sources]
 
-[dependency-groups]
+[project.optional-dependencies]
 dev = [
   "types-pyyaml",
   "types-croniter",
