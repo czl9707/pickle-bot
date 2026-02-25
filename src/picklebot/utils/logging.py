@@ -4,6 +4,7 @@ import logging
 import sys
 
 from picklebot.utils.config import Config
+from logging.handlers import RotatingFileHandler
 
 
 def setup_logging(config: Config, console_output: bool = False) -> None:
@@ -24,8 +25,7 @@ def setup_logging(config: Config, console_output: bool = False) -> None:
     root_logger = logging.getLogger("picklebot")
     root_logger.setLevel(logging.DEBUG)
 
-    # Always log to file
-    file_handler = logging.FileHandler(config.logging_path)
+    file_handler = RotatingFileHandler(config.logging_path / "picklebot.log", maxBytes=10000, backupCount=3)
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.DEBUG)
     root_logger.addHandler(file_handler)

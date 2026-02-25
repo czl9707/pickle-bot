@@ -16,7 +16,7 @@ class OpenAIProvider(LLMProvider):
 
     provider_config_name = ["openai"]
     display_name = "OpenAI"
-    default_model = "gpt-4o"
+    default_model = "gpt-5"
 
 class OtherProvider(LLMProvider):
     """Fallback for custom/self-hosted providers."""

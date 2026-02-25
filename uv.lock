@@ -1520,7 +1520,7 @@ dependencies = [
     { name = "uvicorn", extra = ["standard"] },
 ]
 
-[package.dev-dependencies]
+[package.optional-dependencies]
 dev = [
     { name = "bump-my-version" },
     { name = "mypy" },
@@ -1533,32 +1533,29 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "bump-my-version", marker = "extra == 'dev'", specifier = ">=0.20.0" },
     { name = "crawl4ai", specifier = ">=0.4.0" },
     { name = "croniter", specifier = ">=1.0.0" },
     { name = "discord-py", specifier = ">=2.0" },
     { name = "fastapi", specifier = ">=0.115.0" },
     { name = "httpx", specifier = ">=0.27.0" },
     { name = "litellm", specifier = ">=1.0.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.19.1" },
     { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.2" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
     { name = "python-telegram-bot", specifier = ">=20.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "questionary", specifier = ">=2.0.0" },
     { name = "rich", specifier = ">=13.0.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.15.1" },
     { name = "textual", specifier = ">=0.21.0" },
     { name = "typer", specifier = ">=0.12.0" },
+    { name = "types-croniter", marker = "extra == 'dev'" },
+    { name = "types-pyyaml", marker = "extra == 'dev'" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32.0" },
 ]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "bump-my-version", specifier = ">=0.20.0" },
-    { name = "mypy", specifier = ">=1.19.1" },
-    { name = "pytest", specifier = ">=9.0.2" },
-    { name = "pytest-asyncio", specifier = ">=0.23.0" },
-    { name = "ruff", specifier = ">=0.15.1" },
-    { name = "types-croniter" },
-    { name = "types-pyyaml" },
-]
+provides-extras = ["dev"]
 
 [[package]]
 name = "pillow"
