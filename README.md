@@ -52,7 +52,7 @@ The first run guides you through setup. Pick your LLM, configure your agent, and
 
 Pickle is my cat, as mentioned at the beginning. She is really talktive, definitely more than you can think about.
 
-Cookie is her Step brother, thats why he manage memories on behalf of Pickle.
+Cookie was her Step brother, but he lives somewhere else now. so he manage memories on behalf of Pickle.
 
 ### She's your Cat, Why Matters to Me?
 
