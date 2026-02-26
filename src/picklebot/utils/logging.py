@@ -25,6 +25,7 @@ def setup_logging(config: Config, console_output: bool = False) -> None:
     root_logger = logging.getLogger("picklebot")
     root_logger.setLevel(logging.DEBUG)
 
+    config.logging_path.mkdir(parents=True, exist_ok=True)
     file_handler = RotatingFileHandler(config.logging_path / "picklebot.log", maxBytes=10000, backupCount=3)
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.DEBUG)
