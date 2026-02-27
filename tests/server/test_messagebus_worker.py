@@ -2,11 +2,13 @@
 
 import asyncio
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock, MagicMock
 from dataclasses import dataclass
 
 from picklebot.server.messagebus_worker import MessageBusWorker
 from picklebot.messagebus.base import MessageContext
+from picklebot.core.commands import CommandRegistry
+from picklebot.core.context import SharedContext
 
 
 @dataclass
@@ -281,3 +283,63 @@ You are a test assistant.
     assert not queue.empty()
     job = await queue.get()
     assert job.message == "hello"
+
+
+class TestMessageBusWorkerSlashCommands:
+    """Tests for slash command handling in MessageBusWorker."""
+
+    @pytest.fixture
+    def mock_context(self, test_config, test_agent_def):
+        """Create mock context with minimal setup."""
+        context = MagicMock(spec=SharedContext)
+        context.config = test_config
+        context.agent_loader = MagicMock()
+        context.agent_loader.load.return_value = test_agent_def
+        context.config.messagebus = MagicMock()
+        context.config.messagebus.telegram = None
+        context.config.messagebus.discord = None
+        return context
+
+    def test_worker_has_command_registry(self, mock_context):
+        """MessageBusWorker should initialize CommandRegistry."""
+        # Patch the buses to empty list
+        mock_context.messagebus_buses = []
+
+        worker = MessageBusWorker(mock_context)
+
+        assert worker.command_registry is not None
+        assert isinstance(worker.command_registry, CommandRegistry)
+
+    @pytest.mark.anyio
+    async def test_callback_handles_slash_command(self, mock_context):
+        """Callback should dispatch slash commands and reply directly."""
+        mock_context.messagebus_buses = []
+        mock_context.agent_queue = AsyncMock()
+
+        worker = MessageBusWorker(mock_context)
+
+        # Create mock bus and context
+        mock_bus = MagicMock()
+        mock_bus.platform_name = "test"
+        mock_bus.is_allowed.return_value = True
+        mock_bus.reply = AsyncMock()
+
+        mock_msg_context = MagicMock()
+        mock_msg_context.user_id = "user123"
+
+        # Add bus to bus_map
+        worker.bus_map["test"] = mock_bus
+
+        # Get the callback
+        callback = worker._create_callback("test")
+
+        # Send slash command
+        await callback("/help", mock_msg_context)
+
+        # Should have replied directly
+        mock_bus.reply.assert_called_once()
+        call_args = mock_bus.reply.call_args[0][0]
+        assert "Available Commands" in call_args
+
+        # Should NOT have put job in queue
+        mock_context.agent_queue.put.assert_not_called()
