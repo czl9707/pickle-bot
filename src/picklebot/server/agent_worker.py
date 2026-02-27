@@ -59,7 +59,7 @@ class SessionExecutor:
                 session = agent.new_session(self.job.mode)
                 self.job.session_id = session.session_id
 
-            response = await session.chat(self.job.message, self.job.frontend)
+            response = await session.chat(self.job.message)
             self.logger.info(f"Session completed: {session.session_id}")
 
             self.job.result_future.set_result(response)

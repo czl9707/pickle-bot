@@ -7,7 +7,6 @@ from picklebot.provider.web_search import WebSearchProvider
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
-    from picklebot.frontend import Frontend
 
 
 def create_websearch_tool(context: "SharedContext") -> BaseTool | None:
@@ -41,11 +40,10 @@ def create_websearch_tool(context: "SharedContext") -> BaseTool | None:
             "required": ["query"],
         },
     )
-    async def websearch(frontend: "Frontend", query: str) -> str:
+    async def websearch(query: str) -> str:
         """Search the web and return formatted results.
 
         Args:
-            frontend: Frontend for displaying output (unused)
             query: The search query string
 
         Returns:

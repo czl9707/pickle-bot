@@ -4,13 +4,11 @@ import asyncio
 import json
 from typing import TYPE_CHECKING
 
-from picklebot.frontend.base import SilentFrontend
 from picklebot.tools.base import BaseTool, tool
 from picklebot.utils.def_loader import DefNotFoundError
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
-    from picklebot.frontend import Frontend
 
 
 def create_subagent_dispatch_tool(
@@ -67,13 +65,10 @@ def create_subagent_dispatch_tool(
             "required": ["agent_id", "task"],
         },
     )
-    async def subagent_dispatch(
-        frontend: "Frontend", agent_id: str, task: str, context: str = ""
-    ) -> str:
+    async def subagent_dispatch(agent_id: str, task: str, context: str = "") -> str:
         """Dispatch task to subagent, return result + session_id.
 
         Args:
-            frontend: Frontend for displaying dispatch status
             agent_id: ID of the target agent
             task: Task for the subagent to perform
             context: Optional context information
@@ -99,14 +94,12 @@ def create_subagent_dispatch_tool(
             session_id=None,
             agent_id=agent_id,
             message=user_message,
-            frontend=SilentFrontend(),
             mode=SessionMode.JOB,
         )
         job.result_future = asyncio.Future()
 
-        async with frontend.show_dispatch(current_agent_id, agent_id, task):
-            await shared_context.agent_queue.put(job)
-            response = await job.result_future
+        await shared_context.agent_queue.put(job)
+        response = await job.result_future
 
         result = {"result": response, "session_id": job.session_id}
         return json.dumps(result)

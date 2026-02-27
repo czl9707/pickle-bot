@@ -2,46 +2,17 @@
 
 import asyncio
 import shutil
-from contextlib import asynccontextmanager
-from typing import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from picklebot.core.agent import SessionMode
-from picklebot.frontend.base import SilentFrontend
 from picklebot.server.agent_worker import (
     MAX_RETRIES,
     AgentDispatcherWorker,
     SessionExecutor,
 )
 from picklebot.server.base import Job
-
-
-class FakeFrontend:
-    """Fake frontend for testing."""
-
-    def __init__(self):
-        self.messages: list[str] = []
-
-    async def show_message(self, content: str, agent_id: str | None = None) -> None:
-        self.messages.append(content)
-
-    async def show_welcome(self) -> None:
-        pass
-
-    async def show_system_message(self, content: str) -> None:
-        pass
-
-    @asynccontextmanager
-    async def show_transient(self, content: str) -> AsyncIterator[None]:
-        yield
-
-    @asynccontextmanager
-    async def show_dispatch(
-        self, calling_agent: str, target_agent: str, task: str
-    ) -> AsyncIterator[None]:
-        yield
 
 
 @pytest.mark.anyio
@@ -68,7 +39,6 @@ You are a test assistant. Respond briefly.
         session_id=None,
         agent_id="test-agent",
         message="Say hello",
-        frontend=FakeFrontend(),
         mode=SessionMode.CHAT,
     )
     await test_context.agent_queue.put(job)
@@ -91,7 +61,6 @@ async def test_agent_job_router_does_not_requeue_nonexistent_agent(test_context)
         session_id=None,
         agent_id="nonexistent",
         message="Test",
-        frontend=FakeFrontend(),
         mode=SessionMode.CHAT,
     )
     await test_context.agent_queue.put(job)
@@ -125,21 +94,19 @@ You are a test assistant.
     agent_def = test_context.agent_loader.load("test-agent")
     semaphore = asyncio.Semaphore(1)
 
-    class ErrorFrontend(FakeFrontend):
-        async def show_message(self, content: str, agent_id: str | None = None) -> None:
-            raise RuntimeError("Transient error")
-
     job = Job(
         session_id=None,
         agent_id="test-agent",
         message="Test",
-        frontend=ErrorFrontend(),
         mode=SessionMode.CHAT,
     )
 
     executor = SessionExecutor(test_context, agent_def, job, semaphore)
 
-    await executor.run()
+    # Mock the Agent to raise an error
+    with patch("picklebot.server.agent_worker.Agent") as MockAgent:
+        MockAgent.side_effect = RuntimeError("Transient error")
+        await executor.run()
 
     assert job.message == "."
     assert not test_context.agent_queue.empty()
@@ -171,7 +138,6 @@ You are a test assistant.
         session_id=nonexistent_session_id,
         agent_id="test-agent",
         message="Test",
-        frontend=FakeFrontend(),
         mode=SessionMode.CHAT,
     )
 
@@ -213,7 +179,6 @@ You are a test assistant. Respond briefly.
         session_id=None,
         agent_id="test-agent",
         message="Say hello",
-        frontend=FakeFrontend(),
         mode=SessionMode.CHAT,
     )
 
@@ -249,7 +214,6 @@ You are a test assistant.
         session_id=None,
         agent_id="test-agent",
         message="Test",
-        frontend=FakeFrontend(),
         mode=SessionMode.CHAT,
     )
 
@@ -306,14 +270,12 @@ You are {agent_name}.
         session_id=None,
         agent_id="agent-a",
         message="Test A",
-        frontend=FakeFrontend(),
         mode=SessionMode.CHAT,
     )
     job_b = Job(
         session_id=None,
         agent_id="agent-b",
         message="Test B",
-        frontend=FakeFrontend(),
         mode=SessionMode.CHAT,
     )
 
@@ -369,14 +331,12 @@ You are {agent_name}.
         session_id=None,
         agent_id="agent-a",
         message="Test A",
-        frontend=FakeFrontend(),
         mode=SessionMode.CHAT,
     )
     job_b = Job(
         session_id=None,
         agent_id="agent-b",
         message="Test B",
-        frontend=FakeFrontend(),
         mode=SessionMode.CHAT,
     )
 
@@ -427,7 +387,6 @@ You are agent {i}.
             session_id=None,
             agent_id=f"agent-{i}",
             message="Test",
-            frontend=FakeFrontend(),
             mode=SessionMode.CHAT,
         )
         await test_context.agent_queue.put(job)
@@ -448,7 +407,6 @@ You are agent {i}.
         session_id=None,
         agent_id="agent-0",
         message="Test",
-        frontend=FakeFrontend(),
         mode=SessionMode.CHAT,
     )
     await test_context.agent_queue.put(job)
@@ -494,7 +452,6 @@ You are a test assistant.
         session_id=None,
         agent_id="test-agent",
         message="hello",
-        frontend=SilentFrontend(),
         mode=SessionMode.CHAT,
     )
     job.result_future = asyncio.Future()  # Create future in async context
@@ -540,7 +497,6 @@ You are a test assistant.
         session_id=None,
         agent_id="test-agent",
         message="hello",
-        frontend=SilentFrontend(),
         mode=SessionMode.CHAT,
         retry_count=0,
     )
@@ -585,7 +541,6 @@ You are a test assistant.
         session_id=None,
         agent_id="test-agent",
         message="hello",
-        frontend=SilentFrontend(),
         mode=SessionMode.CHAT,
         retry_count=MAX_RETRIES,  # Already at max
     )

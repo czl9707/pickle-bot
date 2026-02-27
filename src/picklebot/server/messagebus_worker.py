@@ -3,7 +3,6 @@
 import asyncio
 from typing import TYPE_CHECKING, Any
 
-from picklebot.frontend.base import Frontend
 from picklebot.server.base import Worker, Job
 from picklebot.core.agent import SessionMode, Agent
 from picklebot.utils.def_loader import DefNotFoundError
@@ -98,14 +97,12 @@ class MessageBusWorker(Worker):
                 user_id = context.user_id
                 session_id = self._get_or_create_session_id(platform, user_id)
 
-                frontend = Frontend.for_bus(bus, context)
                 block_on_response = bus.platform_name == "cli"
 
                 job = Job(
                     session_id=session_id,
                     agent_id=self.agent_def.id,
                     message=message,
-                    frontend=frontend,
                     mode=SessionMode.CHAT,
                 )
                 await self.context.agent_queue.put(job)

@@ -67,9 +67,7 @@ def main(
 
 
 @app.command()
-def chat(
-    ctx: typer.Context
-) -> None:
+def chat(ctx: typer.Context) -> None:
     """Start interactive chat session."""
     chat_command(ctx)
 

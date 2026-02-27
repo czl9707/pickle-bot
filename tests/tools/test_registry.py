@@ -4,7 +4,6 @@ import pytest
 
 from picklebot.tools.registry import ToolRegistry
 from picklebot.tools.base import BaseTool
-from picklebot.frontend.base import SilentFrontend
 
 
 class MockTool(BaseTool):
@@ -15,12 +14,10 @@ class MockTool(BaseTool):
     parameters = {"type": "object", "properties": {}}
 
     def __init__(self):
-        self.last_frontend = None
         self.last_kwargs = None
 
-    async def execute(self, frontend, **kwargs):
-        """Execute mock tool, store frontend for verification."""
-        self.last_frontend = frontend
+    async def execute(self, **kwargs):
+        """Execute mock tool, store kwargs for verification."""
         self.last_kwargs = kwargs
         return "mock result"
 
@@ -74,17 +71,15 @@ class TestToolRegistry:
         assert schemas[0]["function"]["name"] == "mock_tool"
 
     @pytest.mark.anyio
-    async def test_execute_tool_passes_frontend_to_tool(self):
-        """execute_tool() should pass frontend parameter to tool."""
+    async def test_execute_tool_passes_kwargs_to_tool(self):
+        """execute_tool() should pass kwargs parameter to tool."""
         registry = ToolRegistry()
         tool = MockTool()
         registry.register(tool)
 
-        frontend = SilentFrontend()
-        result = await registry.execute_tool("mock_tool", frontend, arg1="value1")
+        result = await registry.execute_tool("mock_tool", arg1="value1")
 
-        # Verify tool received the frontend
-        assert tool.last_frontend == frontend
+        # Verify tool received the kwargs
         assert tool.last_kwargs == {"arg1": "value1"}
         assert result == "mock result"
 
@@ -92,10 +87,9 @@ class TestToolRegistry:
     async def test_execute_tool_raises_for_nonexistent_tool(self):
         """execute_tool() should raise ValueError for nonexistent tool."""
         registry = ToolRegistry()
-        frontend = SilentFrontend()
 
         with pytest.raises(ValueError, match="Tool not found"):
-            await registry.execute_tool("nonexistent", frontend)
+            await registry.execute_tool("nonexistent")
 
 
 class TestToolRegistryWithBuiltins:

@@ -7,7 +7,6 @@ from picklebot.tools.webread_tool import create_webread_tool
 from picklebot.provider.web_read.base import ReadResult
 from picklebot.core.context import SharedContext
 from picklebot.utils.config import Crawl4AIWebReadConfig
-from picklebot.frontend.base import SilentFrontend
 
 
 class TestCreateWebreadTool:
@@ -52,8 +51,7 @@ class TestWebreadToolExecution:
             mock_from_config.return_value = mock_provider
 
             tool = create_webread_tool(context)
-            frontend = SilentFrontend()
-            result = await tool.execute(frontend=frontend, url="https://example.com")
+            result = await tool.execute(url="https://example.com")
 
         assert "Example Page" in result
         assert "# Example" in result
@@ -80,8 +78,7 @@ class TestWebreadToolExecution:
             mock_from_config.return_value = mock_provider
 
             tool = create_webread_tool(context)
-            frontend = SilentFrontend()
-            result = await tool.execute(frontend=frontend, url="https://example.com")
+            result = await tool.execute(url="https://example.com")
 
         assert "Error reading" in result
         assert "Failed to load page" in result

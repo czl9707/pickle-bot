@@ -10,7 +10,6 @@ from picklebot.core.agent import SessionMode
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
-    from picklebot.frontend.base import Frontend
 
 
 @dataclass
@@ -20,10 +19,10 @@ class Job:
     session_id: str | None  # None = new session, set after first pickup
     agent_id: str  # Which agent to run
     message: str  # User prompt (set to "." after consumed)
-    frontend: "Frontend"  # Live frontend object for responses
     mode: SessionMode  # CHAT or JOB
     result_future: asyncio.Future[str] = field(
-        default_factory=lambda: asyncio.get_event_loop().create_future())
+        default_factory=lambda: asyncio.get_event_loop().create_future()
+    )
     retry_count: int = 0
 
 

@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from picklebot.core.context import SharedContext
-from picklebot.frontend.base import SilentFrontend
 from picklebot.tools.subagent_tool import create_subagent_dispatch_tool
 
 
@@ -128,10 +127,7 @@ You are the target agent.
         asyncio.create_task(resolve_future())
 
         # Execute
-        frontend = SilentFrontend()
-        result = await tool_func.execute(
-            frontend=frontend, agent_id="target-agent", task="Do something"
-        )
+        result = await tool_func.execute(agent_id="target-agent", task="Do something")
 
         # Verify
         parsed = json.loads(result)
@@ -173,9 +169,7 @@ You are the target agent.
         asyncio.create_task(capture_and_resolve())
 
         # Execute with context
-        frontend = SilentFrontend()
         await tool_func.execute(
-            frontend=frontend,
             agent_id="target-agent",
             task="Review this",
             context="The code is in src/main.py",
@@ -186,64 +180,6 @@ You are the target agent.
         assert "Review this" in captured_job.message
         assert "Context:" in captured_job.message
         assert "The code is in src/main.py" in captured_job.message
-
-
-class TestSubagentDispatchFrontendCalls:
-    """Tests for subagent dispatch frontend method calls."""
-
-    @pytest.mark.anyio
-    async def test_subagent_dispatch_calls_show_dispatch(self, test_config):
-        """Subagent dispatch tool should call frontend.show_dispatch() context manager."""
-        # Create target agent
-        agent_dir = test_config.agents_path / "target-agent"
-        agent_dir.mkdir(parents=True)
-        agent_file = agent_dir / "AGENT.md"
-        agent_file.write_text(
-            """---
-name: Target Agent
-description: A target for dispatch testing
----
-
-You are the target agent.
-"""
-        )
-
-        context = SharedContext(config=test_config)
-        _ = context.agent_queue  # Initialize queue
-
-        tool_func = create_subagent_dispatch_tool("caller", context)
-        assert tool_func is not None
-
-        # Use a mock frontend to track calls
-        mock_frontend = MagicMock(spec=SilentFrontend)
-        # Setup async context manager mock
-        mock_dispatch_context = AsyncMock()
-        mock_dispatch_context.__aenter__ = AsyncMock(return_value=None)
-        mock_dispatch_context.__aexit__ = AsyncMock(return_value=None)
-        mock_frontend.show_dispatch.return_value = mock_dispatch_context
-
-        # Create a task that will resolve the future
-        async def resolve_future():
-            job = await context.agent_queue.get()
-            job.session_id = "test-session-789"
-            job.result_future.set_result("Task done")
-
-        asyncio.create_task(resolve_future())
-
-        # Execute
-        await tool_func.execute(
-            frontend=mock_frontend,
-            agent_id="target-agent",
-            task="Do something",
-        )
-
-        # Verify show_dispatch was called with correct args
-        mock_frontend.show_dispatch.assert_called_once()
-        call_args = mock_frontend.show_dispatch.call_args
-        # Verify calling agent, target agent, and task are passed
-        assert call_args[0][0] == "caller"  # calling agent
-        assert call_args[0][1] == "target-agent"  # target agent
-        assert call_args[0][2] == "Do something"  # task
 
 
 class TestSubagentDispatchQueueMode:
@@ -269,20 +205,9 @@ You are the target agent.
         _ = context.agent_queue  # This creates the queue lazily
         return context
 
-    @pytest.fixture
-    def mock_frontend(self):
-        """Create a mock frontend with show_dispatch context manager."""
-        mock_frontend = MagicMock(spec=SilentFrontend)
-        # Setup async context manager mock
-        mock_dispatch_context = AsyncMock()
-        mock_dispatch_context.__aenter__ = AsyncMock(return_value=None)
-        mock_dispatch_context.__aexit__ = AsyncMock(return_value=None)
-        mock_frontend.show_dispatch.return_value = mock_dispatch_context
-        return mock_frontend
-
     @pytest.mark.anyio
     async def test_subagent_dispatch_uses_queue_when_available(
-        self, mock_context_with_queue, mock_frontend
+        self, mock_context_with_queue
     ):
         """subagent_dispatch should dispatch through queue when available."""
         tool_func = create_subagent_dispatch_tool("caller", mock_context_with_queue)
@@ -298,16 +223,12 @@ You are the target agent.
 
         asyncio.create_task(resolve_future())
 
-        result = await tool_func.execute(
-            frontend=mock_frontend, agent_id="target-agent", task="do something"
-        )
+        result = await tool_func.execute(agent_id="target-agent", task="do something")
         assert "task completed" in result
         assert "test-session" in result
 
     @pytest.mark.anyio
-    async def test_queue_mode_creates_job_with_correct_fields(
-        self, mock_context_with_queue, mock_frontend
-    ):
+    async def test_queue_mode_creates_job_with_correct_fields(self, mock_context_with_queue):
         """Queue mode should create Job with correct agent_id, message, and mode."""
         tool_func = create_subagent_dispatch_tool("caller", mock_context_with_queue)
         assert tool_func is not None
@@ -324,7 +245,6 @@ You are the target agent.
         asyncio.create_task(capture_and_resolve())
 
         await tool_func.execute(
-            frontend=mock_frontend,
             agent_id="target-agent",
             task="test task",
             context="some context",
@@ -334,29 +254,3 @@ You are the target agent.
         assert captured_job.agent_id == "target-agent"
         assert "test task" in captured_job.message
         assert "some context" in captured_job.message
-
-    @pytest.mark.anyio
-    async def test_queue_mode_uses_silent_frontend_for_job(
-        self, mock_context_with_queue, mock_frontend
-    ):
-        """Queue mode should use SilentFrontend for the dispatched job."""
-        tool_func = create_subagent_dispatch_tool("caller", mock_context_with_queue)
-        assert tool_func is not None
-
-        captured_job = None
-
-        async def capture_and_resolve():
-            nonlocal captured_job
-            job = await mock_context_with_queue.agent_queue.get()
-            captured_job = job
-            job.session_id = "silent-session"
-            job.result_future.set_result("silent result")
-
-        asyncio.create_task(capture_and_resolve())
-
-        await tool_func.execute(
-            frontend=mock_frontend, agent_id="target-agent", task="task"
-        )
-
-        assert captured_job is not None
-        assert isinstance(captured_job.frontend, SilentFrontend)

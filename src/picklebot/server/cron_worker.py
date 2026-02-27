@@ -10,7 +10,6 @@ from croniter import croniter
 
 from picklebot.server.base import Worker, Job
 from picklebot.core.agent import SessionMode
-from picklebot.frontend.base import SilentFrontend
 
 if TYPE_CHECKING:
     from picklebot.core.cron_loader import CronDef
@@ -80,7 +79,6 @@ class CronWorker(Worker):
                 session_id=None,  # Always new session
                 agent_id=cron_def.agent,
                 message=cron_def.prompt,
-                frontend=SilentFrontend(),
                 mode=SessionMode.JOB,
             )
             await self.context.agent_queue.put(job)

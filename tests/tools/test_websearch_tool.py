@@ -7,7 +7,6 @@ from picklebot.tools.websearch_tool import create_websearch_tool
 from picklebot.provider.web_search.base import SearchResult
 from picklebot.core.context import SharedContext
 from picklebot.utils.config import BraveWebSearchConfig
-from picklebot.frontend.base import SilentFrontend
 
 
 class TestCreateWebsearchTool:
@@ -59,8 +58,7 @@ class TestWebsearchToolExecution:
             mock_from_config.return_value = mock_provider
 
             tool = create_websearch_tool(context)
-            frontend = SilentFrontend()
-            result = await tool.execute(frontend=frontend, query="test query")
+            result = await tool.execute(query="test query")
 
         assert "Example" in result
         assert "https://example.com" in result
@@ -81,7 +79,6 @@ class TestWebsearchToolExecution:
             mock_from_config.return_value = mock_provider
 
             tool = create_websearch_tool(context)
-            frontend = SilentFrontend()
-            result = await tool.execute(frontend=frontend, query="test query")
+            result = await tool.execute(query="test query")
 
         assert result == "No results found."

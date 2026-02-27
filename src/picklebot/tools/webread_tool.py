@@ -7,7 +7,6 @@ from picklebot.provider.web_read import WebReadProvider
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
-    from picklebot.frontend import Frontend
 
 
 def create_webread_tool(context: "SharedContext") -> BaseTool | None:
@@ -41,11 +40,10 @@ def create_webread_tool(context: "SharedContext") -> BaseTool | None:
             "required": ["url"],
         },
     )
-    async def webread(frontend: "Frontend", url: str) -> str:
+    async def webread(url: str) -> str:
         """Read a web page and return markdown content.
 
         Args:
-            frontend: Frontend for displaying output (unused)
             url: The URL to read
 
         Returns:

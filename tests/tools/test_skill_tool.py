@@ -3,7 +3,6 @@
 import pytest
 
 from picklebot.core.skill_loader import SkillLoader
-from picklebot.frontend.base import SilentFrontend
 from picklebot.tools.skill_tool import create_skill_tool
 
 
@@ -91,8 +90,7 @@ This is the skill content.
 
         assert tool_func is not None
         # Execute
-        frontend = SilentFrontend()
-        result = await tool_func.execute(frontend=frontend, skill_name="test-skill")
+        result = await tool_func.execute(skill_name="test-skill")
 
         # Verify
         assert "# Test Skill" in result
@@ -123,10 +121,7 @@ description: An existing skill
 
         assert tool_func is not None
         # Execute - try to load a skill that doesn't exist
-        frontend = SilentFrontend()
-        result = await tool_func.execute(
-            frontend=frontend, skill_name="nonexistent-skill"
-        )
+        result = await tool_func.execute(skill_name="nonexistent-skill")
 
         # Verify - should return error message
         assert "Error:" in result

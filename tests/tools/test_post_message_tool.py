@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock
 from pathlib import Path
 
 from picklebot.tools.post_message_tool import create_post_message_tool
-from picklebot.frontend.base import SilentFrontend
 from picklebot.utils.config import Config, MessageBusConfig, TelegramConfig
 from picklebot.events.types import Event, EventType
 
@@ -99,8 +98,7 @@ class TestPostMessageToolExecution:
         tool = create_post_message_tool(context)
         assert tool is not None
 
-        frontend = SilentFrontend()
-        result = await tool.execute(frontend=frontend, content="Hello from agent!")
+        result = await tool.execute(content="Hello from agent!")
 
         # Verify publish was called
         context.eventbus.publish.assert_called_once()
@@ -135,8 +133,7 @@ class TestPostMessageToolExecution:
         tool = create_post_message_tool(context)
         assert tool is not None
 
-        frontend = SilentFrontend()
-        result = await tool.execute(frontend=frontend, content="Hello from agent!")
+        result = await tool.execute(content="Hello from agent!")
 
         # Verify error message
         assert "failed" in result.lower() or "error" in result.lower()

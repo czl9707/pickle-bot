@@ -6,7 +6,6 @@ import pytest
 
 from picklebot.server.base import Job
 from picklebot.core.agent import SessionMode
-from picklebot.frontend.base import SilentFrontend
 
 
 class TestJobFields:
@@ -19,7 +18,6 @@ class TestJobFields:
             session_id=None,
             agent_id="test",
             message="hello",
-            frontend=SilentFrontend(),
             mode=SessionMode.CHAT,
         )
         assert isinstance(job.result_future, asyncio.Future)
