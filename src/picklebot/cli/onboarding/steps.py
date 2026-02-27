@@ -108,8 +108,12 @@ class ConfigureExtraFunctionalityStep(BaseStep):
             questionary.checkbox(
                 "Select extra functionality to enable:",
                 choices=[
-                    questionary.Choice("Web Search (Brave API)", value="websearch", checked=True),
-                    questionary.Choice("Web Read (local scraping)", value="webread", checked=True),
+                    questionary.Choice(
+                        "Web Search (Brave API)", value="websearch", checked=True
+                    ),
+                    questionary.Choice(
+                        "Web Read (local scraping)", value="webread", checked=True
+                    ),
                     questionary.Choice("API Server", value="api", checked=True),
                 ],
             ).ask()

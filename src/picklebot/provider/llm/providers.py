@@ -18,6 +18,7 @@ class OpenAIProvider(LLMProvider):
     display_name = "OpenAI"
     default_model = "gpt-5"
 
+
 class OtherProvider(LLMProvider):
     """Fallback for custom/self-hosted providers."""
 
