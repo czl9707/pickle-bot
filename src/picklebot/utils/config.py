@@ -285,3 +285,37 @@ class Config(BaseModel):
         """
         self._set_config_value(self.workspace / "config.runtime.yaml", key, value)
         self._update_in_memory(key, value)
+
+    def reload(self) -> bool:
+        """
+        Re-read config.user.yaml and merge with runtime.
+
+        Returns:
+            True if reload succeeded, False if file not found or invalid
+        """
+        try:
+            user_config = self.workspace / "config.user.yaml"
+            runtime_config = self.workspace / "config.runtime.yaml"
+
+            config_data: dict[str, Any] = {"workspace": self.workspace}
+
+            if user_config.exists():
+                with open(user_config) as f:
+                    user_data = yaml.safe_load(f) or {}
+                config_data = self._deep_merge(config_data, user_data)
+
+            if runtime_config.exists():
+                with open(runtime_config) as f:
+                    runtime_data = yaml.safe_load(f) or {}
+                config_data = self._deep_merge(config_data, runtime_data)
+
+            # Create new instance and copy values
+            new_config = Config.model_validate(config_data)
+
+            # Update all fields from new config
+            for field_name in Config.model_fields:
+                setattr(self, field_name, getattr(new_config, field_name))
+
+            return True
+        except Exception:
+            return False

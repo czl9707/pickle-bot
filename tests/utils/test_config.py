@@ -269,3 +269,29 @@ class TestApiConfig:
             default_agent="pickle",
         )
         assert config.api is None
+
+
+class TestConfigReload:
+    """Tests for config hot reload."""
+
+    def test_reload_reads_updated_config(self, tmp_path, llm_config):
+        """reload() should re-read config.user.yaml."""
+        # Create initial config
+        config_file = tmp_path / "config.user.yaml"
+        config_file.write_text(
+            "llm:\n  provider: openai\n  model: gpt-4\n  api_key: test\n"
+            "default_agent: pickle\n"
+        )
+
+        config = Config.load(tmp_path)
+        assert config.llm.model == "gpt-4"
+
+        # Modify the file
+        config_file.write_text(
+            "llm:\n  provider: openai\n  model: gpt-4o\n  api_key: test\n"
+            "default_agent: pickle\n"
+        )
+
+        # Reload
+        config.reload()
+        assert config.llm.model == "gpt-4o"
