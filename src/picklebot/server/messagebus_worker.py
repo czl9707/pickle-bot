@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any
 
 from picklebot.server.base import Worker, Job
 from picklebot.core.agent import SessionMode, Agent
-from picklebot.core.commands import CommandRegistry
 from picklebot.frontend.messagebus import MessageBusFrontend
 from picklebot.utils.def_loader import DefNotFoundError
 
@@ -20,7 +19,6 @@ class MessageBusWorker(Worker):
         super().__init__(context)
         self.buses = context.messagebus_buses
         self.bus_map = {bus.platform_name: bus for bus in self.buses}
-        self.command_registry = CommandRegistry.with_builtins()
 
         # Load agent for session creation
         try:
@@ -82,7 +80,10 @@ class MessageBusWorker(Worker):
 
                 # Check for slash command
                 if message.startswith("/"):
-                    result = self.command_registry.dispatch(message, self.context)
+                    self.logger.debug(f"Processing slash command from {platform}")
+                    result = self.context.command_registry.dispatch(
+                        message, self.context
+                    )
                     if result:
                         await bus.reply(result, context)
                     return

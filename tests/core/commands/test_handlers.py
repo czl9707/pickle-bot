@@ -29,11 +29,13 @@ class TestHelpCommand:
 
     def test_execute_returns_available_commands(self):
         """execute() should list available commands."""
+        from unittest.mock import MagicMock
         from picklebot.core.commands.registry import CommandRegistry
 
-        # Use with_builtins which sets registry on HelpCommand
         registry = CommandRegistry.with_builtins()
-        result = registry.dispatch("/help", None)
+        mock_ctx = MagicMock()
+        mock_ctx.command_registry = registry
+        result = registry.dispatch("/help", mock_ctx)
 
         assert isinstance(result, str)
         assert "/help" in result

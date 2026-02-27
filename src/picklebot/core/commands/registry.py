@@ -85,9 +85,7 @@ class CommandRegistry:
         )
 
         registry = cls()
-        help_cmd = HelpCommand()
-        help_cmd.set_registry(registry)
-        registry.register(help_cmd)
+        registry.register(HelpCommand())
         registry.register(AgentCommand())
         registry.register(SkillsCommand())
         registry.register(CronsCommand())

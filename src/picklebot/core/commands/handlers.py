@@ -1,12 +1,7 @@
 """Built-in slash command handlers."""
 
-from typing import TYPE_CHECKING
-
 from picklebot.core.commands.base import Command
 from picklebot.core.context import SharedContext
-
-if TYPE_CHECKING:
-    from picklebot.core.commands.registry import CommandRegistry
 
 
 class HelpCommand(Command):
@@ -15,18 +10,10 @@ class HelpCommand(Command):
     name = "help"
     aliases = ["?"]
     description = "Show available commands"
-    _registry: "CommandRegistry | None" = None
-
-    def set_registry(self, registry: "CommandRegistry") -> None:
-        """Set the registry reference for dynamic help generation."""
-        self._registry = registry
 
     def execute(self, args: str, ctx: SharedContext) -> str:
-        if self._registry is None:
-            return "Help unavailable: registry not set."
-
         lines = ["**Available Commands:**"]
-        for cmd in self._registry.list_commands():
+        for cmd in ctx.command_registry.list_commands():
             # Format: `/name, /alias1, /alias2` - description
             names = [f"/{cmd.name}"] + [f"/{a}" for a in cmd.aliases]
             lines.append(f"{', '.join(names)} - {cmd.description}")

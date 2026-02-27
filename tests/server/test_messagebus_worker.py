@@ -298,17 +298,17 @@ class TestMessageBusWorkerSlashCommands:
         context.config.messagebus = MagicMock()
         context.config.messagebus.telegram = None
         context.config.messagebus.discord = None
+        context.command_registry = CommandRegistry.with_builtins()
         return context
 
-    def test_worker_has_command_registry(self, mock_context):
-        """MessageBusWorker should initialize CommandRegistry."""
-        # Patch the buses to empty list
+    def test_context_has_command_registry(self, mock_context):
+        """SharedContext should have CommandRegistry."""
         mock_context.messagebus_buses = []
 
-        worker = MessageBusWorker(mock_context)
+        MessageBusWorker(mock_context)
 
-        assert worker.command_registry is not None
-        assert isinstance(worker.command_registry, CommandRegistry)
+        assert mock_context.command_registry is not None
+        assert isinstance(mock_context.command_registry, CommandRegistry)
 
     @pytest.mark.anyio
     async def test_callback_handles_slash_command(self, mock_context):

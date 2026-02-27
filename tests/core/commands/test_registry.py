@@ -158,9 +158,13 @@ class TestCommandRegistryWithBuiltins:
 
     def test_with_builtins_dispatch_help(self):
         """with_builtins() registry should dispatch /help."""
-        registry = CommandRegistry.with_builtins()
+        from unittest.mock import MagicMock
 
-        result = registry.dispatch("/help", None)
+        registry = CommandRegistry.with_builtins()
+        mock_ctx = MagicMock()
+        mock_ctx.command_registry = registry
+
+        result = registry.dispatch("/help", mock_ctx)
 
         assert result is not None
         assert "Available Commands" in result
