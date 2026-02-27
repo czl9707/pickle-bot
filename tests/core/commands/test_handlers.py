@@ -23,10 +23,18 @@ class TestHelpCommand:
         cmd = HelpCommand()
         assert "?" in cmd.aliases
 
+    def test_description(self):
+        """HelpCommand should have description."""
+        cmd = HelpCommand()
+        assert cmd.description == "Show available commands"
+
     def test_execute_returns_available_commands(self):
         """execute() should list available commands."""
-        cmd = HelpCommand()
-        result = cmd.execute("", None)
+        from picklebot.core.commands.registry import CommandRegistry
+
+        # Use with_builtins which sets registry on HelpCommand
+        registry = CommandRegistry.with_builtins()
+        result = registry.dispatch("/help", None)
 
         assert isinstance(result, CommandResult)
         assert "/help" in result.message
@@ -47,6 +55,11 @@ class TestAgentCommand:
         """AgentCommand should have 'agents' alias."""
         cmd = AgentCommand()
         assert "agents" in cmd.aliases
+
+    def test_description(self):
+        """AgentCommand should have description."""
+        cmd = AgentCommand()
+        assert cmd.description == "List all agents"
 
     def test_execute_no_agents(self, test_context):
         """execute() should show message when no agents configured."""
@@ -83,6 +96,11 @@ class TestSkillsCommand:
         cmd = SkillsCommand()
         assert cmd.name == "skills"
 
+    def test_description(self):
+        """SkillsCommand should have description."""
+        cmd = SkillsCommand()
+        assert cmd.description == "List all skills"
+
     def test_execute_no_skills(self, test_context):
         """execute() should show message when no skills configured."""
         cmd = SkillsCommand()
@@ -98,6 +116,11 @@ class TestCronsCommand:
         """CronsCommand name should be 'crons'."""
         cmd = CronsCommand()
         assert cmd.name == "crons"
+
+    def test_description(self):
+        """CronsCommand should have description."""
+        cmd = CronsCommand()
+        assert cmd.description == "List all cron jobs"
 
     def test_execute_no_crons(self, test_context):
         """execute() should show message when no crons configured."""

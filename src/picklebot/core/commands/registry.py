@@ -21,6 +21,10 @@ class CommandRegistry:
         for alias in cmd.aliases:
             self._commands[alias] = cmd
 
+    def list_commands(self) -> list[Command]:
+        """Return list of all registered commands (including aliases)."""
+        return list(self._commands.values())
+
     def resolve(self, input: str) -> tuple[Command, str] | None:
         """
         Parse input and return (command, args) if it matches.
@@ -75,7 +79,9 @@ class CommandRegistry:
         )
 
         registry = cls()
-        registry.register(HelpCommand())
+        help_cmd = HelpCommand()
+        help_cmd.set_registry(registry)
+        registry.register(help_cmd)
         registry.register(AgentCommand())
         registry.register(SkillsCommand())
         registry.register(CronsCommand())

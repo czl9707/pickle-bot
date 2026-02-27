@@ -1,7 +1,12 @@
 """Built-in slash command handlers."""
 
+from typing import TYPE_CHECKING
+
 from picklebot.core.commands.base import Command, CommandResult
 from picklebot.core.context import SharedContext
+
+if TYPE_CHECKING:
+    from picklebot.core.commands.registry import CommandRegistry
 
 
 class HelpCommand(Command):
@@ -9,15 +14,24 @@ class HelpCommand(Command):
 
     name = "help"
     aliases = ["?"]
+    description = "Show available commands"
+    _registry: "CommandRegistry | None" = None
+
+    def set_registry(self, registry: "CommandRegistry") -> None:
+        """Set the registry reference for dynamic help generation."""
+        self._registry = registry
 
     def execute(self, args: str, ctx: SharedContext) -> CommandResult:
-        lines = [
-            "**Available Commands:**",
-            "`/help` - Show this message",
-            "`/agent` - List all agents",
-            "`/skills` - List all skills",
-            "`/crons` - List all cron jobs",
-        ]
+        if self._registry is None:
+            return CommandResult(message="Help unavailable: registry not set.")
+
+        lines = ["**Available Commands:**"]
+        # Get unique commands (by name, not aliases)
+        seen = set()
+        for cmd in self._registry.list_commands():
+            if cmd.name not in seen:
+                seen.add(cmd.name)
+                lines.append(f"`/{cmd.name}` - {cmd.description}")
         return CommandResult(message="\n".join(lines))
 
 
@@ -26,6 +40,7 @@ class AgentCommand(Command):
 
     name = "agent"
     aliases = ["agents"]
+    description = "List all agents"
 
     def execute(self, args: str, ctx: SharedContext) -> CommandResult:
         agents = ctx.agent_loader.discover_agents()
@@ -42,6 +57,7 @@ class SkillsCommand(Command):
     """List all configured skills."""
 
     name = "skills"
+    description = "List all skills"
 
     def execute(self, args: str, ctx: SharedContext) -> CommandResult:
         skills = ctx.skill_loader.discover_skills()
@@ -58,6 +74,7 @@ class CronsCommand(Command):
     """List all configured cron jobs."""
 
     name = "crons"
+    description = "List all cron jobs"
 
     def execute(self, args: str, ctx: SharedContext) -> CommandResult:
         crons = ctx.cron_loader.discover_crons()
