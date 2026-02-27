@@ -34,7 +34,7 @@ async def test_persist_outbound_event(event_bus, temp_events_dir):
         timestamp=12345.0,
     )
 
-    await event_bus._persist(event)
+    await event_bus._persist_inbound(event)
 
     # Check file was created
     pending_files = list((temp_events_dir / "pending").glob("*.json"))
@@ -64,8 +64,8 @@ async def test_persist_skips_non_outbound(event_bus, temp_events_dir):
         timestamp=12345.0,
     )
 
-    await event_bus._persist(inbound_event)
-    await event_bus._persist(status_event)
+    await event_bus._persist_inbound(inbound_event)
+    await event_bus._persist_inbound(status_event)
 
     # No files should be created
     pending_files = list((temp_events_dir / "pending").glob("*.json"))
@@ -82,7 +82,7 @@ async def test_ack_deletes_persisted_event(event_bus, temp_events_dir):
         timestamp=12345.0,
     )
 
-    await event_bus._persist(event)
+    await event_bus._persist_inbound(event)
 
     # Get the filename
     pending_files = list((temp_events_dir / "pending").glob("*.json"))
@@ -108,7 +108,7 @@ async def test_atomic_write(event_bus, temp_events_dir):
         timestamp=12345.0,
     )
 
-    await event_bus._persist(event)
+    await event_bus._persist_inbound(event)
 
     # No temp files should remain
     tmp_files = list((temp_events_dir / "pending").glob(".tmp.*"))
@@ -150,7 +150,7 @@ async def test_publish_outbound_persists_and_notifies(event_bus, temp_events_dir
 
 
 @pytest.mark.asyncio
-async def test_publish_inbound_no_persist(event_bus, temp_events_dir):
+async def test_publish_inbound_no_persist_inbound(event_bus, temp_events_dir):
     received = []
 
     async def handler(event: Event):

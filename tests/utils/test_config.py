@@ -398,7 +398,7 @@ class TestConfigReloader:
 
         # Stop should clean up
         reloader.stop()
-        assert reloader._observer is None
+        assert not hasattr(reloader, "_observer")
 
     def test_reloader_watches_config_changes(self, tmp_path, llm_config):
         """ConfigReloader should reload config on file change."""

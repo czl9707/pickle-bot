@@ -25,7 +25,7 @@ class SharedContext:
     command_registry: CommandRegistry
     messagebus_buses: list[MessageBus[Any]]
     eventbus: EventBus
-    _agent_queue: asyncio.Queue["Job"] | None
+    _agent_queue: asyncio.Queue["Job"] | None = None
 
     def __init__(
         self, config: Config, buses: list[MessageBus[Any]] | None = None
@@ -44,7 +44,6 @@ class SharedContext:
             self.messagebus_buses = MessageBus.from_config(config)
 
         self.eventbus = EventBus()
-        self._agent_queue = None
 
     @property
     def agent_queue(self) -> asyncio.Queue["Job"]:

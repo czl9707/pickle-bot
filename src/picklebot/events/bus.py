@@ -64,7 +64,7 @@ class EventBus:
         final_path = self.pending_dir / filename
         tmp_path = self.pending_dir / f".tmp.{os.getpid()}.{filename}"
 
-        data = json.dumps(event.to_dict(), indent=2, ensure_ascii=False)
+        data = json.dumps(event.to_dict(), ensure_ascii=False)
 
         # Atomic write: tmp + fsync + rename
         with open(tmp_path, "w", encoding="utf-8") as f:

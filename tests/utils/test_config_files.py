@@ -75,11 +75,12 @@ class TestConfigSetters:
         assert data["chat_max_history"] == 100
 
     def test_set_user_updates_in_memory(self, tmp_path):
-        """set_user updates the in-memory config object."""
+        """set_user updates the in-memory config object via reload."""
         _create_user_config(tmp_path)
 
         config = Config.load(tmp_path)
         config.set_user("default_agent", "my-agent")
+        config.reload()
 
         assert config.default_agent == "my-agent"
 
@@ -99,11 +100,12 @@ class TestConfigSetters:
         assert data["default_agent"] == "runtime-agent"
 
     def test_set_runtime_updates_in_memory(self, tmp_path):
-        """set_runtime updates the in-memory config object."""
+        """set_runtime updates the in-memory config object via reload."""
         _create_user_config(tmp_path)
 
         config = Config.load(tmp_path)
         config.set_runtime("default_agent", "runtime-agent")
+        config.reload()
 
         assert config.default_agent == "runtime-agent"
 
@@ -121,7 +123,8 @@ class TestConfigSetters:
         # Other nested fields preserved
         assert data["llm"]["provider"] == "openai"
 
-        # Check in-memory update
+        # Check in-memory update via reload
+        config.reload()
         assert config.llm.model == "gpt-4o"
 
     def test_set_runtime_nested_key(self, tmp_path):
@@ -136,5 +139,6 @@ class TestConfigSetters:
         data = yaml.safe_load(runtime_config.read_text())
         assert data["llm"]["api_base"] == "https://custom.api"
 
-        # Check in-memory update
+        # Check in-memory update via reload
+        config.reload()
         assert config.llm.api_base == "https://custom.api"

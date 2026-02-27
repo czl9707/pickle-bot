@@ -280,7 +280,33 @@ class Config(BaseModel):
             True if reload succeeded, False if file not found or invalid
         """
         try:
-            new_config = Config.load(self.workspace)
+            user_config = self.workspace / "config.user.yaml"
+            runtime_config = self.workspace / "config.runtime.yaml"
+
+            # Exclude auto-resolved path fields (they get re-resolved during validation)
+            path_fields = {
+                "agents_path", "skills_path", "logging_path",
+                "history_path", "crons_path", "memories_path"
+            }
+            config_data = self.model_dump(
+                mode="json",
+                exclude_none=True,
+                exclude=path_fields
+            )
+            config_data["workspace"] = self.workspace
+
+            if user_config.exists():
+                with open(user_config) as f:
+                    user_data = yaml.safe_load(f) or {}
+                config_data = self._deep_merge(config_data, user_data)
+
+            if runtime_config.exists():
+                with open(runtime_config) as f:
+                    runtime_data = yaml.safe_load(f) or {}
+                config_data = self._deep_merge(config_data, runtime_data)
+
+            # Create new instance and copy values
+            new_config = Config.model_validate(config_data)
 
             # Update all fields from new config
             for field_name in Config.model_fields:
@@ -313,16 +339,12 @@ class ConfigReloader:
 
     def start(self) -> None:
         """Start watching config file for changes."""
-        if self._observer is not None:
-            return
-
         handler = ConfigHandler(self._config)
         self._observer.schedule(handler, str(self._config.workspace), recursive=False)
         self._observer.start()
 
     def stop(self) -> None:
         """Stop watching."""
-        if self._observer is not None:
-            self._observer.stop()
-            self._observer.join()
-            del self._observer
+        self._observer.stop()
+        self._observer.join()
+        del self._observer

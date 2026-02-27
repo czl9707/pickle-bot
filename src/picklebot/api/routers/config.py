@@ -44,6 +44,9 @@ def update_config(
     if data.max_history_file_size is not None:
         ctx.config.set_user("max_history_file_size", data.max_history_file_size)
 
+    # Reload to sync in-memory with file (filesystem observer would do this)
+    ctx.config.reload()
+
     return {
         "default_agent": ctx.config.default_agent,
         "chat_max_history": ctx.config.chat_max_history,
