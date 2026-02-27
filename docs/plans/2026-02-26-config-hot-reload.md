@@ -5,34 +5,43 @@ Reload `config.user.yaml` changes without server restart.
 ## Architecture
 
 ```
-config.user.yaml  ←watcher─→  ConfigReloader
-                                   │
-                                   ▼
-                            Config.reload()
-                                   │
-                                   ▼
-                            SharedContext refresh
+config.user.yaml  ──watchdog──►  ConfigHandler
+                                      │
+                                      ▼
+                               Config.reload()
+                                      │
+                                      ▼
+                               Workers pick up on next access
 ```
 
 ## Key Interfaces
 
 ```python
-class ConfigReloader:
-    def __init__(self, config: Config, on_change: Callable[[], None] | None = None):
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+
+class ConfigHandler(FileSystemEventHandler):
+    """Handles config file modification events."""
+    def __init__(self, config: Config):
         self._config = config
-        self._on_change = on_change
-        self._last_mtime: float = 0
-        self._stop_event = threading.Event()
-        self._thread: threading.Thread | None = None
+
+    def on_modified(self, event):
+        """Reload config when config.user.yaml changes."""
+        if event.src_path.endswith("config.user.yaml"):
+            self._config.reload()
+
+class ConfigReloader:
+    """Manages watchdog observer for config hot reload."""
+
+    def __init__(self, config: Config):
+        self._config = config
+        self._observer: Observer | None = None
 
     def start(self) -> None:
-        """Begin polling for config file changes."""
+        """Start watching config file for changes."""
 
     def stop(self) -> None:
         """Stop watching."""
-
-    def _check_reload(self) -> bool:
-        """Check mtime, reload if changed. Returns True if reloaded."""
 
 class Config:
     # Existing methods...
@@ -43,21 +52,22 @@ class Config:
 
 ## Data Flow
 
-1. `ConfigReloader` polls `config.user.yaml` mtime every 2 seconds
-2. On modification detected, call `Config.reload()` to re-parse and merge
-3. Optional callback signals `SharedContext` or workers to refresh
+1. `ConfigReloader` starts a `watchdog.Observer` on `config.user.yaml`
+2. When file is modified, `ConfigHandler.on_modified()` is called
+3. `Config.reload()` re-parses and merges the config
 4. Workers pick up new config on next access (no restart needed)
 
 ## Design Choices
 
-- **Polling (recommended):** Simple, cross-platform, check mtime every 2s
-- **watchdog library:** OS-level file events, more complex dependency
+- **watchdog library (chosen):** Event-driven, immediate detection, OS-native, no CPU waste
+- **Polling:** Simpler but wasteful, up to 2s delay
 
 ## Integration Points
 
-- **Location:** Update `utils/config.py`, add `ConfigReloader` class
+- **Location:** Update `utils/config.py`, add `ConfigReloader` and `ConfigHandler` classes
+- **Dependency:** Add `watchdog` to `pyproject.toml`
 - **Usage:** Start in `server/server.py` alongside workers
-- **Config:** Add `config.hot_reload: true` option
+- **Config:** Add `config.hot_reload: true` option (default: true in server mode)
 
 ## References
 
