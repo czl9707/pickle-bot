@@ -1,6 +1,6 @@
 [project]
 name = "pickle-bot"
-version = "0.1.2"
+version = "0.1.3"
 description = "Personal AI assistant with pluggable skills"
 readme = "README.md"
 authors = [
@@ -62,7 +62,7 @@ build-backend = "hatchling.build"
 packages = ["src/picklebot"]
 
 [tool.bumpversion]
-current_version = "0.1.2"
+current_version = "0.1.3"
 parse = """(?x)
   (?P<major>0|[1-9]\\d*)\\.
   (?P<minor>0|[1-9]\\d*)\\.
