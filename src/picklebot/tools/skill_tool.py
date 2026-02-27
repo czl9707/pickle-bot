@@ -1,7 +1,12 @@
 """Skill tool factory for creating dynamic skill tool."""
 
+from typing import TYPE_CHECKING
+
 from picklebot.tools.base import tool
 from picklebot.core.skill_loader import SkillLoader
+
+if TYPE_CHECKING:
+    from picklebot.core.agent import AgentSession
 
 
 def create_skill_tool(skill_loader: SkillLoader):
@@ -42,11 +47,12 @@ def create_skill_tool(skill_loader: SkillLoader):
             "required": ["skill_name"],
         },
     )
-    async def skill_tool(skill_name: str) -> str:
+    async def skill_tool(skill_name: str, session: "AgentSession") -> str:
         """Load and return skill content.
 
         Args:
             skill_name: The ID of the skill to load
+            session: The agent session context
 
         Returns:
             Skill content or error message

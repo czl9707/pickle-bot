@@ -67,14 +67,7 @@ class FunctionTool(BaseTool):
             session: The agent session context
             **kwargs: Tool-specific arguments
         """
-        import inspect
-
-        sig = inspect.signature(self._func)
-        if "session" in sig.parameters:
-            result = self._func(session=session, **kwargs)
-        else:
-            result = self._func(**kwargs)
-
+        result = self._func(session=session, **kwargs)
         if asyncio.iscoroutine(result):
             result = await result
         return str(result)

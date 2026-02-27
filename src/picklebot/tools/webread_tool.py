@@ -6,6 +6,7 @@ from picklebot.tools.base import BaseTool, tool
 from picklebot.provider.web_read import WebReadProvider
 
 if TYPE_CHECKING:
+    from picklebot.core.agent import AgentSession
     from picklebot.core.context import SharedContext
 
 
@@ -40,11 +41,12 @@ def create_webread_tool(context: "SharedContext") -> BaseTool | None:
             "required": ["url"],
         },
     )
-    async def webread(url: str) -> str:
+    async def webread(url: str, session: "AgentSession") -> str:
         """Read a web page and return markdown content.
 
         Args:
             url: The URL to read
+            session: The agent session context
 
         Returns:
             Markdown content of the page or error message

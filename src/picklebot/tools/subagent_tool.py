@@ -8,6 +8,7 @@ from picklebot.tools.base import BaseTool, tool
 from picklebot.utils.def_loader import DefNotFoundError
 
 if TYPE_CHECKING:
+    from picklebot.core.agent import AgentSession
     from picklebot.core.context import SharedContext
 
 
@@ -65,12 +66,15 @@ def create_subagent_dispatch_tool(
             "required": ["agent_id", "task"],
         },
     )
-    async def subagent_dispatch(agent_id: str, task: str, context: str = "") -> str:
+    async def subagent_dispatch(
+        agent_id: str, task: str, session: "AgentSession", context: str = ""
+    ) -> str:
         """Dispatch task to subagent, return result + session_id.
 
         Args:
             agent_id: ID of the target agent
             task: Task for the subagent to perform
+            session: The agent session context
             context: Optional context information
 
         Returns:

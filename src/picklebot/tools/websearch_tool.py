@@ -6,6 +6,7 @@ from picklebot.tools.base import BaseTool, tool
 from picklebot.provider.web_search import WebSearchProvider
 
 if TYPE_CHECKING:
+    from picklebot.core.agent import AgentSession
     from picklebot.core.context import SharedContext
 
 
@@ -40,11 +41,12 @@ def create_websearch_tool(context: "SharedContext") -> BaseTool | None:
             "required": ["query"],
         },
     )
-    async def websearch(query: str) -> str:
+    async def websearch(query: str, session: "AgentSession") -> str:
         """Search the web and return formatted results.
 
         Args:
             query: The search query string
+            session: The agent session context
 
         Returns:
             Formatted markdown string with search results
