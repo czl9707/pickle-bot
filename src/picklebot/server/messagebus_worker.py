@@ -3,9 +3,9 @@
 import asyncio
 from typing import TYPE_CHECKING, Any
 
+from picklebot.frontend.base import Frontend
 from picklebot.server.base import Worker, Job
 from picklebot.core.agent import SessionMode, Agent
-from picklebot.frontend.messagebus import MessageBusFrontend
 from picklebot.utils.def_loader import DefNotFoundError
 
 if TYPE_CHECKING:
@@ -15,20 +15,17 @@ if TYPE_CHECKING:
 class MessageBusWorker(Worker):
     """Ingests messages from platforms, dispatches to agent queue."""
 
-    def __init__(self, context: "SharedContext", agent_id: str | None = None):
+    def __init__(self, context: "SharedContext"):
         super().__init__(context)
         self.buses = context.messagebus_buses
         self.bus_map = {bus.platform_name: bus for bus in self.buses}
 
-        # Use provided agent_id or fall back to default agent
-        effective_agent_id = agent_id or context.config.default_agent
-
-        # Load agent for session creation
+        # Load default agent for session creation
         try:
-            self.agent_def = context.agent_loader.load(effective_agent_id)
+            self.agent_def = context.agent_loader.load(context.config.default_agent)
             self.agent = Agent(self.agent_def, context)
         except DefNotFoundError as e:
-            self.logger.error(f"Agent not found: {effective_agent_id}")
+            self.logger.error(f"Agent not found: {context.config.default_agent}")
             raise RuntimeError(f"Failed to initialize MessageBusWorker: {e}") from e
 
     def _get_or_create_session_id(self, platform: str, user_id: str) -> str:
@@ -103,7 +100,8 @@ class MessageBusWorker(Worker):
                 # Get or create session for this user
                 session_id = self._get_or_create_session_id(platform, user_id)
 
-                frontend = MessageBusFrontend(bus, context)
+                # Create appropriate frontend for this platform
+                frontend = Frontend.for_bus(bus, context, self.agent_def)
 
                 job = Job(
                     session_id=session_id,

@@ -2,11 +2,39 @@
 
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from typing import TYPE_CHECKING, Any, AsyncIterator
+
+if TYPE_CHECKING:
+    from picklebot.core.agent_loader import AgentDef
+    from picklebot.messagebus.base import MessageBus
 
 
 class Frontend(ABC):
     """Abstract interface for frontend implementations."""
+
+    @staticmethod
+    def for_bus(
+        bus: "MessageBus[Any]", context: Any, agent_def: "AgentDef"
+    ) -> "Frontend":
+        """Factory method to create the appropriate frontend for a bus.
+
+        Args:
+            bus: The MessageBus instance
+            context: Platform-specific context for routing messages
+            agent_def: Agent definition for display purposes
+
+        Returns:
+            ConsoleFrontend for CLI platform (Rich formatting),
+            MessageBusFrontend for others (calls bus.reply())
+        """
+        if bus.platform_name == "cli":
+            from picklebot.frontend.console import ConsoleFrontend
+
+            return ConsoleFrontend(agent_def)
+        else:
+            from picklebot.frontend.messagebus import MessageBusFrontend
+
+            return MessageBusFrontend(bus, context)
 
     @abstractmethod
     async def show_welcome(self) -> None:

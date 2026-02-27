@@ -66,8 +66,8 @@ async def test_cli_message_flow_through_workers(integration_config: Config):
     assert hasattr(context, "_agent_queue")
     assert context._agent_queue is None  # Not yet initialized
 
-    # Create workers
-    messagebus_worker = MessageBusWorker(context, agent_id="test-agent")
+    # Create workers (uses default agent from config)
+    messagebus_worker = MessageBusWorker(context)
     dispatcher_worker = AgentDispatcherWorker(context)
 
     # Verify context now has agent_queue initialized via property access
@@ -104,6 +104,7 @@ async def test_cli_message_flow_through_workers(integration_config: Config):
             # Get the job to verify its structure
             job = context.agent_queue.get_nowait()
             assert job.message == "test message"
+            # Uses default agent from config
             assert job.agent_id == "test-agent"
 
             # Wait a bit for bus to process quit command
@@ -155,8 +156,8 @@ async def test_messagebus_worker_uses_context_buses(integration_config: Config):
     # Create context with the bus
     context = SharedContext(config=integration_config, buses=[bus])
 
-    # Create MessageBusWorker
-    worker = MessageBusWorker(context, agent_id="test-agent")
+    # Create MessageBusWorker (uses default agent)
+    worker = MessageBusWorker(context)
 
     # Verify worker has the bus from context
     assert len(worker.buses) == 1

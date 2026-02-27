@@ -4,8 +4,8 @@ import asyncio
 
 import typer
 
-from picklebot.core import SharedContext
-from picklebot.messagebus import CliBus
+from picklebot.core.context import SharedContext
+from picklebot.messagebus.cli_bus import CliBus
 from picklebot.server.agent_worker import AgentDispatcherWorker
 from picklebot.server.messagebus_worker import MessageBusWorker
 from picklebot.utils.config import Config
@@ -15,17 +15,16 @@ from picklebot.utils.logging import setup_logging
 class ChatLoop:
     """Interactive chat session using MessageBusWorker pattern."""
 
-    def __init__(self, config: Config, agent_id: str | None = None):
+    def __init__(self, config: Config):
         self.config = config
-        self.agent_id = agent_id or config.default_agent
 
         # Create CliBus and SharedContext with buses parameter
         self.bus = CliBus()
         self.context = SharedContext(config=config, buses=[self.bus])
 
-        # Create workers (pass agent_id to MessageBusWorker)
+        # Create workers (uses default agent)
         self.dispatcher = AgentDispatcherWorker(self.context)
-        self.messagebus_worker = MessageBusWorker(self.context, agent_id=self.agent_id)
+        self.messagebus_worker = MessageBusWorker(self.context)
 
     async def run(self) -> None:
         """Run the interactive chat loop with MessageBusWorker + AgentDispatcherWorker."""
@@ -44,11 +43,11 @@ class ChatLoop:
             raise
 
 
-def chat_command(ctx: typer.Context, agent_id: str | None = None) -> None:
+def chat_command(ctx: typer.Context) -> None:
     """Start interactive chat session."""
     config = ctx.obj.get("config")
 
     setup_logging(config, console_output=False)
 
-    chat_loop = ChatLoop(config, agent_id=agent_id)
+    chat_loop = ChatLoop(config)
     asyncio.run(chat_loop.run())
