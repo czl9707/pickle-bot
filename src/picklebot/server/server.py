@@ -10,6 +10,7 @@ from picklebot.server.base import Worker
 from picklebot.server.agent_worker import AgentDispatcherWorker
 from picklebot.server.cron_worker import CronWorker
 from picklebot.server.messagebus_worker import MessageBusWorker
+from picklebot.utils.config import ConfigReloader
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
@@ -24,6 +25,7 @@ class Server:
         self.context = context
         self.workers: list[Worker] = []
         self._api_task: asyncio.Task | None = None
+        self._config_reloader: ConfigReloader | None = None
 
     async def run(self) -> None:
         """Start all workers and monitor for crashes."""
@@ -48,6 +50,10 @@ class Server:
         """Create all workers."""
         self.workers.append(AgentDispatcherWorker(self.context))
         self.workers.append(CronWorker(self.context))
+
+        # Start config hot reload
+        self._config_reloader = ConfigReloader(self.context.config)
+        self._config_reloader.start()
 
         if self.context.config.messagebus.enabled:
             buses = self.context.messagebus_buses
@@ -85,6 +91,10 @@ class Server:
         """Stop all workers gracefully."""
         for worker in self.workers:
             await worker.stop()
+
+        # Stop config reloader
+        if self._config_reloader is not None:
+            self._config_reloader.stop()
 
     async def _run_api(self) -> None:
         """Run the HTTP API server."""

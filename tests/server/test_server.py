@@ -83,3 +83,23 @@ def test_server_uses_context_queue():
 
         # Server should not have its own agent_queue
         assert not hasattr(server, "agent_queue")
+
+
+@pytest.mark.anyio
+async def test_server_starts_config_reloader(test_context):
+    """Server should start ConfigReloader alongside workers."""
+    from unittest.mock import patch
+
+    with patch("picklebot.server.server.ConfigReloader") as mock_reloader:
+        mock_instance = mock_reloader.return_value
+        server = Server(test_context)
+
+        # Run setup (not full run, just setup)
+        server._setup_workers()
+
+        # ConfigReloader should be created and started
+        mock_reloader.assert_called_once_with(test_context.config)
+        mock_instance.start.assert_called_once()
+
+        # Cleanup
+        await server._stop_all()
