@@ -1,7 +1,7 @@
 # tests/core/commands/test_registry.py
 """Tests for CommandRegistry."""
 
-from picklebot.core.commands.base import Command, CommandResult
+from picklebot.core.commands.base import Command
 from picklebot.core.commands.registry import CommandRegistry
 
 
@@ -11,8 +11,8 @@ class MockCommand(Command):
     name = "mock"
     aliases = ["m"]
 
-    def execute(self, args: str, ctx) -> CommandResult:
-        return CommandResult(message=f"mock: {args}")
+    def execute(self, args: str, ctx) -> str:
+        return f"mock: {args}"
 
 
 class MockCommand2(Command):
@@ -21,8 +21,8 @@ class MockCommand2(Command):
     name = "other"
     aliases = ["o", "alt"]
 
-    def execute(self, args: str, ctx) -> CommandResult:
-        return CommandResult(message=f"other: {args}")
+    def execute(self, args: str, ctx) -> str:
+        return f"other: {args}"
 
 
 class TestCommandRegistry:
@@ -120,13 +120,13 @@ class TestCommandRegistry:
         assert result is None
 
     def test_dispatch_executes_command(self):
-        """dispatch() should execute command and return result."""
+        """dispatch() should execute command and return result string."""
         registry = CommandRegistry()
         registry.register(MockCommand())
 
         result = registry.dispatch("/mock test", None)
 
-        assert result.message == "mock: test"
+        assert result == "mock: test"
 
     def test_dispatch_unknown_returns_none(self):
         """dispatch() should return None for unknown command."""
@@ -163,4 +163,4 @@ class TestCommandRegistryWithBuiltins:
         result = registry.dispatch("/help", None)
 
         assert result is not None
-        assert "Available Commands" in result.message
+        assert "Available Commands" in result

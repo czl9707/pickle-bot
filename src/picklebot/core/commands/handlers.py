@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from picklebot.core.commands.base import Command, CommandResult
+from picklebot.core.commands.base import Command
 from picklebot.core.context import SharedContext
 
 if TYPE_CHECKING:
@@ -21,9 +21,9 @@ class HelpCommand(Command):
         """Set the registry reference for dynamic help generation."""
         self._registry = registry
 
-    def execute(self, args: str, ctx: SharedContext) -> CommandResult:
+    def execute(self, args: str, ctx: SharedContext) -> str:
         if self._registry is None:
-            return CommandResult(message="Help unavailable: registry not set.")
+            return "Help unavailable: registry not set."
 
         lines = ["**Available Commands:**"]
         # Get unique commands (by name, not aliases)
@@ -32,7 +32,7 @@ class HelpCommand(Command):
             if cmd.name not in seen:
                 seen.add(cmd.name)
                 lines.append(f"`/{cmd.name}` - {cmd.description}")
-        return CommandResult(message="\n".join(lines))
+        return "\n".join(lines)
 
 
 class AgentCommand(Command):
@@ -42,15 +42,15 @@ class AgentCommand(Command):
     aliases = ["agents"]
     description = "List all agents"
 
-    def execute(self, args: str, ctx: SharedContext) -> CommandResult:
+    def execute(self, args: str, ctx: SharedContext) -> str:
         agents = ctx.agent_loader.discover_agents()
         if not agents:
-            return CommandResult(message="No agents configured.")
+            return "No agents configured."
 
         lines = ["**Agents:**"]
         for agent in agents:
             lines.append(f"- `{agent.id}`: {agent.name} ({agent.llm.model})")
-        return CommandResult(message="\n".join(lines))
+        return "\n".join(lines)
 
 
 class SkillsCommand(Command):
@@ -59,15 +59,15 @@ class SkillsCommand(Command):
     name = "skills"
     description = "List all skills"
 
-    def execute(self, args: str, ctx: SharedContext) -> CommandResult:
+    def execute(self, args: str, ctx: SharedContext) -> str:
         skills = ctx.skill_loader.discover_skills()
         if not skills:
-            return CommandResult(message="No skills configured.")
+            return "No skills configured."
 
         lines = ["**Skills:**"]
         for skill in skills:
             lines.append(f"- `{skill.id}`: {skill.name}")
-        return CommandResult(message="\n".join(lines))
+        return "\n".join(lines)
 
 
 class CronsCommand(Command):
@@ -76,12 +76,12 @@ class CronsCommand(Command):
     name = "crons"
     description = "List all cron jobs"
 
-    def execute(self, args: str, ctx: SharedContext) -> CommandResult:
+    def execute(self, args: str, ctx: SharedContext) -> str:
         crons = ctx.cron_loader.discover_crons()
         if not crons:
-            return CommandResult(message="No cron jobs configured.")
+            return "No cron jobs configured."
 
         lines = ["**Cron Jobs:**"]
         for cron in crons:
             lines.append(f"- `{cron.id}`: {cron.schedule}")
-        return CommandResult(message="\n".join(lines))
+        return "\n".join(lines)

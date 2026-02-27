@@ -1,7 +1,6 @@
 # tests/core/commands/test_handlers.py
 """Tests for built-in command handlers."""
 
-from picklebot.core.commands.base import CommandResult
 from picklebot.core.commands.handlers import (
     HelpCommand,
     AgentCommand,
@@ -36,11 +35,11 @@ class TestHelpCommand:
         registry = CommandRegistry.with_builtins()
         result = registry.dispatch("/help", None)
 
-        assert isinstance(result, CommandResult)
-        assert "/help" in result.message
-        assert "/agent" in result.message
-        assert "/skills" in result.message
-        assert "/crons" in result.message
+        assert isinstance(result, str)
+        assert "/help" in result
+        assert "/agent" in result
+        assert "/skills" in result
+        assert "/crons" in result
 
 
 class TestAgentCommand:
@@ -66,7 +65,7 @@ class TestAgentCommand:
         cmd = AgentCommand()
         result = cmd.execute("", test_context)
 
-        assert "No agents configured" in result.message
+        assert "No agents configured" in result
 
     def test_execute_with_agents(self, test_context, temp_agents_dir):
         """execute() should list agents."""
@@ -84,8 +83,8 @@ You are a test bot.
         cmd = AgentCommand()
         result = cmd.execute("", test_context)
 
-        assert "test-bot" in result.message
-        assert "Test Bot" in result.message
+        assert "test-bot" in result
+        assert "Test Bot" in result
 
 
 class TestSkillsCommand:
@@ -106,7 +105,7 @@ class TestSkillsCommand:
         cmd = SkillsCommand()
         result = cmd.execute("", test_context)
 
-        assert "No skills configured" in result.message
+        assert "No skills configured" in result
 
 
 class TestCronsCommand:
@@ -127,4 +126,4 @@ class TestCronsCommand:
         cmd = CronsCommand()
         result = cmd.execute("", test_context)
 
-        assert "No cron jobs configured" in result.message
+        assert "No cron jobs configured" in result

@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING
 
-from picklebot.core.commands.base import Command, CommandResult
+from picklebot.core.commands.base import Command
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
@@ -50,7 +50,7 @@ class CommandRegistry:
             return (cmd, args)
         return None
 
-    def dispatch(self, input: str, ctx: "SharedContext") -> CommandResult | None:
+    def dispatch(self, input: str, ctx: "SharedContext") -> str | None:
         """
         Parse and execute a slash command.
 
@@ -59,7 +59,7 @@ class CommandRegistry:
             ctx: SharedContext for accessing loaders
 
         Returns:
-            CommandResult if command matched, None if not a command
+            Response string if command matched, None if not a command
         """
         resolved = self.resolve(input)
         if not resolved:

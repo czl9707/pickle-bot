@@ -1,18 +1,10 @@
 """Base classes for slash commands."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
-
-
-@dataclass
-class CommandResult:
-    """Result of executing a slash command."""
-
-    message: str | None = None
 
 
 class Command(ABC):
@@ -23,6 +15,6 @@ class Command(ABC):
     description: str = ""
 
     @abstractmethod
-    def execute(self, args: str, ctx: "SharedContext") -> CommandResult:
-        """Execute the command and return result."""
+    def execute(self, args: str, ctx: "SharedContext") -> str:
+        """Execute the command and return response string."""
         pass

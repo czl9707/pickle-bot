@@ -83,8 +83,8 @@ class MessageBusWorker(Worker):
                 # Check for slash command
                 if message.startswith("/"):
                     result = self.command_registry.dispatch(message, self.context)
-                    if result and result.message:
-                        await bus.reply(result.message, context)
+                    if result:
+                        await bus.reply(result, context)
                     return
 
                 # Extract user_id from context
