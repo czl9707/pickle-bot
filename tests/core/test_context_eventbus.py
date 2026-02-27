@@ -1,11 +1,12 @@
-# tests/core/test_context_eventbus.py
-import pytest
+"""Tests for SharedContext EventBus integration."""
+
 from picklebot.core.context import SharedContext
 from picklebot.events.bus import EventBus
 from picklebot.utils.config import Config
 
 
 def test_shared_context_has_eventbus(tmp_path):
+    """SharedContext should have an EventBus instance initialized."""
     # Create a minimal config file with all required fields
     config_file = tmp_path / "config.user.yaml"
     config_file.write_text(
