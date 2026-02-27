@@ -26,12 +26,10 @@ class HelpCommand(Command):
             return "Help unavailable: registry not set."
 
         lines = ["**Available Commands:**"]
-        # Get unique commands (by name, not aliases)
-        seen = set()
         for cmd in self._registry.list_commands():
-            if cmd.name not in seen:
-                seen.add(cmd.name)
-                lines.append(f"`/{cmd.name}` - {cmd.description}")
+            # Format: `/name, /alias1, /alias2` - description
+            names = [f"/{cmd.name}"] + [f"/{a}" for a in cmd.aliases]
+            lines.append(f"{', '.join(names)} - {cmd.description}")
         return "\n".join(lines)
 
 

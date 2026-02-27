@@ -22,8 +22,14 @@ class CommandRegistry:
             self._commands[alias] = cmd
 
     def list_commands(self) -> list[Command]:
-        """Return list of all registered commands (including aliases)."""
-        return list(self._commands.values())
+        """Return list of unique commands (deduplicated by name)."""
+        seen = set()
+        commands = []
+        for cmd in self._commands.values():
+            if cmd.name not in seen:
+                seen.add(cmd.name)
+                commands.append(cmd)
+        return commands
 
     def resolve(self, input: str) -> tuple[Command, str] | None:
         """
