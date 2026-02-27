@@ -27,8 +27,8 @@ class CliBus(MessageBus[CliContext]):
     def __init__(self):
         """Initialize CliBus."""
         self.console = Console()
+        self._stop_event = asyncio.Event()
         self._running = False
-        self._stop_event: asyncio.Event | None = None
 
     def is_allowed(self, context: CliContext) -> bool:
         """Check if sender is whitelisted. CLI always allows all users."""
@@ -45,12 +45,12 @@ class CliBus(MessageBus[CliContext]):
         if self._running:
             raise RuntimeError("CliBus already running")
 
-        logger.info(f"Message bus enabled with platform: {self.platform_name}")
         self._running = True
-        self._stop_event = asyncio.Event()
+        self._stop_event.clear()  # Reset for this run
+        logger.info(f"Message bus enabled with platform: {self.platform_name}")
 
         try:
-            while self._running and not self._stop_event.is_set():
+            while not self._stop_event.is_set():
                 # Read input in a thread to avoid blocking the event loop
                 try:
                     user_input = await asyncio.to_thread(input, "You: ")
@@ -99,14 +99,7 @@ class CliBus(MessageBus[CliContext]):
     async def stop(self) -> None:
         """Stop CLI bus and cleanup."""
         if not self._running:
-            logger.debug("CliBus not running, skipping stop")
             return
-
         logger.info("Stopping CliBus")
-        self._running = False
-
-        # Signal the running loop to stop
-        if self._stop_event:
-            self._stop_event.set()
-
+        self._stop_event.set()
         logger.info("CliBus stop signaled")

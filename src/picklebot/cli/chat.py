@@ -19,12 +19,6 @@ class ChatLoop:
         self.config = config
         self.agent_id = agent_id or config.default_agent
 
-        # Ensure CLI platform config exists for session tracking
-        if config.messagebus.cli is None:
-            from picklebot.utils.config import CliConfig
-
-            config.messagebus.cli = CliConfig()
-
         # Create CliBus and SharedContext with buses parameter
         self.bus = CliBus()
         self.context = SharedContext(config=config, buses=[self.bus])

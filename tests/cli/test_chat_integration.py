@@ -10,7 +10,7 @@ from picklebot.core.context import SharedContext
 from picklebot.messagebus.cli_bus import CliBus
 from picklebot.server.agent_worker import AgentDispatcherWorker
 from picklebot.server.messagebus_worker import MessageBusWorker
-from picklebot.utils.config import Config, LLMConfig, MessageBusConfig, CliConfig
+from picklebot.utils.config import Config, LLMConfig, MessageBusConfig
 
 
 @pytest.fixture
@@ -40,9 +40,7 @@ You are a test assistant.
         default_agent="test-agent",
         agents_path=Path("agents"),
         messagebus=MessageBusConfig(
-            enabled=True,
-            default_platform="cli",
-            cli=CliConfig(enabled=True),
+            enabled=False,  # CLI bypasses config anyway
         ),
     )
 

@@ -32,7 +32,15 @@ class MessageBusWorker(Worker):
             raise RuntimeError(f"Failed to initialize MessageBusWorker: {e}") from e
 
     def _get_or_create_session_id(self, platform: str, user_id: str) -> str:
-        """Get existing session_id or create new session for this user."""
+        """Get existing session_id or create new session for this user.
+
+        For CLI platform, always creates a new session (no persistence needed).
+        """
+        # CLI doesn't need session persistence - just create a new session each time
+        if platform == "cli":
+            session = self.agent.new_session(SessionMode.CHAT)
+            return session.session_id
+
         platform_config = getattr(self.context.config.messagebus, platform, None)
         if not platform_config:
             raise ValueError(f"No config for platform: {platform}")
