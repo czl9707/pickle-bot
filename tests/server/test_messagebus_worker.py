@@ -281,3 +281,93 @@ You are a test assistant.
     assert not queue.empty()
     job = await queue.get()
     assert job.message == "hello"
+
+
+@pytest.mark.anyio
+async def test_messagebus_worker_uses_custom_agent_id(test_context, tmp_path):
+    """MessageBusWorker uses custom agent_id when provided."""
+    # Create two test agents: default and custom
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir(parents=True)
+
+    # Default agent
+    default_agent_dir = agents_dir / "pickle"
+    default_agent_dir.mkdir(parents=True)
+    (default_agent_dir / "AGENT.md").write_text(
+        """---
+name: Default Agent
+description: The default agent
+---
+
+You are the default assistant.
+"""
+    )
+
+    # Custom agent
+    custom_agent_dir = agents_dir / "cookie"
+    custom_agent_dir.mkdir(parents=True)
+    (custom_agent_dir / "AGENT.md").write_text(
+        """---
+name: Custom Agent
+description: A custom agent
+---
+
+You are the custom assistant.
+"""
+    )
+
+    bus = FakeBusWithUser()
+    with patch.object(test_context, "messagebus_buses", [bus]):
+        # Create worker with custom agent_id
+        worker = MessageBusWorker(test_context, agent_id="cookie")
+        worker._get_or_create_session_id = lambda platform, user_id: "test-session-123"
+
+    # Worker should use the custom agent, not the default
+    assert worker.agent_def.id == "cookie"
+    assert worker.agent_def.name == "Custom Agent"
+
+    # Verify it dispatches jobs with the correct agent_id
+    task = asyncio.create_task(worker.run())
+    await asyncio.sleep(0.1)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    # Job should have cookie as agent_id
+    queue = test_context.agent_queue
+    assert not queue.empty()
+    job = await queue.get()
+    assert job.agent_id == "cookie"
+
+
+@pytest.mark.anyio
+async def test_messagebus_worker_falls_back_to_default_agent(test_context, tmp_path):
+    """MessageBusWorker falls back to default agent when agent_id is None."""
+    # Create test agent with the default agent name from test_context ("test")
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir(parents=True)
+    test_agent_dir = agents_dir / "test"  # matches default_agent from test config
+    test_agent_dir.mkdir(parents=True)
+
+    agent_md = test_agent_dir / "AGENT.md"
+    agent_md.write_text(
+        """---
+name: Test Agent
+description: A test agent
+---
+
+You are a test assistant.
+"""
+    )
+
+    bus = FakeBusWithUser()
+    with patch.object(test_context, "messagebus_buses", [bus]):
+        # Create worker without agent_id (should use default)
+        worker = MessageBusWorker(test_context)
+        worker._get_or_create_session_id = lambda platform, user_id: "test-session-123"
+
+    # Worker should use the default agent from config
+    assert worker.agent_def.id == "test"
+    assert worker.agent_def.name == "Test Agent"

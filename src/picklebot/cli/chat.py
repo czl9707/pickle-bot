@@ -29,9 +29,9 @@ class ChatLoop:
         self.bus = CliBus()
         self.context = SharedContext(config=config, buses=[self.bus])
 
-        # Create workers
+        # Create workers (pass agent_id to MessageBusWorker)
         self.dispatcher = AgentDispatcherWorker(self.context)
-        self.messagebus_worker = MessageBusWorker(self.context)
+        self.messagebus_worker = MessageBusWorker(self.context, agent_id=self.agent_id)
 
     async def run(self) -> None:
         """Run the interactive chat loop with MessageBusWorker + AgentDispatcherWorker."""
