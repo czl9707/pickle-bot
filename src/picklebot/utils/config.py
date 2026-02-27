@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
+from watchdog.events import FileSystemEventHandler
 
 
 # ============================================================================
@@ -321,3 +322,15 @@ class Config(BaseModel):
         except Exception as e:
             logging.debug("Config reload failed: %s", e)
             return False
+
+
+class ConfigHandler(FileSystemEventHandler):
+    """Handles config file modification events."""
+
+    def __init__(self, config: Config):
+        self._config = config
+
+    def on_modified(self, event):
+        """Reload config when config.user.yaml changes."""
+        if not event.is_directory and event.src_path.endswith("config.user.yaml"):
+            self._config.reload()

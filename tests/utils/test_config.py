@@ -318,3 +318,58 @@ class TestConfigReload:
         # Reload should return False and not crash
         result = config.reload()
         assert result is False
+
+
+class TestConfigHandler:
+    """Tests for ConfigHandler file watching."""
+
+    def test_handler_calls_reload_on_modify(self, tmp_path, llm_config):
+        """ConfigHandler should call reload when config file changes."""
+        from picklebot.utils.config import ConfigHandler
+        from watchdog.events import FileModifiedEvent
+
+        # Create config file
+        config_file = tmp_path / "config.user.yaml"
+        config_file.write_text(
+            "llm:\n  provider: openai\n  model: gpt-4\n  api_key: test\n"
+            "default_agent: pickle\n"
+        )
+
+        config = Config.load(tmp_path)
+        handler = ConfigHandler(config)
+
+        # Modify file
+        config_file.write_text(
+            "llm:\n  provider: openai\n  model: gpt-4o\n  api_key: test\n"
+            "default_agent: pickle\n"
+        )
+
+        # Trigger the handler
+        event = FileModifiedEvent(str(config_file))
+        handler.on_modified(event)
+
+        assert config.llm.model == "gpt-4o"
+
+    def test_handler_ignores_other_files(self, tmp_path, llm_config):
+        """ConfigHandler should ignore non-config files."""
+        from picklebot.utils.config import ConfigHandler
+        from watchdog.events import FileModifiedEvent
+
+        config_file = tmp_path / "config.user.yaml"
+        config_file.write_text(
+            "llm:\n  provider: openai\n  model: gpt-4\n  api_key: test\n"
+            "default_agent: pickle\n"
+        )
+
+        config = Config.load(tmp_path)
+        handler = ConfigHandler(config)
+
+        # Touch a different file
+        other_file = tmp_path / "other.yaml"
+        other_file.write_text("foo: bar")
+
+        event = FileModifiedEvent(str(other_file))
+        handler.on_modified(event)
+
+        # Config should be unchanged
+        assert config.llm.model == "gpt-4"
