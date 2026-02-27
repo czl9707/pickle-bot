@@ -7,6 +7,7 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 
 # ============================================================================
@@ -334,3 +335,28 @@ class ConfigHandler(FileSystemEventHandler):
         """Reload config when config.user.yaml changes."""
         if not event.is_directory and event.src_path.endswith("config.user.yaml"):
             self._config.reload()
+
+
+class ConfigReloader:
+    """Manages watchdog observer for config hot reload."""
+
+    def __init__(self, config: Config):
+        self._config = config
+        self._observer: Observer | None = None
+
+    def start(self) -> None:
+        """Start watching config file for changes."""
+        if self._observer is not None:
+            return
+
+        self._observer = Observer()
+        handler = ConfigHandler(self._config)
+        self._observer.schedule(handler, str(self._config.workspace), recursive=False)
+        self._observer.start()
+
+    def stop(self) -> None:
+        """Stop watching."""
+        if self._observer is not None:
+            self._observer.stop()
+            self._observer.join()
+            self._observer = None

@@ -373,3 +373,57 @@ class TestConfigHandler:
 
         # Config should be unchanged
         assert config.llm.model == "gpt-4"
+
+
+class TestConfigReloader:
+    """Tests for ConfigReloader lifecycle."""
+
+    def test_reloader_starts_and_stops_observer(self, tmp_path, llm_config):
+        """ConfigReloader should start/stop watchdog observer."""
+        from picklebot.utils.config import ConfigReloader
+
+        config_file = tmp_path / "config.user.yaml"
+        config_file.write_text(
+            "llm:\n  provider: openai\n  model: gpt-4\n  api_key: test\n"
+            "default_agent: pickle\n"
+        )
+
+        config = Config.load(tmp_path)
+        reloader = ConfigReloader(config)
+
+        # Start should create observer
+        reloader.start()
+        assert reloader._observer is not None
+        assert reloader._observer.is_alive()
+
+        # Stop should clean up
+        reloader.stop()
+        assert reloader._observer is None
+
+    def test_reloader_watches_config_changes(self, tmp_path, llm_config):
+        """ConfigReloader should reload config on file change."""
+        import time
+        from picklebot.utils.config import ConfigReloader
+
+        config_file = tmp_path / "config.user.yaml"
+        config_file.write_text(
+            "llm:\n  provider: openai\n  model: gpt-4\n  api_key: test\n"
+            "default_agent: pickle\n"
+        )
+
+        config = Config.load(tmp_path)
+        reloader = ConfigReloader(config)
+        reloader.start()
+
+        # Modify file
+        config_file.write_text(
+            "llm:\n  provider: openai\n  model: gpt-4o\n  api_key: test\n"
+            "default_agent: pickle\n"
+        )
+
+        # Wait for event to propagate
+        time.sleep(0.5)
+
+        assert config.llm.model == "gpt-4o"
+
+        reloader.stop()
