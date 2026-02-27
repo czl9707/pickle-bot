@@ -30,31 +30,34 @@ class MessageBusWorker(Worker):
             raise RuntimeError(f"Failed to initialize MessageBusWorker: {e}") from e
 
     def _get_or_create_session_id(self, platform: str, user_id: str) -> str:
-        """Get existing session_id or create new session for this user.
-
-        For CLI platform, always creates a new session (no persistence needed).
-        """
-        # CLI doesn't need session persistence - just create a new session each time
+        """Get existing session_id or create new session for this user."""
+        # CLI sessions are stored in an instance attribute (simple dict)
         if platform == "cli":
-            session = self.agent.new_session(SessionMode.CHAT)
-            return session.session_id
+            if not hasattr(self.context.config, "_cli_sessions"):
+                self.context.config._cli_sessions = {}
+            session_id = self.context.config._cli_sessions.get(user_id)
+            if session_id:
+                return session_id
+        else:
+            # Other platforms use typed config
+            platform_config = getattr(self.context.config.messagebus, platform, None)
+            if platform_config:
+                session_id = platform_config.sessions.get(user_id)
+                if session_id:
+                    return session_id
 
-        platform_config = getattr(self.context.config.messagebus, platform, None)
-        if not platform_config:
-            raise ValueError(f"No config for platform: {platform}")
-
-        session_id = platform_config.sessions.get(user_id)
-
-        if session_id:
-            return session_id
-
-        # No session - create new (creates in HistoryStore)
+        # No existing session - create new (creates in HistoryStore)
         session = self.agent.new_session(SessionMode.CHAT)
 
-        # Persist session_id to runtime config
-        self.context.config.set_runtime(
-            f"messagebus.{platform}.sessions.{user_id}", session.session_id
-        )
+        # Persist session_id
+        if platform == "cli":
+            if not hasattr(self.context.config, "_cli_sessions"):
+                self.context.config._cli_sessions = {}
+            self.context.config._cli_sessions[user_id] = session.session_id
+        else:
+            self.context.config.set_runtime(
+                f"messagebus.{platform}.sessions.{user_id}", session.session_id
+            )
 
         return session.session_id
 
