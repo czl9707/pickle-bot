@@ -1,5 +1,6 @@
 """Configuration management for pickle-bot."""
 
+import logging
 from pathlib import Path
 from typing import Any, Literal
 
@@ -317,5 +318,6 @@ class Config(BaseModel):
                 setattr(self, field_name, getattr(new_config, field_name))
 
             return True
-        except Exception:
+        except Exception as e:
+            logging.debug("Config reload failed: %s", e)
             return False

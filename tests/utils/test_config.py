@@ -295,3 +295,26 @@ class TestConfigReload:
         # Reload
         config.reload()
         assert config.llm.model == "gpt-4o"
+
+    def test_reload_returns_false_on_invalid_yaml(self, tmp_path, llm_config):
+        """reload() should return False when config.user.yaml contains invalid YAML."""
+        # Create initial valid config
+        config_file = tmp_path / "config.user.yaml"
+        config_file.write_text(
+            "llm:\n  provider: openai\n  model: gpt-4\n  api_key: test\n"
+            "default_agent: pickle\n"
+        )
+
+        config = Config.load(tmp_path)
+        assert config.llm.model == "gpt-4"
+
+        # Corrupt the file with invalid YAML
+        config_file.write_text(
+            "llm:\n  provider: openai\n  model: gpt-4\n  api_key: test\n"
+            "default_agent: pickle\n"
+            "invalid_yaml: [unclosed\n"
+        )
+
+        # Reload should return False and not crash
+        result = config.reload()
+        assert result is False
