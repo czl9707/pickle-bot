@@ -5,6 +5,7 @@ import asyncio
 import typer
 
 from picklebot.core.context import SharedContext
+from picklebot.frontend.console import ConsoleFrontend
 from picklebot.messagebus.cli_bus import CliBus
 from picklebot.server.agent_worker import AgentDispatcherWorker
 from picklebot.server.messagebus_worker import MessageBusWorker
@@ -17,6 +18,7 @@ class ChatLoop:
 
     def __init__(self, config: Config):
         self.config = config
+        self.frontend = ConsoleFrontend()
 
         # Create CliBus and SharedContext with buses parameter
         self.bus = CliBus()
@@ -28,8 +30,7 @@ class ChatLoop:
 
     async def run(self) -> None:
         """Run the interactive chat loop with MessageBusWorker + AgentDispatcherWorker."""
-        # Show welcome message
-        print("Welcome to PickleBot! Type 'quit', 'exit', or 'q' to exit.")
+        await self.frontend.show_welcome()
 
         try:
             # Run both workers concurrently
@@ -39,7 +40,7 @@ class ChatLoop:
             )
         except asyncio.CancelledError:
             # Handle graceful shutdown
-            print("\nGoodbye!")
+            await self.frontend.show_system_message("\nGoodbye!")
             raise
 
 
