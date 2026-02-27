@@ -51,7 +51,7 @@ class SkillsCommand(Command):
 
         lines = ["**Skills:**"]
         for skill in skills:
-            lines.append(f"- `{skill.id}`: {skill.name}")
+            lines.append(f"- `{skill.id}`: {skill.description}")
         return "\n".join(lines)
 
 

@@ -11,6 +11,7 @@ from picklebot.server.agent_worker import AgentDispatcherWorker
 from picklebot.server.cron_worker import CronWorker
 from picklebot.server.messagebus_worker import MessageBusWorker
 from picklebot.utils.config import ConfigReloader
+from picklebot.api import create_app
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
@@ -25,19 +26,15 @@ class Server:
         self.context = context
         self.workers: list[Worker] = []
         self._api_task: asyncio.Task | None = None
-        self._config_reloader: ConfigReloader | None = None
+        self.config_reloader: ConfigReloader = ConfigReloader(self.context.config)
 
     async def run(self) -> None:
         """Start all workers and monitor for crashes."""
         self._setup_workers()
         self._start_workers()
 
-        # Start API if configured
         if self.context.config.api:
             self._api_task = asyncio.create_task(self._run_api())
-            logger.info(
-                f"API server started on {self.context.config.api.host}:{self.context.config.api.port}"
-            )
 
         try:
             await self._monitor_workers()
@@ -50,10 +47,7 @@ class Server:
         """Create all workers."""
         self.workers.append(AgentDispatcherWorker(self.context))
         self.workers.append(CronWorker(self.context))
-
-        # Start config hot reload
-        self._config_reloader = ConfigReloader(self.context.config)
-        self._config_reloader.start()
+        self.config_reloader.start()
 
         if self.context.config.messagebus.enabled:
             buses = self.context.messagebus_buses
@@ -93,12 +87,13 @@ class Server:
             await worker.stop()
 
         # Stop config reloader
-        if self._config_reloader is not None:
-            self._config_reloader.stop()
+        if self.config_reloader is not None:
+            self.config_reloader.stop()
 
     async def _run_api(self) -> None:
         """Run the HTTP API server."""
-        from picklebot.api import create_app
+        if not self.context.config.api:
+            return
 
         app = create_app(self.context)
         config = uvicorn.Config(
@@ -107,4 +102,7 @@ class Server:
             port=self.context.config.api.port,
         )
         server = uvicorn.Server(config)
+        logger.info(
+            f"API server started on {self.context.config.api.host}:{self.context.config.api.port}"
+        )
         await server.serve()
