@@ -107,7 +107,6 @@ class MessageBusWorker(Worker):
                     message=message,
                     frontend=frontend,
                     mode=SessionMode.CHAT,
-                    result_future=asyncio.get_event_loop().create_future(),
                 )
                 await self.context.agent_queue.put(job)
                 self.logger.debug(f"Dispatched message from {platform}")

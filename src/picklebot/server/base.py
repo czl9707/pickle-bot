@@ -3,7 +3,7 @@
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from picklebot.core.agent import SessionMode
@@ -22,7 +22,8 @@ class Job:
     message: str  # User prompt (set to "." after consumed)
     frontend: "Frontend"  # Live frontend object for responses
     mode: SessionMode  # CHAT or JOB
-    result_future: asyncio.Future[str]
+    result_future: asyncio.Future[str] = field(
+        default_factory=lambda: asyncio.get_event_loop().create_future())
     retry_count: int = 0
 
 

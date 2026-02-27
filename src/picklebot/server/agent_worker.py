@@ -62,9 +62,7 @@ class SessionExecutor:
             response = await session.chat(self.job.message, self.job.frontend)
             self.logger.info(f"Session completed: {session.session_id}")
 
-            # Set result on future if it exists
-            if self.job.result_future is not None:
-                self.job.result_future.set_result(response)
+            self.job.result_future.set_result(response)
 
         except Exception as e:
             self.logger.error(f"Session failed: {e}")
@@ -74,9 +72,7 @@ class SessionExecutor:
                 self.job.message = "."
                 await self.context.agent_queue.put(self.job)
             else:
-                # Max retries reached, set exception on future
-                if self.job.result_future is not None:
-                    self.job.result_future.set_exception(e)
+                self.job.result_future.set_exception(e)
 
 
 class AgentDispatcherWorker(Worker):
