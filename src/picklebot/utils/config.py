@@ -51,6 +51,13 @@ class DiscordConfig(BaseModel):
     sessions: dict[str, str] = Field(default_factory=dict)  # user_id -> session_id
 
 
+class CliConfig(BaseModel):
+    """CLI platform configuration."""
+
+    enabled: bool = True
+    sessions: dict[str, str] = Field(default_factory=dict)  # user_id -> session_id
+
+
 class ApiConfig(BaseModel):
     """HTTP API configuration."""
 
@@ -65,6 +72,7 @@ class MessageBusConfig(BaseModel):
     default_platform: str | None = None
     telegram: TelegramConfig | None = None
     discord: DiscordConfig | None = None
+    cli: CliConfig | None = None
 
     @model_validator(mode="after")
     def validate_default_platform(self) -> "MessageBusConfig":
@@ -85,7 +93,9 @@ class MessageBusConfig(BaseModel):
                 raise ValueError(
                     "default_platform is 'discord' but discord config is missing"
                 )
-            if self.default_platform not in ["telegram", "discord"]:
+            if self.default_platform == "cli" and not self.cli:
+                raise ValueError("default_platform is 'cli' but cli config is missing")
+            if self.default_platform not in ["telegram", "discord", "cli"]:
                 raise ValueError(f"Invalid default_platform: {self.default_platform}")
 
         return self

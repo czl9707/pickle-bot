@@ -15,19 +15,20 @@ if TYPE_CHECKING:
 class MessageBusWorker(Worker):
     """Ingests messages from platforms, dispatches to agent queue."""
 
-    def __init__(self, context: "SharedContext"):
+    def __init__(self, context: "SharedContext", agent_id: str | None = None):
         super().__init__(context)
         self.buses = context.messagebus_buses
         self.bus_map = {bus.platform_name: bus for bus in self.buses}
 
+        # Use provided agent_id or fall back to default agent
+        effective_agent_id = agent_id or context.config.default_agent
+
         # Load agent for session creation
         try:
-            self.agent_def = context.agent_loader.load(context.config.default_agent)
+            self.agent_def = context.agent_loader.load(effective_agent_id)
             self.agent = Agent(self.agent_def, context)
         except DefNotFoundError as e:
-            self.logger.error(
-                f"Default agent not found: {context.config.default_agent}"
-            )
+            self.logger.error(f"Agent not found: {effective_agent_id}")
             raise RuntimeError(f"Failed to initialize MessageBusWorker: {e}") from e
 
     def _get_or_create_session_id(self, platform: str, user_id: str) -> str:
