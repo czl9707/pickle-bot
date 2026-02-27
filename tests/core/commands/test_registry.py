@@ -138,9 +138,29 @@ class TestCommandRegistry:
 
 
 class TestCommandRegistryWithBuiltins:
-    """Tests for with_builtins factory (will pass after handlers implemented)."""
+    """Tests for with_builtins factory."""
 
-    def test_with_builtins_placeholder(self):
-        """Placeholder - with_builtins tested after handlers exist."""
-        # This test is replaced in Task 4
-        pass
+    def test_with_builtins_creates_registry(self):
+        """with_builtins() should create registry with all commands."""
+        registry = CommandRegistry.with_builtins()
+
+        assert registry._commands.get("help") is not None
+        assert registry._commands.get("agent") is not None
+        assert registry._commands.get("skills") is not None
+        assert registry._commands.get("crons") is not None
+
+    def test_with_builtins_includes_aliases(self):
+        """with_builtins() should register aliases."""
+        registry = CommandRegistry.with_builtins()
+
+        assert registry._commands.get("?") is not None  # help alias
+        assert registry._commands.get("agents") is not None  # agent alias
+
+    def test_with_builtins_dispatch_help(self):
+        """with_builtins() registry should dispatch /help."""
+        registry = CommandRegistry.with_builtins()
+
+        result = registry.dispatch("/help", None)
+
+        assert result is not None
+        assert "Available Commands" in result.message
