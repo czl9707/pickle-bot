@@ -96,17 +96,10 @@ class MessageBusWorker(Worker):
 
                 # Extract user_id from context
                 user_id = context.user_id
-
-                # Get or create session for this user
                 session_id = self._get_or_create_session_id(platform, user_id)
 
                 frontend = Frontend.for_bus(bus, context)
-
-                # For CLI, create a future so we can wait for completion
-                # This ensures the prompt doesn't appear before the response
-                result_future: asyncio.Future[str] | None = None
-                if platform == "cli":
-                    result_future = asyncio.get_event_loop().create_future()
+                block_on_response = bus.platform_name == "cli"
 
                 job = Job(
                     session_id=session_id,
@@ -114,15 +107,14 @@ class MessageBusWorker(Worker):
                     message=message,
                     frontend=frontend,
                     mode=SessionMode.CHAT,
-                    result_future=result_future,
+                    result_future=asyncio.get_event_loop().create_future(),
                 )
                 await self.context.agent_queue.put(job)
                 self.logger.debug(f"Dispatched message from {platform}")
 
-                # For CLI, wait for the job to complete before returning
-                # This gives a synchronous feel - prompt appears after response
-                if platform == "cli" and result_future:
-                    await result_future
+                if block_on_response:
+                    await job.result_future
+
             except Exception as e:
                 self.logger.error(f"Error processing message from {platform}: {e}")
 

@@ -68,18 +68,10 @@ def main(
 
 @app.command()
 def chat(
-    ctx: typer.Context,
-    agent: Annotated[
-        str | None,
-        typer.Option(
-            "--agent",
-            "-a",
-            help="Agent ID to use (overrides default_agent from config)",
-        ),
-    ] = None,
+    ctx: typer.Context
 ) -> None:
     """Start interactive chat session."""
-    chat_command(ctx, agent_id=agent)
+    chat_command(ctx)
 
 
 @app.command("server")

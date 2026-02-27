@@ -22,7 +22,7 @@ class Job:
     message: str  # User prompt (set to "." after consumed)
     frontend: "Frontend"  # Live frontend object for responses
     mode: SessionMode  # CHAT or JOB
-    result_future: asyncio.Future[str] | None = None
+    result_future: asyncio.Future[str]
     retry_count: int = 0
 
 
