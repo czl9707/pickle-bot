@@ -197,7 +197,7 @@ class TestCliBusRun:
         # Mock input to hang (never returns quit)
         input_called = asyncio.Event()
 
-        def hanging_input():
+        def hanging_input(prompt=""):
             input_called.set()
             # Sleep for a long time
             import time
@@ -246,6 +246,34 @@ class TestCliBusRun:
 
         on_message2.assert_not_called()
 
+    @pytest.mark.asyncio
+    async def test_run_handles_quit_with_whitespace(self):
+        """run() should handle quit commands with leading/trailing whitespace."""
+        bus = CliBus()
+        on_message = AsyncMock()
+
+        # Test quit with trailing whitespace
+        with patch("picklebot.messagebus.cli_bus.input", return_value="quit  "):
+            await bus.run(on_message)
+
+        on_message.assert_not_called()
+
+        # Test quit with leading whitespace
+        bus2 = CliBus()
+        on_message2 = AsyncMock()
+        with patch("picklebot.messagebus.cli_bus.input", return_value="  quit"):
+            await bus2.run(on_message2)
+
+        on_message2.assert_not_called()
+
+        # Test exit with whitespace
+        bus3 = CliBus()
+        on_message3 = AsyncMock()
+        with patch("picklebot.messagebus.cli_bus.input", return_value=" exit "):
+            await bus3.run(on_message3)
+
+        on_message3.assert_not_called()
+
 
 class TestCliBusStop:
     """Tests for CliBus stop() method."""
@@ -283,7 +311,7 @@ class TestCliBusStop:
         on_message = AsyncMock()
 
         # Mock input to hang indefinitely
-        def hanging_input():
+        def hanging_input(prompt=""):
             import time
 
             time.sleep(10)

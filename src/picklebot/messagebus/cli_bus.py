@@ -53,10 +53,10 @@ class CliBus(MessageBus[CliContext]):
             while self._running and not self._stop_event.is_set():
                 # Read input in a thread to avoid blocking the event loop
                 try:
-                    user_input = await asyncio.to_thread(input)
+                    user_input = await asyncio.to_thread(input, "You: ")
 
                     # Check for quit commands (case-insensitive)
-                    if user_input.lower() in ("quit", "exit", "q"):
+                    if user_input.lower().strip() in ("quit", "exit", "q"):
                         logger.info("Quit command received, stopping CLI bus")
                         break
 
