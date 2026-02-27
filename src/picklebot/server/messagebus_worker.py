@@ -100,8 +100,7 @@ class MessageBusWorker(Worker):
                 # Get or create session for this user
                 session_id = self._get_or_create_session_id(platform, user_id)
 
-                # Create appropriate frontend for this platform
-                frontend = Frontend.for_bus(bus, context, self.agent_def)
+                frontend = Frontend.for_bus(bus, context)
 
                 job = Job(
                     session_id=session_id,

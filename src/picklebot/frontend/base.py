@@ -14,7 +14,7 @@ class Frontend(ABC):
 
     @staticmethod
     def for_bus(
-        bus: "MessageBus[Any]", context: Any, agent_def: "AgentDef"
+        bus: "MessageBus[Any]", context: Any
     ) -> "Frontend":
         """Factory method to create the appropriate frontend for a bus.
 
@@ -30,7 +30,7 @@ class Frontend(ABC):
         if bus.platform_name == "cli":
             from picklebot.frontend.console import ConsoleFrontend
 
-            return ConsoleFrontend(agent_def)
+            return ConsoleFrontend()
         else:
             from picklebot.frontend.messagebus import MessageBusFrontend
 

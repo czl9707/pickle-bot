@@ -7,22 +7,20 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-from picklebot.core.agent_loader import AgentDef
 from .base import Frontend
 
 
 class ConsoleFrontend(Frontend):
     """Console-based frontend using Rich for formatting."""
 
-    def __init__(self, agent_def: AgentDef):
-        self.agent_def = agent_def
+    def __init__(self):
         self.console = Console()
 
     async def show_welcome(self) -> None:
         """Display welcome message panel."""
         self.console.print(
             Panel(
-                Text(f"Welcome to {self.agent_def.name}!", style="bold cyan"),
+                Text("Welcome to pickle-bot!", style="bold cyan"),
                 title="Pickle",
                 border_style="cyan",
             )
