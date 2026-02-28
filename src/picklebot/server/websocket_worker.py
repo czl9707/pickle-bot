@@ -4,7 +4,7 @@
 import logging
 from typing import TYPE_CHECKING
 
-from picklebot.server.base import SubscriberWorker
+from .worker import SubscriberWorker
 from picklebot.events.types import Event, EventType
 
 if TYPE_CHECKING:

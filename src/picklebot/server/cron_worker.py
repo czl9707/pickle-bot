@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 from croniter import croniter
 
-from picklebot.server.base import Worker
+from .worker import Worker
 from picklebot.core.agent import SessionMode
 from picklebot.events.types import Event, EventType, Source
 

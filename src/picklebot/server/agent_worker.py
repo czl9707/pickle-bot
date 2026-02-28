@@ -5,9 +5,9 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
+from .worker import SubscriberWorker
 from picklebot.core.agent import Agent, SessionMode
 from picklebot.events.types import Event, EventType, Source
-from picklebot.server.base import SubscriberWorker
 from picklebot.utils.def_loader import DefNotFoundError
 
 if TYPE_CHECKING:

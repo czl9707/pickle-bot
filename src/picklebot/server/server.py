@@ -6,12 +6,12 @@ from typing import TYPE_CHECKING
 
 import uvicorn
 
-from picklebot.server.base import Worker
-from picklebot.server.agent_worker import AgentWorker
-from picklebot.server.cron_worker import CronWorker
-from picklebot.server.delivery_worker import DeliveryWorker
-from picklebot.server.messagebus_worker import MessageBusWorker
-from picklebot.server.websocket_worker import WebSocketWorker
+from .worker import Worker
+from .agent_worker import AgentWorker
+from .cron_worker import CronWorker
+from .delivery_worker import DeliveryWorker
+from .messagebus_worker import MessageBusWorker
+from .websocket_worker import WebSocketWorker
 from picklebot.utils.config import ConfigReloader
 from picklebot.api import create_app
 

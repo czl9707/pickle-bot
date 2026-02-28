@@ -5,7 +5,7 @@ import random
 from typing import TYPE_CHECKING, Any
 
 from picklebot.events.types import Event, EventType
-from picklebot.server.base import SubscriberWorker
+from .worker import SubscriberWorker
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext

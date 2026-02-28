@@ -4,7 +4,7 @@ import asyncio
 import time
 from typing import TYPE_CHECKING, Any
 
-from picklebot.server.base import Worker
+from .worker import Worker
 from picklebot.core.agent import SessionMode, Agent
 from picklebot.events.types import Event, EventType, Source
 from picklebot.utils.def_loader import DefNotFoundError
