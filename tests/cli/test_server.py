@@ -23,16 +23,17 @@ class TestServer:
 
     @pytest.mark.anyio
     async def test_server_setup_workers_when_messagebus_disabled(self, test_config):
-        """Server sets up EventBus, AgentWorker, and CronWorker when messagebus disabled."""
+        """Server sets up EventBus, AgentWorker, DeliveryWorker, and CronWorker when messagebus disabled."""
         context = SharedContext(test_config)
         server = Server(context)
         server._setup_workers()
 
-        # Should have 3 workers: EventBus, AgentWorker, CronWorker
-        assert len(server.workers) == 3
+        # Should have 4 workers: EventBus, AgentWorker, DeliveryWorker, CronWorker
+        assert len(server.workers) == 4
         worker_types = [w.__class__.__name__ for w in server.workers]
         assert "EventBus" in worker_types
         assert "AgentWorker" in worker_types
+        assert "DeliveryWorker" in worker_types
         assert "CronWorker" in worker_types
         assert "MessageBusWorker" not in worker_types
 
@@ -51,11 +52,12 @@ class TestServer:
             server = Server(context)
             server._setup_workers()
 
-            # Should have 4 workers: EventBus, AgentWorker, CronWorker, MessageBusWorker
-            assert len(server.workers) == 4
+            # Should have 5 workers: EventBus, AgentWorker, DeliveryWorker, CronWorker, MessageBusWorker
+            assert len(server.workers) == 5
             worker_types = [w.__class__.__name__ for w in server.workers]
             assert "EventBus" in worker_types
             assert "AgentWorker" in worker_types
+            assert "DeliveryWorker" in worker_types
             assert "CronWorker" in worker_types
             assert mock_worker_class.called  # MessageBusWorker was created
 
@@ -74,10 +76,11 @@ class TestServer:
         server = Server(context)
         server._setup_workers()
 
-        # Should have 3 workers: EventBus, AgentWorker, CronWorker
-        assert len(server.workers) == 3
+        # Should have 4 workers: EventBus, AgentWorker, DeliveryWorker, CronWorker
+        assert len(server.workers) == 4
         worker_types = [w.__class__.__name__ for w in server.workers]
         assert "EventBus" in worker_types
         assert "AgentWorker" in worker_types
+        assert "DeliveryWorker" in worker_types
         assert "CronWorker" in worker_types
         assert "MessageBusWorker" not in worker_types

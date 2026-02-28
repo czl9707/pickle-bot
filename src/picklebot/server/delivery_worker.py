@@ -1,10 +1,11 @@
-# src/picklebot/events/delivery.py
+"""Worker that delivers outbound messages to platforms."""
+
 import logging
 import random
 from typing import TYPE_CHECKING, Any
 
-from .bus import EventBus
-from .types import Event, EventType
+from picklebot.events.types import Event, EventType
+from picklebot.server.base import SubscriberWorker
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
@@ -92,11 +93,14 @@ def chunk_message(content: str, limit: int) -> list[str]:
     return chunks
 
 
-class DeliveryWorker:
+class DeliveryWorker(SubscriberWorker):
     """Worker that delivers outbound messages to platforms."""
 
     def __init__(self, context: "SharedContext"):
-        self.context = context
+        super().__init__(context)
+        # Auto-subscribe to OUTBOUND events
+        self.context.eventbus.subscribe(EventType.OUTBOUND, self.handle_event)
+        self.logger.info("DeliveryWorker subscribed to OUTBOUND events")
 
     async def handle_event(self, event: Event) -> None:
         """Handle an outbound message event."""
@@ -124,12 +128,12 @@ class DeliveryWorker:
             # Ack the event
             self.context.eventbus.ack(event)
 
-            logger.info(
+            self.logger.info(
                 f"Delivered message to {platform} for session {event.session_id}"
             )
 
         except Exception as e:
-            logger.error(f"Failed to deliver message: {e}")
+            self.logger.error(f"Failed to deliver message: {e}")
             # TODO: Retry logic with backoff
 
     def _lookup_platform(
@@ -244,7 +248,3 @@ class DeliveryWorker:
         elif platform == "cli":
             # CLI just prints to stdout
             print(content)
-
-    def subscribe(self, eventbus: EventBus) -> None:
-        """Subscribe this worker to an event bus."""
-        eventbus.subscribe(EventType.OUTBOUND, self.handle_event)

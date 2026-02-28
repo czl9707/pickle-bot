@@ -6,10 +6,10 @@ from typing import TYPE_CHECKING
 
 import uvicorn
 
-from picklebot.events.delivery import DeliveryWorker
 from picklebot.server.base import Worker
 from picklebot.server.agent_worker import AgentWorker
 from picklebot.server.cron_worker import CronWorker
+from picklebot.server.delivery_worker import DeliveryWorker
 from picklebot.server.messagebus_worker import MessageBusWorker
 from picklebot.utils.config import ConfigReloader
 from picklebot.api import create_app
@@ -50,11 +50,8 @@ class Server:
 
         self.workers.append(self.context.eventbus)
         self.workers.append(AgentWorker(self.context))
+        self.workers.append(DeliveryWorker(self.context))
         self.workers.append(CronWorker(self.context))
-        delivery_worker = DeliveryWorker(self.context)
-        delivery_worker.subscribe(self.context.eventbus)
-
-        logger.info("DeliveryWorker subscribed to OUTBOUND events")
 
         if self.context.config.messagebus.enabled:
             buses = self.context.messagebus_buses

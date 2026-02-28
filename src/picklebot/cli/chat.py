@@ -10,9 +10,9 @@ from rich.panel import Panel
 from rich.text import Text
 
 from picklebot.core.context import SharedContext
-from picklebot.events.delivery import DeliveryWorker
 from picklebot.messagebus.cli_bus import CliBus
 from picklebot.server.agent_worker import AgentWorker
+from picklebot.server.delivery_worker import DeliveryWorker
 from picklebot.server.messagebus_worker import MessageBusWorker
 from picklebot.utils.config import Config
 from picklebot.utils.logging import setup_logging
@@ -47,8 +47,6 @@ class ChatLoop:
             )
         )
         self.console.print("Type 'quit' or 'exit' to end the session.\n")
-
-        self.delivery_worker.subscribe(self.context.eventbus)
 
         try:
             # Run workers concurrently

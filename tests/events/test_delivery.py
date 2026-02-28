@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from picklebot.events.delivery import chunk_message, DeliveryWorker
 from picklebot.events.types import Event, EventType, Source
 from picklebot.events.bus import EventBus
+from picklebot.server.delivery_worker import chunk_message, DeliveryWorker
 
 
 @pytest.fixture
@@ -135,7 +135,7 @@ def test_chunk_message_mixed():
 
 
 def test_platform_limits():
-    from picklebot.events.delivery import PLATFORM_LIMITS
+    from picklebot.server.delivery_worker import PLATFORM_LIMITS
 
     assert PLATFORM_LIMITS["telegram"] == 4096
     assert PLATFORM_LIMITS["discord"] == 2000

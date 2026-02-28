@@ -1,5 +1,5 @@
 # tests/events/test_retry.py
-from picklebot.events.delivery import BACKOFF_MS, MAX_RETRIES, compute_backoff_ms
+from picklebot.server.delivery_worker import BACKOFF_MS, MAX_RETRIES, compute_backoff_ms
 
 
 def test_backoff_first_retry():
