@@ -2,22 +2,25 @@
 import json
 import pytest
 import asyncio
-import tempfile
 from pathlib import Path
+from unittest.mock import MagicMock
+
 from picklebot.events.bus import EventBus
 from picklebot.events.types import Event, EventType
 
 
 @pytest.fixture
-def temp_events_dir():
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield Path(tmpdir)
+def mock_context(tmp_path):
+    context = MagicMock()
+    context.config = MagicMock()
+    context.config.event_path = tmp_path / ".events"
+    return context
 
 
 @pytest.mark.asyncio
-async def test_recover_republishes_pending_events(temp_events_dir):
+async def test_recover_republishes_pending_events(mock_context):
     # Create a pending event file manually
-    pending_dir = temp_events_dir / "pending"
+    pending_dir = mock_context.config.event_path / "pending"
     pending_dir.mkdir(parents=True)
 
     event_data = {
@@ -38,7 +41,7 @@ async def test_recover_republishes_pending_events(temp_events_dir):
     async def handler(event: Event):
         received.append(event)
 
-    bus = EventBus(events_dir=temp_events_dir)
+    bus = EventBus(mock_context)
     bus.subscribe(EventType.OUTBOUND, handler)
 
     # Start EventBus worker (which runs recovery on startup)
@@ -60,8 +63,8 @@ async def test_recover_republishes_pending_events(temp_events_dir):
 
 
 @pytest.mark.asyncio
-async def test_recover_empty_pending_dir(temp_events_dir):
-    bus = EventBus(events_dir=temp_events_dir)
+async def test_recover_empty_pending_dir(mock_context):
+    bus = EventBus(mock_context)
 
     received = []
 

@@ -1,4 +1,4 @@
-"""Tests for AgentDispatcherWorker and SessionExecutor."""
+"""Tests for AgentDispatcher and SessionExecutor."""
 
 import asyncio
 import shutil
@@ -11,7 +11,7 @@ import pytest
 from picklebot.core.agent import SessionMode
 from picklebot.server.agent_worker import (
     MAX_RETRIES,
-    AgentDispatcherWorker,
+    AgentDispatcher,
     SessionExecutor,
 )
 from picklebot.events.types import EventType, Event
@@ -44,7 +44,7 @@ def make_event(
 
 @pytest.mark.anyio
 async def test_agent_worker_processes_event(test_context, tmp_path):
-    """AgentDispatcherWorker processes an event."""
+    """AgentDispatcher processes an event."""
     agents_dir = tmp_path / "agents"
     agents_dir.mkdir(parents=True)
     test_agent_dir = agents_dir / "test-agent"
@@ -60,18 +60,18 @@ You are a test assistant. Respond briefly.
 """
     )
 
-    router = AgentDispatcherWorker(test_context)
+    router = AgentDispatcher(test_context)
 
     event = make_event(content="Say hello", agent_id="test-agent")
-    router._dispatch_event(event)
+    await router._dispatch_event(event)
 
     await asyncio.sleep(0.5)
 
 
 @pytest.mark.anyio
 async def test_agent_router_publishes_error_for_nonexistent_agent(test_context):
-    """AgentDispatcherWorker publishes RESULT with error when agent doesn't exist."""
-    router = AgentDispatcherWorker(test_context)
+    """AgentDispatcher publishes RESULT with error when agent doesn't exist."""
+    router = AgentDispatcher(test_context)
 
     # Track RESULT events
     result_events: list[Event] = []
@@ -85,8 +85,8 @@ async def test_agent_router_publishes_error_for_nonexistent_agent(test_context):
     eventbus_task = test_context.eventbus.start()
 
     try:
-        event = make_event(agent_id="nonexistent", job_id="test-job-id")
-        router._dispatch_event(event)
+        event = make_event(agent_id="nonexistent", job_id="test-job-id", event_type=EventType.DISPATCH)
+        await router._dispatch_event(event)
 
         # Wait for async error result to be published
         await asyncio.sleep(0.1)
@@ -267,7 +267,7 @@ You are a test assistant.
 
 @pytest.mark.anyio
 async def test_agent_router_creates_semaphore_per_agent(test_context, tmp_path):
-    """AgentDispatcherWorker creates a semaphore for each agent on first event."""
+    """AgentDispatcher creates a semaphore for each agent on first event."""
     agents_dir = tmp_path / "agents"
     agents_dir.mkdir(parents=True)
 
@@ -285,7 +285,7 @@ You are {agent_name}.
 """
         )
 
-    router = AgentDispatcherWorker(test_context)
+    router = AgentDispatcher(test_context)
 
     # Initially no semaphores
     assert len(router._semaphores) == 0
@@ -293,13 +293,13 @@ You are {agent_name}.
     event_a = make_event(content="Test A", agent_id="agent-a")
     event_b = make_event(content="Test B", agent_id="agent-b")
 
-    router._dispatch_event(event_a)
+    await router._dispatch_event(event_a)
 
     # Should have semaphore for agent-a
     assert "agent-a" in router._semaphores
     assert router._semaphores["agent-a"]._value == 2  # type: ignore
 
-    router._dispatch_event(event_b)
+    await router._dispatch_event(event_b)
 
     # Should have semaphores for both agents
     assert "agent-b" in router._semaphores
@@ -311,7 +311,7 @@ You are {agent_name}.
 
 @pytest.mark.anyio
 async def test_agent_router_concurrent_agents_dont_block(test_context, tmp_path):
-    """AgentDispatcherWorker allows concurrent agents to run without blocking each other."""
+    """AgentDispatcher allows concurrent agents to run without blocking each other."""
     agents_dir = tmp_path / "agents"
     agents_dir.mkdir(parents=True)
 
@@ -329,13 +329,13 @@ You are {agent_name}.
 """
         )
 
-    router = AgentDispatcherWorker(test_context)
+    router = AgentDispatcher(test_context)
 
     event_a = make_event(content="Test A", agent_id="agent-a")
     event_b = make_event(content="Test B", agent_id="agent-b")
 
-    router._dispatch_event(event_a)
-    router._dispatch_event(event_b)
+    await router._dispatch_event(event_a)
+    await router._dispatch_event(event_b)
 
     # Both should be able to run concurrently (different agents)
     await asyncio.sleep(0.5)
@@ -343,7 +343,7 @@ You are {agent_name}.
 
 @pytest.mark.anyio
 async def test_semaphore_cleanup_removes_stale_semaphores(test_context, tmp_path):
-    """AgentDispatcherWorker removes semaphores for deleted agents when threshold exceeded."""
+    """AgentDispatcher removes semaphores for deleted agents when threshold exceeded."""
     agents_dir = tmp_path / "agents"
     agents_dir.mkdir(parents=True)
 
@@ -360,12 +360,12 @@ You are agent {i}.
 """
         )
 
-    router = AgentDispatcherWorker(test_context)
+    router = AgentDispatcher(test_context)
 
     # Dispatch events for all agents to create semaphores
     for i in range(6):
         event = make_event(content="Test", agent_id=f"agent-{i}")
-        router._dispatch_event(event)
+        await router._dispatch_event(event)
 
     await asyncio.sleep(0.3)  # Let tasks start
 
@@ -377,7 +377,7 @@ You are agent {i}.
 
     # Trigger cleanup by dispatching another event
     event = make_event(content="Test", agent_id="agent-0")
-    router._dispatch_event(event)
+    await router._dispatch_event(event)
 
     # Call cleanup explicitly (in run() this happens after sleep)
     router._maybe_cleanup_semaphores()
@@ -413,7 +413,7 @@ You are a test assistant.
     agent_def = test_context.agent_loader.load("test-agent")
     semaphore = asyncio.Semaphore(1)
 
-    event = make_event(content="hello", agent_id="test-agent", job_id="test-job-123")
+    event = make_event(content="hello", agent_id="test-agent", job_id="test-job-123", event_type=EventType.DISPATCH)
 
     # Track RESULT events
     result_events: list[Event] = []
@@ -542,6 +542,7 @@ You are a test assistant.
         agent_id="test-agent",
         retry_count=MAX_RETRIES,
         job_id="job-456",
+        event_type=EventType.DISPATCH,
     )
 
     # Track RESULT events
@@ -580,19 +581,19 @@ You are a test assistant.
 
 
 # ============================================================================
-# Tests for AgentDispatcherWorker event handling
+# Tests for AgentDispatcher event handling
 # ============================================================================
 
 
 @pytest.mark.anyio
 async def test_agent_dispatcher_handles_inbound_event(test_context):
-    """AgentDispatcherWorker should handle INBOUND events."""
-    router = AgentDispatcherWorker(test_context)
+    """AgentDispatcher should handle INBOUND events."""
+    router = AgentDispatcher(test_context)
 
     # Track dispatched events
     dispatched_events: list[Event] = []
 
-    def capture_dispatch(evt: Event) -> None:
+    async def capture_dispatch(evt: Event) -> None:
         dispatched_events.append(evt)
         # Don't actually execute, just capture
 
@@ -616,13 +617,13 @@ async def test_agent_dispatcher_handles_inbound_event(test_context):
 
 @pytest.mark.anyio
 async def test_agent_dispatcher_handles_dispatch_event(test_context):
-    """AgentDispatcherWorker should handle DISPATCH events."""
-    router = AgentDispatcherWorker(test_context)
+    """AgentDispatcher should handle DISPATCH events."""
+    router = AgentDispatcher(test_context)
 
     # Track dispatched events
     dispatched_events: list[Event] = []
 
-    def capture_dispatch(evt: Event) -> None:
+    async def capture_dispatch(evt: Event) -> None:
         dispatched_events.append(evt)
 
     router._dispatch_event = capture_dispatch  # type: ignore

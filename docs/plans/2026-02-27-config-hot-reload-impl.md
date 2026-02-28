@@ -412,7 +412,7 @@ Modify `_setup_workers` method:
 ```python
     def _setup_workers(self) -> None:
         """Create all workers."""
-        self.workers.append(AgentDispatcherWorker(self.context))
+        self.workers.append(AgentDispatcher(self.context))
         self.workers.append(CronWorker(self.context))
 
         # Start config hot reload

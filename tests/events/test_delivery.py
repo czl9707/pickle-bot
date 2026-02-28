@@ -1,4 +1,5 @@
 # tests/events/test_delivery.py
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -9,13 +10,14 @@ from picklebot.events.bus import EventBus
 
 
 @pytest.fixture
-def mock_context():
+def mock_context(tmp_path):
     context = MagicMock()
     context.config = MagicMock()
     context.config.messagebus = MagicMock()
     context.config.messagebus.telegram = None
     context.config.messagebus.discord = None
-    context.eventbus = EventBus()
+    context.config.event_path = tmp_path / ".events"
+    context.eventbus = EventBus(context)
     # Mock platform buses list
     context.messagebus_buses = []
     return context

@@ -4,7 +4,7 @@
 
 **Goal:** Unify CLI with MessageBus architecture to enable future routing capabilities and reduce code duplication
 
-**Architecture:** CLI becomes just another MessageBus channel (like Telegram/Discord) using CliBus implementation. ChatLoop refactored to use MessageBusWorker + AgentDispatcherWorker pattern instead of standalone Agent/ConsoleFrontend.
+**Architecture:** CLI becomes just another MessageBus channel (like Telegram/Discord) using CliBus implementation. ChatLoop refactored to use MessageBusWorker + AgentDispatcher pattern instead of standalone Agent/ConsoleFrontend.
 
 **Tech Stack:** Python 3.13, asyncio, Rich (for console formatting), pytest
 
@@ -371,7 +371,7 @@ import typer
 
 from picklebot.core.context import SharedContext
 from picklebot.messagebus.cli_bus import CliBus
-from picklebot.server.agent_worker import AgentDispatcherWorker
+from picklebot.server.agent_worker import AgentDispatcher
 from picklebot.server.messagebus_worker import MessageBusWorker
 from picklebot.utils.config import Config
 from picklebot.utils.logging import setup_logging
@@ -385,13 +385,13 @@ class ChatLoop:
         self.agent_id = agent_id or config.default_agent
 
     async def run(self) -> None:
-        """Run CLI via MessageBusWorker + AgentDispatcherWorker."""
+        """Run CLI via MessageBusWorker + AgentDispatcher."""
         # Create CliBus and context
         bus = CliBus()
         context = SharedContext(self.config, buses=[bus])
 
         # Use existing worker infrastructure
-        dispatcher = AgentDispatcherWorker(context)
+        dispatcher = AgentDispatcher(context)
         message_bus = MessageBusWorker(context)
 
         try:
@@ -443,7 +443,7 @@ git add src/picklebot/cli/chat.py
 git commit -m "refactor: migrate ChatLoop to MessageBusWorker pattern
 
 - Remove manual Agent/ConsoleFrontend setup
-- Use MessageBusWorker + AgentDispatcherWorker
+- Use MessageBusWorker + AgentDispatcher
 - CliBus handles stdin input
 - Unified with Telegram/Discord architecture"
 ```
@@ -468,7 +468,7 @@ import pytest
 
 from picklebot.core.context import SharedContext
 from picklebot.messagebus.cli_bus import CliBus
-from picklebot.server.agent_worker import AgentDispatcherWorker
+from picklebot.server.agent_worker import AgentDispatcher
 from picklebot.server.messagebus_worker import MessageBusWorker
 from picklebot.utils.config import Config
 
@@ -486,7 +486,7 @@ async def test_cli_message_flow_through_workers():
     # Mock input to simulate user
     with patch("builtins.input", side_effect=["test message", "quit"]):
         # Create workers
-        dispatcher = AgentDispatcherWorker(context)
+        dispatcher = AgentDispatcher(context)
         message_bus = MessageBusWorker(context)
 
         # Run briefly
@@ -522,7 +522,7 @@ git add tests/cli/test_chat_integration.py
 git commit -m "test: add integration test for CLI MessageBus flow
 
 Tests complete message flow from stdin through MessageBusWorker
-and AgentDispatcherWorker."
+and AgentDispatcher."
 ```
 
 ---

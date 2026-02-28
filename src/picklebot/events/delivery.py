@@ -97,7 +97,6 @@ class DeliveryWorker:
 
     def __init__(self, context: "SharedContext"):
         self.context = context
-        self.logger = logging.getLogger("picklebot.events.DeliveryWorker")
 
     async def handle_event(self, event: Event) -> None:
         """Handle an outbound message event."""
@@ -123,15 +122,14 @@ class DeliveryWorker:
                 await self._deliver(platform, platform_info, chunk)
 
             # Ack the event
-            filename = f"{event.timestamp}_{event.session_id}.json"
-            self.context.eventbus.ack(filename)
+            self.context.eventbus.ack(event)
 
-            self.logger.info(
+            logger.info(
                 f"Delivered message to {platform} for session {event.session_id}"
             )
 
         except Exception as e:
-            self.logger.error(f"Failed to deliver message: {e}")
+            logger.error(f"Failed to deliver message: {e}")
             # TODO: Retry logic with backoff
 
     def _lookup_platform(

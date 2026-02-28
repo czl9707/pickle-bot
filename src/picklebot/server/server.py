@@ -8,7 +8,7 @@ import uvicorn
 
 from picklebot.events.delivery import DeliveryWorker
 from picklebot.server.base import Worker
-from picklebot.server.agent_worker import AgentDispatcherWorker
+from picklebot.server.agent_worker import AgentDispatcher
 from picklebot.server.cron_worker import CronWorker
 from picklebot.server.messagebus_worker import MessageBusWorker
 from picklebot.utils.config import ConfigReloader
@@ -46,21 +46,16 @@ class Server:
 
     def _setup_workers(self) -> None:
         """Create all workers and subscribe event handlers."""
-        # Add EventBus as first worker (processes event queue, runs recovery)
-        self.workers.append(self.context.eventbus)
-
-        # Create AgentDispatcherWorker (handles INBOUND and DISPATCH events)
-        self.agent_worker = AgentDispatcherWorker(self.context)
-        self.workers.append(self.agent_worker)
-        self.agent_worker.subscribe()
-        logger.info("AgentDispatcherWorker subscribed to INBOUND and DISPATCH events")
-
-        self.workers.append(CronWorker(self.context))
         self.config_reloader.start()
 
-        # Create and subscribe DeliveryWorker for OUTBOUND events
-        self.delivery_worker = DeliveryWorker(self.context)
-        self.delivery_worker.subscribe(self.context.eventbus)
+        self.workers.append(self.context.eventbus)
+        agent_dispatcher = AgentDispatcher(self.context)
+        agent_dispatcher.subscribe()
+
+        self.workers.append(CronWorker(self.context))
+        delivery_worker = DeliveryWorker(self.context)
+        delivery_worker.subscribe(self.context.eventbus)
+
         logger.info("DeliveryWorker subscribed to OUTBOUND events")
 
         if self.context.config.messagebus.enabled:

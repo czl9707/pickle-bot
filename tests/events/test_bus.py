@@ -1,12 +1,11 @@
 # tests/events/test_bus.py
 import pytest
-from picklebot.events.bus import EventBus
 from picklebot.events.types import Event, EventType, Source
 
 
 @pytest.fixture
-def event_bus():
-    return EventBus()
+def event_bus(test_context):
+    return test_context.eventbus
 
 
 def test_event_bus_creation(event_bus):

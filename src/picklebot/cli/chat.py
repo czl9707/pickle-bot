@@ -12,7 +12,7 @@ from rich.text import Text
 from picklebot.core.context import SharedContext
 from picklebot.events.delivery import DeliveryWorker
 from picklebot.messagebus.cli_bus import CliBus
-from picklebot.server.agent_worker import AgentDispatcherWorker
+from picklebot.server.agent_worker import AgentDispatcher
 from picklebot.server.messagebus_worker import MessageBusWorker
 from picklebot.utils.config import Config
 from picklebot.utils.logging import setup_logging
@@ -30,17 +30,10 @@ class ChatLoop:
         # Create CliBus and SharedContext with buses parameter
         self.bus = CliBus()
         self.context = SharedContext(config=config, buses=[self.bus])
-
-        # Create single CLI session for this conversation
-        # Store in config instance attribute so MessageBusWorker can reuse it
-        self.cli_session_id = str(uuid.uuid4())
-        self.context.config._cli_sessions = {"cli-user": self.cli_session_id}
-
+        
         # Create workers
-        self.dispatcher = AgentDispatcherWorker(self.context)
+        self.dispatcher = AgentDispatcher(self.context)
         self.messagebus_worker = MessageBusWorker(self.context)
-
-        # Create DeliveryWorker for handling OUTBOUND events
         self.delivery_worker = DeliveryWorker(self.context)
 
     async def run(self) -> None:
@@ -55,19 +48,16 @@ class ChatLoop:
         )
         self.console.print("Type 'quit' or 'exit' to end the session.\n")
 
-        # Subscribe DeliveryWorker to handle OUTBOUND events (prints to CLI)
         self.delivery_worker.subscribe(self.context.eventbus)
-
-        # Subscribe AgentDispatcherWorker to handle INBOUND events
-        self.dispatcher.subscribe(self.context.eventbus)
+        self.dispatcher.subscribe()
 
         try:
             # Run workers concurrently
             # - MessageBusWorker: reads input, publishes INBOUND events
-            # - AgentDispatcherWorker: processes INBOUND events + job queue
+            # - AgentDispatcher: processes INBOUND events + job queue
             # - DeliveryWorker handles OUTBOUND events via subscription (not a task)
             await asyncio.gather(
-                self.dispatcher.run(),
+                self.context.eventbus.run(),
                 self.messagebus_worker.run(),
             )
         except asyncio.CancelledError:

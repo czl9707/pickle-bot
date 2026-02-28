@@ -27,12 +27,11 @@ class EventBus(Worker):
     - Processes events from queue in run()
     """
 
-    def __init__(self, events_dir: Path | None = None):
-        super().__init__(context=None)
+    def __init__(self, context: "SharedContext"):
+        super().__init__(context=context)
         self._subscribers: dict[EventType, list[Handler]] = defaultdict(list)
         self._queue: asyncio.Queue[Event] = asyncio.Queue()
-        self.events_dir = events_dir or Path.home() / ".events"
-        self.pending_dir = self.events_dir / "pending"
+        self.pending_dir = context.config.event_path / "pending"
         self.pending_dir.mkdir(parents=True, exist_ok=True)
 
     def subscribe(self, event_type: EventType, handler: Handler) -> None:
@@ -134,9 +133,10 @@ class EventBus(Worker):
         logger.info(f"Recovered {count} events")
         return count
 
-    def ack(self, filename: str) -> None:
+    def ack(self, event: Event) -> None:
         """Acknowledge successful delivery, delete persisted event."""
-        file_path = self.pending_dir / filename
-        if file_path.exists():
-            file_path.unlink()
+        filename = f"{event.timestamp}_{event.session_id}.json"
+        final_path = self.pending_dir / filename
+        if final_path.exists():
+            final_path.unlink()
             logger.debug(f"Acked and deleted {filename}")

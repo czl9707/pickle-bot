@@ -9,7 +9,7 @@ import pytest
 from picklebot.core.context import SharedContext
 from picklebot.events.types import Event, EventType
 from picklebot.messagebus.cli_bus import CliBus
-from picklebot.server.agent_worker import AgentDispatcherWorker
+from picklebot.server.agent_worker import AgentDispatcher
 from picklebot.server.messagebus_worker import MessageBusWorker
 from picklebot.utils.config import Config, LLMConfig, MessageBusConfig
 
@@ -67,7 +67,8 @@ async def test_cli_message_flow_through_workers(integration_config: Config):
 
     # Create workers (uses default agent from config)
     messagebus_worker = MessageBusWorker(context)
-    dispatcher_worker = AgentDispatcherWorker(context)
+    dispatcher = AgentDispatcher(context)
+    dispatcher.subscribe()  # Register event handlers
 
     # Track published events
     published_events: list[Event] = []
@@ -84,9 +85,8 @@ async def test_cli_message_flow_through_workers(integration_config: Config):
         # Start EventBus as worker (processes queued events)
         eventbus_task = context.eventbus.start()
 
-        # Start both workers as background tasks
+        # Start MessageBusWorker as background task
         bus_task = asyncio.create_task(messagebus_worker.run())
-        dispatcher_task = asyncio.create_task(dispatcher_worker.run())
 
         try:
             # Wait for event to be published (with timeout)
@@ -110,17 +110,11 @@ async def test_cli_message_flow_through_workers(integration_config: Config):
         finally:
             # Cleanup: cancel workers
             bus_task.cancel()
-            dispatcher_task.cancel()
             eventbus_task.cancel()
 
             # Wait for tasks to finish
             try:
                 await asyncio.wait_for(bus_task, timeout=1.0)
-            except (asyncio.CancelledError, asyncio.TimeoutError):
-                pass
-
-            try:
-                await asyncio.wait_for(dispatcher_task, timeout=1.0)
             except (asyncio.CancelledError, asyncio.TimeoutError):
                 pass
 

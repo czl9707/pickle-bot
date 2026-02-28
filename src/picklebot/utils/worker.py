@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 class Worker(ABC):
     """Base class for all workers with lifecycle management."""
 
-    def __init__(self, context: "SharedContext | None" = None):
+    def __init__(self, context: "SharedContext"):
         self.context = context
         self.logger = logging.getLogger(f"picklebot.server.{self.__class__.__name__}")
         self._task: asyncio.Task | None = None

@@ -9,7 +9,7 @@
 Treat CLI as just another channel, unified with Telegram/Discord via MessageBus abstraction. This enables:
 - Future routing/binding table support for CLI
 - Unified architecture across all channels
-- Reuse of MessageBusWorker and AgentDispatcherWorker infrastructure
+- Reuse of MessageBusWorker and AgentDispatcher infrastructure
 
 ## Architecture
 
@@ -134,13 +134,13 @@ class ChatLoop:
         self.agent_id = agent_id or config.default_agent
 
     async def run(self) -> None:
-        """Run CLI via MessageBusWorker + AgentDispatcherWorker."""
+        """Run CLI via MessageBusWorker + AgentDispatcher."""
         # Create CliBus and context
         bus = CliBus()
         context = SharedContext(self.config, buses=[bus])
 
         # Use existing worker infrastructure
-        dispatcher = AgentDispatcherWorker(context)
+        dispatcher = AgentDispatcher(context)
         message_bus = MessageBusWorker(context)
 
         try:
@@ -152,7 +152,7 @@ class ChatLoop:
 
 **Key design decisions:**
 - No longer creates own Agent or ConsoleFrontend
-- Reuses MessageBusWorker and AgentDispatcherWorker
+- Reuses MessageBusWorker and AgentDispatcher
 - Very similar to server.py pattern
 - No welcome/goodbye - just starts processing input
 
@@ -266,7 +266,7 @@ async def test_cli_chat_flow():
     context = SharedContext(config, buses=[bus])
 
     with patch('builtins.input', side_effect=["hello", "quit"]):
-        dispatcher = AgentDispatcherWorker(context)
+        dispatcher = AgentDispatcher(context)
         message_bus = MessageBusWorker(context)
 
         task = asyncio.create_task(

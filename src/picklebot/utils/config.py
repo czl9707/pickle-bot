@@ -131,6 +131,7 @@ class Config(BaseModel):
     skills_path: Path = Field(default=Path("skills"))
     logging_path: Path = Field(default=Path(".logs"))
     history_path: Path = Field(default=Path(".history"))
+    event_path: Path = Field(default=Path(".event"))
     crons_path: Path = Field(default=Path("crons"))
     memories_path: Path = Field(default=Path("memories"))
     messagebus: MessageBusConfig = Field(default_factory=MessageBusConfig)
@@ -149,6 +150,7 @@ class Config(BaseModel):
             "skills_path",
             "logging_path",
             "history_path",
+            "event_path",
             "crons_path",
             "memories_path",
         ):
@@ -288,6 +290,7 @@ class Config(BaseModel):
                 "skills_path",
                 "logging_path",
                 "history_path",
+                "event_path",
                 "crons_path",
                 "memories_path",
             }
