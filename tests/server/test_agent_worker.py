@@ -8,37 +8,52 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from picklebot.core.agent import SessionMode
 from picklebot.server.agent_worker import (
     MAX_RETRIES,
     AgentDispatcher,
     SessionExecutor,
 )
-from picklebot.core.events import EventType, Event
+from picklebot.core.events import (
+    EventType,
+    InboundEvent,
+    DispatchEvent,
+    DispatchResultEvent,
+)
 
 
-def make_event(
+def make_inbound_event(
     content: str = "Test",
     session_id: str | None = None,
     agent_id: str = "test-agent",
-    mode: SessionMode = SessionMode.CHAT,
-    job_id: str | None = None,
     retry_count: int = 0,
-    event_type: EventType = EventType.INBOUND,
-) -> Event:
-    """Helper to create an event for testing."""
-    return Event(
-        type=event_type,
-        session_id=session_id or "",
-        content=content,
+) -> InboundEvent:
+    """Helper to create an InboundEvent for testing."""
+    return InboundEvent(
+        session_id=session_id or str(uuid.uuid4()),
+        agent_id=agent_id,
         source="test:platform",
+        content=content,
         timestamp=time.time(),
-        metadata={
-            "job_id": job_id or str(uuid.uuid4()),
-            "agent_id": agent_id,
-            "mode": mode.value,
-            "retry_count": retry_count,
-        },
+        retry_count=retry_count,
+    )
+
+
+def make_dispatch_event(
+    content: str = "Test",
+    session_id: str | None = None,
+    agent_id: str = "test-agent",
+    retry_count: int = 0,
+    parent_session_id: str = "parent-session-123",
+) -> DispatchEvent:
+    """Helper to create a DispatchEvent for testing."""
+    return DispatchEvent(
+        session_id=session_id or str(uuid.uuid4()),
+        agent_id=agent_id,
+        source="agent:caller",
+        content=content,
+        timestamp=time.time(),
+        parent_session_id=parent_session_id,
+        retry_count=retry_count,
     )
 
 
@@ -62,7 +77,7 @@ You are a test assistant. Respond briefly.
 
     router = AgentDispatcher(test_context)
 
-    event = make_event(content="Say hello", agent_id="test-agent")
+    event = make_inbound_event(content="Say hello", agent_id="test-agent")
     await router._dispatch_event(event)
 
     await asyncio.sleep(0.5)
@@ -74,9 +89,9 @@ async def test_agent_router_publishes_error_for_nonexistent_agent(test_context):
     router = AgentDispatcher(test_context)
 
     # Track RESULT events
-    result_events: list[Event] = []
+    result_events: list[DispatchResultEvent] = []
 
-    async def capture_result(event: Event) -> None:
+    async def capture_result(event: DispatchResultEvent) -> None:
         result_events.append(event)
 
     test_context.eventbus.subscribe(EventType.DISPATCH_RESULT, capture_result)
@@ -85,9 +100,7 @@ async def test_agent_router_publishes_error_for_nonexistent_agent(test_context):
     eventbus_task = test_context.eventbus.start()
 
     try:
-        event = make_event(
-            agent_id="nonexistent", job_id="test-job-id", event_type=EventType.DISPATCH
-        )
+        event = make_dispatch_event(agent_id="nonexistent", session_id="test-job-id")
         await router._dispatch_event(event)
 
         # Wait for async error result to be published
@@ -96,10 +109,10 @@ async def test_agent_router_publishes_error_for_nonexistent_agent(test_context):
         # Should have published RESULT with error
         assert len(result_events) == 1
         result_event = result_events[0]
-        assert result_event.type == EventType.DISPATCH_RESULT
-        assert result_event.metadata.get("job_id") == "test-job-id"
-        assert "error" in result_event.metadata
-        assert "nonexistent" in result_event.metadata["error"]
+        assert isinstance(result_event, DispatchResultEvent)
+        assert result_event.session_id == "test-job-id"
+        assert result_event.error is not None
+        assert "nonexistent" in result_event.error
     finally:
         eventbus_task.cancel()
         try:
@@ -129,12 +142,12 @@ You are a test assistant.
     agent_def = test_context.agent_loader.load("test-agent")
     semaphore = asyncio.Semaphore(1)
 
-    event = make_event(content="Test", agent_id="test-agent")
+    event = make_inbound_event(content="Test", agent_id="test-agent")
 
     # Track inbound events for retry
-    inbound_events: list[Event] = []
+    inbound_events: list[InboundEvent] = []
 
-    async def capture_event(evt: Event) -> None:
+    async def capture_event(evt: InboundEvent) -> None:
         inbound_events.append(evt)
 
     test_context.eventbus.subscribe(EventType.INBOUND, capture_event)
@@ -154,9 +167,10 @@ You are a test assistant.
         await asyncio.sleep(0.1)
 
         assert len(inbound_events) == 1
-        assert inbound_events[0].type == EventType.INBOUND
-        assert inbound_events[0].metadata is not None
-        assert inbound_events[0].metadata["retry_count"] == 1
+        retry_event = inbound_events[0]
+        assert isinstance(retry_event, InboundEvent)
+        assert retry_event.retry_count == 1
+        assert retry_event.content == "."
     finally:
         eventbus_task.cancel()
         try:
@@ -187,7 +201,7 @@ You are a test assistant.
     semaphore = asyncio.Semaphore(1)
 
     nonexistent_session_id = "nonexistent-session-uuid"
-    event = make_event(
+    event = make_inbound_event(
         content="Test", session_id=nonexistent_session_id, agent_id="test-agent"
     )
 
@@ -219,7 +233,7 @@ You are a test assistant. Respond briefly.
     agent_def = test_context.agent_loader.load("test-agent")
     semaphore = asyncio.Semaphore(1)
 
-    event = make_event(content="Say hello", agent_id="test-agent")
+    event = make_inbound_event(content="Say hello", agent_id="test-agent")
 
     executor = SessionExecutor(test_context, agent_def, event, semaphore)
     await executor.run()
@@ -245,7 +259,7 @@ You are a test assistant.
     agent_def = test_context.agent_loader.load("test-agent")
     semaphore = asyncio.Semaphore(1)
 
-    event = make_event(content="Test", agent_id="test-agent")
+    event = make_inbound_event(content="Test", agent_id="test-agent")
 
     # Acquire the semaphore first
     await semaphore.acquire()
@@ -292,8 +306,8 @@ You are {agent_name}.
     # Initially no semaphores
     assert len(router._semaphores) == 0
 
-    event_a = make_event(content="Test A", agent_id="agent-a")
-    event_b = make_event(content="Test B", agent_id="agent-b")
+    event_a = make_inbound_event(content="Test A", agent_id="agent-a")
+    event_b = make_inbound_event(content="Test B", agent_id="agent-b")
 
     await router._dispatch_event(event_a)
 
@@ -333,8 +347,8 @@ You are {agent_name}.
 
     router = AgentDispatcher(test_context)
 
-    event_a = make_event(content="Test A", agent_id="agent-a")
-    event_b = make_event(content="Test B", agent_id="agent-b")
+    event_a = make_inbound_event(content="Test A", agent_id="agent-a")
+    event_b = make_inbound_event(content="Test B", agent_id="agent-b")
 
     await router._dispatch_event(event_a)
     await router._dispatch_event(event_b)
@@ -366,7 +380,7 @@ You are agent {i}.
 
     # Dispatch events for all agents to create semaphores
     for i in range(6):
-        event = make_event(content="Test", agent_id=f"agent-{i}")
+        event = make_inbound_event(content="Test", agent_id=f"agent-{i}")
         await router._dispatch_event(event)
 
     await asyncio.sleep(0.3)  # Let tasks start
@@ -378,7 +392,7 @@ You are agent {i}.
     shutil.rmtree(agents_dir / "agent-5")
 
     # Trigger cleanup by dispatching another event
-    event = make_event(content="Test", agent_id="agent-0")
+    event = make_inbound_event(content="Test", agent_id="agent-0")
     await router._dispatch_event(event)
 
     # Call cleanup explicitly (in run() this happens after sleep)
@@ -415,17 +429,16 @@ You are a test assistant.
     agent_def = test_context.agent_loader.load("test-agent")
     semaphore = asyncio.Semaphore(1)
 
-    event = make_event(
+    event = make_dispatch_event(
         content="hello",
         agent_id="test-agent",
-        job_id="test-job-123",
-        event_type=EventType.DISPATCH,
+        session_id="test-job-123",
     )
 
     # Track RESULT events
-    result_events: list[Event] = []
+    result_events: list[DispatchResultEvent] = []
 
-    async def capture_result(evt: Event) -> None:
+    async def capture_result(evt: DispatchResultEvent) -> None:
         result_events.append(evt)
 
     test_context.eventbus.subscribe(EventType.DISPATCH_RESULT, capture_result)
@@ -441,6 +454,7 @@ You are a test assistant.
 
             mock_agent = MagicMock()
             mock_agent.new_session.return_value = mock_session
+            mock_agent.resume_session.return_value = mock_session
             MockAgent.return_value = mock_agent
 
             executor = SessionExecutor(test_context, agent_def, event, semaphore)
@@ -451,9 +465,9 @@ You are a test assistant.
 
         assert len(result_events) == 1
         result_event = result_events[0]
-        assert result_event.type == EventType.DISPATCH_RESULT
+        assert isinstance(result_event, DispatchResultEvent)
         assert result_event.content == "response text"
-        assert result_event.metadata.get("job_id") == "test-job-123"
+        assert result_event.session_id == "test-job-123"
     finally:
         eventbus_task.cancel()
         try:
@@ -483,12 +497,12 @@ You are a test assistant.
     agent_def = test_context.agent_loader.load("test-agent")
     semaphore = asyncio.Semaphore(1)
 
-    event = make_event(content="hello", agent_id="test-agent", retry_count=0)
+    event = make_inbound_event(content="hello", agent_id="test-agent", retry_count=0)
 
     # Track inbound events for retry
-    inbound_events: list[Event] = []
+    inbound_events: list[InboundEvent] = []
 
-    async def capture_event(evt: Event) -> None:
+    async def capture_event(evt: InboundEvent) -> None:
         inbound_events.append(evt)
 
     test_context.eventbus.subscribe(EventType.INBOUND, capture_event)
@@ -509,9 +523,8 @@ You are a test assistant.
         # Should be requeued via INBOUND event
         assert len(inbound_events) == 1
         retry_event = inbound_events[0]
-        assert retry_event.type == EventType.INBOUND
-        assert retry_event.metadata is not None
-        assert retry_event.metadata["retry_count"] == 1
+        assert isinstance(retry_event, InboundEvent)
+        assert retry_event.retry_count == 1
         assert retry_event.content == "."
     finally:
         eventbus_task.cancel()
@@ -544,18 +557,17 @@ You are a test assistant.
     agent_def = test_context.agent_loader.load("test-agent")
     semaphore = asyncio.Semaphore(1)
 
-    event = make_event(
+    event = make_dispatch_event(
         content="hello",
         agent_id="test-agent",
         retry_count=MAX_RETRIES,
-        job_id="job-456",
-        event_type=EventType.DISPATCH,
+        session_id="job-456",
     )
 
     # Track RESULT events
-    result_events: list[Event] = []
+    result_events: list[DispatchResultEvent] = []
 
-    async def capture_result(evt: Event) -> None:
+    async def capture_result(evt: DispatchResultEvent) -> None:
         result_events.append(evt)
 
     test_context.eventbus.subscribe(EventType.DISPATCH_RESULT, capture_result)
@@ -575,10 +587,10 @@ You are a test assistant.
 
         assert len(result_events) == 1
         result_event = result_events[0]
-        assert result_event.type == EventType.DISPATCH_RESULT
-        assert result_event.metadata.get("job_id") == "job-456"
-        assert "error" in result_event.metadata
-        assert result_event.metadata["error"] == "final boom"
+        assert isinstance(result_event, DispatchResultEvent)
+        assert result_event.session_id == "job-456"
+        assert result_event.error is not None
+        assert result_event.error == "final boom"
     finally:
         eventbus_task.cancel()
         try:
@@ -598,19 +610,19 @@ async def test_agent_dispatcher_handles_inbound_event(test_context):
     router = AgentDispatcher(test_context)
 
     # Track dispatched events
-    dispatched_events: list[Event] = []
+    dispatched_events: list[InboundEvent] = []
 
-    async def capture_dispatch(evt: Event) -> None:
+    async def capture_dispatch(evt: InboundEvent) -> None:
         dispatched_events.append(evt)
         # Don't actually execute, just capture
 
     router._dispatch_event = capture_dispatch  # type: ignore
 
-    event = Event(
-        type=EventType.INBOUND,
+    event = InboundEvent(
         session_id="test-session",
-        content="Hello world",
+        agent_id="test-agent",
         source="test:platform",
+        content="Hello world",
         timestamp=time.time(),
     )
 
@@ -618,6 +630,7 @@ async def test_agent_dispatcher_handles_inbound_event(test_context):
 
     assert len(dispatched_events) == 1
     dispatched = dispatched_events[0]
+    assert isinstance(dispatched, InboundEvent)
     assert dispatched.content == "Hello world"
     assert dispatched.session_id == "test-session"
 
@@ -628,30 +641,27 @@ async def test_agent_dispatcher_handles_dispatch_event(test_context):
     router = AgentDispatcher(test_context)
 
     # Track dispatched events
-    dispatched_events: list[Event] = []
+    dispatched_events: list[DispatchEvent] = []
 
-    async def capture_dispatch(evt: Event) -> None:
+    async def capture_dispatch(evt: DispatchEvent) -> None:
         dispatched_events.append(evt)
 
     router._dispatch_event = capture_dispatch  # type: ignore
 
-    event = Event(
-        type=EventType.DISPATCH,
+    event = DispatchEvent(
         session_id="job-session",
-        content="Run task",
+        agent_id="test-agent",
         source="agent:caller",
+        content="Run task",
         timestamp=time.time(),
-        metadata={
-            "job_id": "test-job-123",
-            "agent_id": "test-agent",
-            "mode": "JOB",
-        },
+        parent_session_id="parent-123",
     )
 
     await router.handle_dispatch(event)
 
     assert len(dispatched_events) == 1
     dispatched = dispatched_events[0]
-    assert dispatched.metadata.get("job_id") == "test-job-123"
-    assert dispatched.metadata.get("agent_id") == "test-agent"
+    assert isinstance(dispatched, DispatchEvent)
+    assert dispatched.session_id == "job-session"
+    assert dispatched.agent_id == "test-agent"
     assert dispatched.content == "Run task"

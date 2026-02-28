@@ -138,6 +138,11 @@ class InboundEvent:
     retry_count: int = 0
     context: MessageContext | None = None
 
+    @property
+    def type(self) -> EventType:
+        """Return the event type."""
+        return EventType.INBOUND
+
     def to_dict(self) -> dict[str, Any]:
         """Serialize event to dictionary."""
         return {
@@ -176,6 +181,11 @@ class OutboundEvent:
     timestamp: float
     error: str | None = None
 
+    @property
+    def type(self) -> EventType:
+        """Return the event type."""
+        return EventType.OUTBOUND
+
     def to_dict(self) -> dict[str, Any]:
         """Serialize event to dictionary."""
         return {
@@ -212,6 +222,11 @@ class DispatchEvent:
     timestamp: float
     parent_session_id: str
     retry_count: int = 0
+
+    @property
+    def type(self) -> EventType:
+        """Return the event type."""
+        return EventType.DISPATCH
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize event to dictionary."""
@@ -250,6 +265,11 @@ class DispatchResultEvent:
     content: str
     timestamp: float
     error: str | None = None
+
+    @property
+    def type(self) -> EventType:
+        """Return the event type."""
+        return EventType.DISPATCH_RESULT
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize event to dictionary."""

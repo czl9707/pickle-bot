@@ -5,16 +5,25 @@ import json
 import logging
 import os
 from collections import defaultdict
-from typing import Awaitable, Callable, TYPE_CHECKING
+from typing import Awaitable, Callable, TYPE_CHECKING, Union
 
-from .events import Event, EventType
+from .events import (
+    Event,
+    EventType,
+    InboundEvent,
+    OutboundEvent,
+    DispatchEvent,
+    DispatchResultEvent,
+)
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
 
 logger = logging.getLogger(__name__)
 
-Handler = Callable[[Event], Awaitable[None]]
+# Union type for all event types
+AnyEvent = Union[Event, InboundEvent, OutboundEvent, DispatchEvent, DispatchResultEvent]
+Handler = Callable[[AnyEvent], Awaitable[None]]
 
 
 class EventBus:
@@ -27,7 +36,7 @@ class EventBus:
     def __init__(self, context: "SharedContext"):
         self.context = context
         self._subscribers: dict[EventType, list[Handler]] = defaultdict(list)
-        self._queue: asyncio.Queue[Event] = asyncio.Queue()
+        self._queue: asyncio.Queue[AnyEvent] = asyncio.Queue()
         self.pending_dir = context.config.event_path / "pending"
         self.pending_dir.mkdir(parents=True, exist_ok=True)
         self._task: asyncio.Task | None = None
@@ -44,7 +53,7 @@ class EventBus:
                 self._subscribers[event_type].remove(handler)
                 logger.debug(f"Unsubscribed handler from {event_type.value} events")
 
-    async def publish(self, event: Event) -> None:
+    async def publish(self, event: AnyEvent) -> None:
         """Publish an event to the internal queue (non-blocking)."""
         await self._queue.put(event)
         logger.debug(f"Queued {event.type.value} event from {event.source}")
@@ -100,13 +109,13 @@ class EventBus:
             logger.info("EventBus stopping...")
             raise
 
-    async def _dispatch(self, event: Event) -> None:
+    async def _dispatch(self, event: AnyEvent) -> None:
         """Persist if OUTBOUND, then notify subscribers."""
         await self._persist_outbound(event)
         await self._notify_subscribers(event)
         logger.debug(f"Dispatched {event.type.value} event from {event.source}")
 
-    async def _notify_subscribers(self, event: Event) -> None:
+    async def _notify_subscribers(self, event: AnyEvent) -> None:
         """Notify all subscribers of an event (waits for all handlers to complete)."""
         handlers = self._subscribers.get(event.type, [])
         if not handlers:
@@ -118,7 +127,7 @@ class EventBus:
             if isinstance(result, Exception):
                 logger.error(f"Error in event handler: {result}")
 
-    async def _persist_outbound(self, event: Event) -> None:
+    async def _persist_outbound(self, event: AnyEvent) -> None:
         """Persist event to disk (only OUTBOUND events)."""
         if event.type != EventType.OUTBOUND:
             return
@@ -161,7 +170,7 @@ class EventBus:
         logger.info(f"Recovered {count} events")
         return count
 
-    def ack(self, event: Event) -> None:
+    def ack(self, event: AnyEvent) -> None:
         """Acknowledge successful delivery, delete persisted event."""
         filename = f"{event.timestamp}_{event.session_id}.json"
         final_path = self.pending_dir / filename

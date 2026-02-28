@@ -3,11 +3,20 @@
 import asyncio
 import logging
 import time
-from typing import TYPE_CHECKING
+from dataclasses import replace
+from typing import TYPE_CHECKING, Union
 
 from .worker import SubscriberWorker
 from picklebot.core.agent import Agent, SessionMode
-from picklebot.core.events import Event, EventType, Source
+from picklebot.core.events import (
+    Event,
+    EventType,
+    Source,
+    InboundEvent,
+    OutboundEvent,
+    DispatchEvent,
+    DispatchResultEvent,
+)
 from picklebot.utils.def_loader import DefNotFoundError
 
 if TYPE_CHECKING:
@@ -20,15 +29,18 @@ MAX_RETRIES = 3
 
 logger = logging.getLogger(__name__)
 
+# Type alias for events that can be processed by SessionExecutor
+ProcessableEvent = Union[InboundEvent, DispatchEvent]
+
 
 class SessionExecutor:
-    """Executes a single agent session from an event."""
+    """Executes a single agent session from a typed event."""
 
     def __init__(
         self,
         context: "SharedContext",
         agent_def: "AgentDef",
-        event: Event,
+        event: ProcessableEvent,
         semaphore: asyncio.Semaphore,
     ):
         self.context = context
@@ -36,12 +48,13 @@ class SessionExecutor:
         self.event = event
         self.semaphore = semaphore
 
-        # Extract fields from event (with defaults)
-        metadata = event.metadata or {}
-        self.job_id = metadata.get("job_id", event.session_id)
-        self.agent_id = metadata.get("agent_id", "")
-        self.mode = SessionMode(metadata.get("mode", "CHAT"))
-        self.retry_count = metadata.get("retry_count", 0)
+        # Extract fields from typed event
+        self.agent_id = event.agent_id
+        self.retry_count = event.retry_count
+        # DispatchEvent always uses JOB mode, InboundEvent uses CHAT mode
+        self.mode = (
+            SessionMode.JOB if isinstance(event, DispatchEvent) else SessionMode.CHAT
+        )
 
     async def run(self) -> None:
         """Wait for semaphore, execute session, release."""
@@ -68,42 +81,56 @@ class SessionExecutor:
             response = await session.chat(self.event.content)
             logger.info(f"Session completed: {session_id}")
 
-            # Publish RESULT event for dispatch callers
-            result_event = Event(
-                type=(
-                    EventType.DISPATCH_RESULT
-                    if self.event.type == EventType.DISPATCH
-                    else EventType.OUTBOUND
-                ),
-                session_id=session_id,
-                content=response,
-                source=Source.agent(self.agent_def.id),
-                timestamp=time.time(),
-                metadata={"job_id": self.job_id},
-            )
+            # Publish result event based on input type
+            if isinstance(self.event, DispatchEvent):
+                result_event = DispatchResultEvent(
+                    session_id=session_id,
+                    agent_id=self.agent_def.id,
+                    source=Source.agent(self.agent_def.id),
+                    content=response,
+                    timestamp=time.time(),
+                )
+            else:
+                result_event = OutboundEvent(
+                    session_id=session_id,
+                    agent_id=self.agent_def.id,
+                    source=Source.agent(self.agent_def.id),
+                    content=response,
+                    timestamp=time.time(),
+                )
             await self.context.eventbus.publish(result_event)
 
         except Exception as e:
             logger.error(f"Session failed: {e}")
 
             if self.retry_count < MAX_RETRIES:
-                self.event.metadata["retry_count"] = self.retry_count + 1
-                self.event.content = "."  # Minimal message for retry
-                await self.context.eventbus.publish(self.event)
-            else:
-                # Publish RESULT event with error for dispatch callers
-                result_event = Event(
-                    type=(
-                        EventType.DISPATCH_RESULT
-                        if self.event.type == EventType.DISPATCH
-                        else EventType.OUTBOUND
-                    ),
-                    session_id=session_id,
-                    content="",
-                    source=Source.agent(self.agent_def.id),
-                    timestamp=time.time(),
-                    metadata={"job_id": self.job_id, "error": str(e)},
+                # Use dataclasses.replace() for retry logic
+                retry_event = replace(
+                    self.event,
+                    retry_count=self.retry_count + 1,
+                    content=".",  # Minimal message for retry
                 )
+                await self.context.eventbus.publish(retry_event)
+            else:
+                # Publish result event with error based on input type
+                if isinstance(self.event, DispatchEvent):
+                    result_event = DispatchResultEvent(
+                        session_id=session_id,
+                        agent_id=self.agent_def.id,
+                        source=Source.agent(self.agent_def.id),
+                        content="",
+                        timestamp=time.time(),
+                        error=str(e),
+                    )
+                else:
+                    result_event = OutboundEvent(
+                        session_id=session_id,
+                        agent_id=self.agent_def.id,
+                        source=Source.agent(self.agent_def.id),
+                        content="",
+                        timestamp=time.time(),
+                        error=str(e),
+                    )
                 await self.context.eventbus.publish(result_event)
 
 
@@ -128,56 +155,52 @@ class AgentWorker(SubscriberWorker):
 
     async def handle_inbound(self, event: Event) -> None:
         """Handle INBOUND event (from platforms, cron, retries)."""
-        if event.type != EventType.INBOUND:
+        # Type-check: only process InboundEvent instances
+        if not isinstance(event, InboundEvent):
             return
 
-        # Ensure agent_id is set (use default if not in metadata)
-        metadata = event.metadata or {}
-        if "agent_id" not in metadata:
-            # Mutate event to include default agent_id
-            event.metadata = {**metadata, "agent_id": self.context.config.default_agent}
-
         await self._dispatch_event(event)
-        logger.debug(
-            f"Dispatched job for INBOUND event, job_id={metadata.get('job_id')}"
-        )
+        logger.debug(f"Dispatched job for INBOUND event, session_id={event.session_id}")
 
     async def handle_dispatch(self, event: Event) -> None:
         """Handle DISPATCH event (from subagent calls)."""
-        if event.type != EventType.DISPATCH:
+        # Type-check: only process DispatchEvent instances
+        if not isinstance(event, DispatchEvent):
             return
 
         await self._dispatch_event(event)
-        metadata = event.metadata or {}
         logger.debug(
-            f"Dispatched job for DISPATCH event, job_id={metadata.get('job_id')}"
+            f"Dispatched job for DISPATCH event, session_id={event.session_id}"
         )
 
-    async def _dispatch_event(self, event: Event) -> None:
-        """Create executor task for event."""
-        metadata = event.metadata or {}
-        agent_id = metadata.get("agent_id", self.context.config.default_agent)
+    async def _dispatch_event(self, event: ProcessableEvent) -> None:
+        """Create executor task for typed event."""
+        agent_id = event.agent_id
 
         try:
             agent_def = self.context.agent_loader.load(agent_id)
         except DefNotFoundError as e:
             logger.error(f"Agent not found: {agent_id}: {e}")
-            job_id = (event.metadata or {}).get("job_id", event.session_id)
-            result_event = Event(
-                type=(
-                    EventType.DISPATCH_RESULT
-                    if event.type == EventType.DISPATCH
-                    else EventType.OUTBOUND
-                ),
-                session_id=event.session_id,
-                content="",
-                source="agent:dispatcher",
-                timestamp=time.time(),
-                metadata={
-                    "job_id": job_id,
-                    "error": str(e),
-                },
-            )
+
+            # Publish result event with error based on input type
+            if isinstance(event, DispatchEvent):
+                result_event = DispatchResultEvent(
+                    session_id=event.session_id,
+                    agent_id=agent_id,
+                    source="agent:dispatcher",
+                    content="",
+                    timestamp=time.time(),
+                    error=str(e),
+                )
+            else:
+                result_event = OutboundEvent(
+                    session_id=event.session_id,
+                    agent_id=agent_id,
+                    source="agent:dispatcher",
+                    content="",
+                    timestamp=time.time(),
+                    error=str(e),
+                )
             await self.context.eventbus.publish(result_event)
             return
 
