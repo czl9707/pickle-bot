@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import uuid
 
 import typer
 from rich.console import Console
@@ -12,6 +11,7 @@ from rich.text import Text
 from picklebot.core.context import SharedContext
 from picklebot.messagebus.cli_bus import CliBus
 from picklebot.server.agent_worker import AgentWorker
+from picklebot.server.base import Worker
 from picklebot.server.delivery_worker import DeliveryWorker
 from picklebot.server.messagebus_worker import MessageBusWorker
 from picklebot.utils.config import Config
@@ -31,13 +31,16 @@ class ChatLoop:
         self.bus = CliBus()
         self.context = SharedContext(config=config, buses=[self.bus])
 
-        # Create workers
-        self.agent_worker = AgentWorker(self.context)
-        self.messagebus_worker = MessageBusWorker(self.context)
-        self.delivery_worker = DeliveryWorker(self.context)
+        # Create ALL workers - same pattern as Server
+        self.workers: list[Worker] = [
+            self.context.eventbus,
+            AgentWorker(self.context),
+            DeliveryWorker(self.context),
+            MessageBusWorker(self.context),
+        ]
 
     async def run(self) -> None:
-        """Run the interactive chat loop with event-driven architecture."""
+        """Run the interactive chat loop."""
         # Display welcome message
         self.console.print(
             Panel(
@@ -48,18 +51,18 @@ class ChatLoop:
         )
         self.console.print("Type 'quit' or 'exit' to end the session.\n")
 
+        # Start all workers
+        for worker in self.workers:
+            worker.start()
+
         try:
-            # Run workers concurrently
-            # - MessageBusWorker: reads input, publishes INBOUND events
-            # - AgentWorker: processes INBOUND events (auto-subscribed)
-            # - DeliveryWorker handles OUTBOUND events via subscription (not a task)
-            await asyncio.gather(
-                self.context.eventbus.run(),
-                self.messagebus_worker.run(),
-            )
+            # Wait forever - workers handle everything
+            await asyncio.Future()
         except asyncio.CancelledError:
-            # Handle graceful shutdown
             self.console.print("\nGoodbye!")
+            # Stop all workers gracefully
+            for worker in self.workers:
+                await worker.stop()
             raise
 
 
