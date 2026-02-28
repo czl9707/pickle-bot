@@ -9,7 +9,7 @@ from picklebot.server.messagebus_worker import MessageBusWorker
 from picklebot.messagebus.base import MessageContext
 from picklebot.core.commands import CommandRegistry
 from picklebot.core.context import SharedContext
-from picklebot.core.events import Event, EventType
+from picklebot.core.events import InboundEvent, EventType
 
 
 @dataclass
@@ -118,9 +118,9 @@ You are a test assistant.
     )
 
     bus = FakeBusWithUser()
-    published_events: list[Event] = []
+    published_events: list[InboundEvent] = []
 
-    async def capture_event(event: Event):
+    async def capture_event(event: InboundEvent):
         published_events.append(event)
 
     with patch.object(test_context, "messagebus_buses", [bus]):
@@ -152,7 +152,10 @@ You are a test assistant.
         assert event.content == "hello"
         assert event.session_id == "test-session-123"
         assert event.source == "fake:123"
-        assert event.metadata == {"chat_id": "456"}
+        # InboundEvent has context field directly (not metadata)
+        assert isinstance(event, InboundEvent)
+        assert event.context is not None
+        assert event.context.chat_id == "456"
     finally:
         eventbus_task.cancel()
         try:
@@ -182,9 +185,9 @@ You are a test assistant.
     )
 
     bus = BlockingBusWithUser()
-    published_events: list[Event] = []
+    published_events: list[InboundEvent] = []
 
-    async def capture_event(event: Event):
+    async def capture_event(event: InboundEvent):
         published_events.append(event)
 
     with patch.object(test_context, "messagebus_buses", [bus]):
@@ -266,9 +269,9 @@ You are a test assistant.
     )
 
     bus = FakeTelegramBus()
-    published_events: list[Event] = []
+    published_events: list[InboundEvent] = []
 
-    async def capture_event(event: Event):
+    async def capture_event(event: InboundEvent):
         published_events.append(event)
 
     with patch.object(test_context, "messagebus_buses", [bus]):
@@ -323,9 +326,9 @@ You are a test assistant.
     )
 
     bus = FakeDiscordBus()
-    published_events: list[Event] = []
+    published_events: list[InboundEvent] = []
 
-    async def capture_event(event: Event):
+    async def capture_event(event: InboundEvent):
         published_events.append(event)
 
     with patch.object(test_context, "messagebus_buses", [bus]):
@@ -350,7 +353,10 @@ You are a test assistant.
         assert len(published_events) == 1
         event = published_events[0]
         assert event.source == "discord:456"
-        assert event.metadata == {"channel_id": "789"}
+        # InboundEvent has context field directly (not metadata)
+        assert isinstance(event, InboundEvent)
+        assert event.context is not None
+        assert event.context.channel_id == "789"
     finally:
         eventbus_task.cancel()
         try:
@@ -473,9 +479,9 @@ You are a test assistant.
     )
 
     bus = FakeBusWithUser()
-    published_events: list[Event] = []
+    published_events: list[InboundEvent] = []
 
-    async def capture_event(event: Event):
+    async def capture_event(event: InboundEvent):
         published_events.append(event)
 
     with patch.object(test_context, "messagebus_buses", [bus]):

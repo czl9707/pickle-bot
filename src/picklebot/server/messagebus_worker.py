@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from .worker import Worker
 from picklebot.core.agent import SessionMode, Agent
-from picklebot.core.events import Event, EventType, Source
+from picklebot.core.events import InboundEvent, Source
 from picklebot.utils.def_loader import DefNotFoundError
 
 if TYPE_CHECKING:
@@ -97,35 +97,19 @@ class MessageBusWorker(Worker):
                 user_id = context.user_id
                 session_id = self._get_or_create_session_id(platform, user_id)
 
-                # Build source and metadata
-                source = Source.platform(platform, user_id)
-                metadata = self._extract_metadata(context)
-
-                # Publish INBOUND event
-                event = Event(
-                    type=EventType.INBOUND,
+                # Publish INBOUND event with typed context
+                event = InboundEvent(
                     session_id=session_id,
+                    agent_id=self.context.config.default_agent,
+                    source=Source.platform(platform, user_id),
                     content=message,
-                    source=source,
                     timestamp=time.time(),
-                    metadata=metadata,
+                    context=context,
                 )
                 await self.context.eventbus.publish(event)
-                self.logger.debug(f"Published INBOUND event from {source}")
+                self.logger.debug(f"Published INBOUND event from {event.source}")
 
             except Exception as e:
                 self.logger.error(f"Error processing message from {platform}: {e}")
 
         return callback
-
-    def _extract_metadata(self, context: Any) -> dict[str, Any]:
-        """Extract platform-specific metadata from context."""
-        metadata = {}
-
-        # Extract common fields if they exist
-        if hasattr(context, "chat_id"):
-            metadata["chat_id"] = context.chat_id
-        if hasattr(context, "channel_id"):
-            metadata["channel_id"] = context.channel_id
-
-        return metadata

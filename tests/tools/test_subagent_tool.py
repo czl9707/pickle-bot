@@ -9,7 +9,7 @@ import pytest
 
 from picklebot.core.context import SharedContext
 from picklebot.tools.subagent_tool import create_subagent_dispatch_tool
-from picklebot.core.events import EventType, Event
+from picklebot.core.events import EventType, DispatchEvent, DispatchResultEvent
 
 
 def _make_mock_session():
@@ -128,9 +128,9 @@ You are the target agent.
         assert tool_func is not None
 
         # Track dispatched events
-        dispatched_events: list[Event] = []
+        dispatched_events: list[DispatchEvent] = []
 
-        async def capture_dispatch(event: Event) -> None:
+        async def capture_dispatch(event: DispatchEvent) -> None:
             dispatched_events.append(event)
 
         context.eventbus.subscribe(EventType.DISPATCH, capture_dispatch)
@@ -145,17 +145,16 @@ You are the target agent.
                 while not dispatched_events:
                     await asyncio.sleep(0.01)
 
-                # Get the job_id and publish RESULT
+                # Get the job_id (session_id of the dispatch event) and publish RESULT
                 dispatch_event = dispatched_events[0]
-                job_id = dispatch_event.metadata.get("job_id")
+                job_id = dispatch_event.session_id
 
-                result_event = Event(
-                    type=EventType.DISPATCH_RESULT,
-                    session_id="session-123",
-                    content="Task completed successfully",
+                result_event = DispatchResultEvent(
+                    session_id=job_id,
+                    agent_id="target-agent",
                     source="agent:target-agent",
+                    content="Task completed successfully",
                     timestamp=time.time(),
-                    metadata={"job_id": job_id},
                 )
                 await context.eventbus.publish(result_event)
 
@@ -170,8 +169,9 @@ You are the target agent.
             # Verify DISPATCH event was published
             assert len(dispatched_events) == 1
             event = dispatched_events[0]
+            assert isinstance(event, DispatchEvent)
             assert event.type == EventType.DISPATCH
-            assert event.metadata.get("agent_id") == "target-agent"
+            assert event.agent_id == "target-agent"
 
             # Verify result from RESULT event
             parsed = json.loads(result)
@@ -207,9 +207,9 @@ You are the target agent.
         assert tool_func is not None
 
         # Track dispatched events
-        dispatched_events: list[Event] = []
+        dispatched_events: list[DispatchEvent] = []
 
-        async def capture_dispatch(event: Event) -> None:
+        async def capture_dispatch(event: DispatchEvent) -> None:
             dispatched_events.append(event)
 
         context.eventbus.subscribe(EventType.DISPATCH, capture_dispatch)
@@ -224,15 +224,14 @@ You are the target agent.
                     await asyncio.sleep(0.01)
 
                 dispatch_event = dispatched_events[0]
-                job_id = dispatch_event.metadata.get("job_id")
+                job_id = dispatch_event.session_id
 
-                result_event = Event(
-                    type=EventType.DISPATCH_RESULT,
-                    session_id="session-456",
-                    content="Done",
+                result_event = DispatchResultEvent(
+                    session_id=job_id,
+                    agent_id="target-agent",
                     source="agent:target-agent",
+                    content="Done",
                     timestamp=time.time(),
-                    metadata={"job_id": job_id},
                 )
                 await context.eventbus.publish(result_event)
 
@@ -310,9 +309,9 @@ You are the target agent.
         assert tool_func is not None
 
         # Track dispatched events
-        dispatched_events: list[Event] = []
+        dispatched_events: list[DispatchEvent] = []
 
-        async def capture_dispatch(event: Event) -> None:
+        async def capture_dispatch(event: DispatchEvent) -> None:
             dispatched_events.append(event)
 
         context.eventbus.subscribe(EventType.DISPATCH, capture_dispatch)
@@ -327,15 +326,15 @@ You are the target agent.
                     await asyncio.sleep(0.01)
 
                 dispatch_event = dispatched_events[0]
-                job_id = dispatch_event.metadata.get("job_id")
+                job_id = dispatch_event.session_id
 
-                result_event = Event(
-                    type=EventType.DISPATCH_RESULT,
-                    session_id="",
-                    content="",
+                result_event = DispatchResultEvent(
+                    session_id=job_id,
+                    agent_id="target-agent",
                     source="agent:target-agent",
+                    content="",
                     timestamp=time.time(),
-                    metadata={"job_id": job_id, "error": "Something went wrong"},
+                    error="Something went wrong",
                 )
                 await context.eventbus.publish(result_event)
 

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 from picklebot.tools.base import BaseTool, tool
 from picklebot.utils.def_loader import DefNotFoundError
-from picklebot.core.events import Event, EventType, Source
+from picklebot.core.events import DispatchEvent, DispatchResultEvent, Source, TypedEvent
 
 if TYPE_CHECKING:
     from picklebot.core.agent import AgentSession
@@ -82,8 +82,6 @@ def create_subagent_dispatch_tool(
         Returns:
             JSON with result and session_id
         """
-        from picklebot.core.agent import SessionMode
-
         # Verify agent exists
         try:
             shared_context.agent_loader.load(agent_id)
@@ -100,30 +98,28 @@ def create_subagent_dispatch_tool(
         result_future: asyncio.Future[str] = loop.create_future()
 
         # Create temp handler that filters by job_id
-        async def handle_result(event: Event) -> None:
-            if event.metadata.get("job_id") == job_id:
+        async def handle_result(event: TypedEvent) -> None:
+            if isinstance(event, DispatchResultEvent) and event.session_id == job_id:
                 if not result_future.done():
-                    if "error" in event.metadata:
-                        result_future.set_exception(Exception(event.metadata["error"]))
+                    if event.error:
+                        result_future.set_exception(Exception(event.error))
                     else:
                         result_future.set_result(event.content)
 
-        # Subscribe to RESULT events
+        # Subscribe to DISPATCH_RESULT events
+        from picklebot.core.events import EventType
+
         shared_context.eventbus.subscribe(EventType.DISPATCH_RESULT, handle_result)
 
         try:
             # Publish DISPATCH event
-            event = Event(
-                type=EventType.DISPATCH,
+            event = DispatchEvent(
                 session_id=job_id,
-                content=user_message,
+                agent_id=agent_id,
                 source=Source.agent(current_agent_id),
+                content=user_message,
                 timestamp=time.time(),
-                metadata={
-                    "job_id": job_id,
-                    "agent_id": agent_id,
-                    "mode": SessionMode.JOB.value,
-                },
+                parent_session_id=session.session_id,
             )
             await shared_context.eventbus.publish(event)
 

@@ -7,8 +7,7 @@ from unittest.mock import patch
 
 from picklebot.server.cron_worker import CronWorker, find_due_jobs
 from picklebot.core.cron_loader import CronDef
-from picklebot.core.agent import SessionMode
-from picklebot.core.events import EventType, Event
+from picklebot.core.events import EventType, InboundEvent
 
 
 def test_find_due_jobs_returns_matching():
@@ -54,9 +53,9 @@ async def test_cron_worker_dispatches_due_job(test_context):
     worker = CronWorker(test_context)
 
     # Track published events
-    published_events: list[Event] = []
+    published_events: list[InboundEvent] = []
 
-    async def capture_event(event: Event) -> None:
+    async def capture_event(event: InboundEvent) -> None:
         published_events.append(event)
 
     test_context.eventbus.subscribe(EventType.INBOUND, capture_event)
@@ -92,10 +91,9 @@ async def test_cron_worker_dispatches_due_job(test_context):
         event = published_events[0]
         assert event.type == EventType.INBOUND
         assert event.content == "Test prompt from cron"
-        assert event.metadata is not None
-        assert event.metadata["agent_id"] == "pickle"
-        assert event.metadata["mode"] == SessionMode.JOB.value
-        assert "job_id" in event.metadata
+        # InboundEvent has agent_id directly (not in metadata)
+        assert isinstance(event, InboundEvent)
+        assert event.agent_id == "pickle"
     finally:
         eventbus_task.cancel()
         try:

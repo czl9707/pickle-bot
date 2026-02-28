@@ -11,8 +11,7 @@ from typing import TYPE_CHECKING
 from croniter import croniter
 
 from .worker import Worker
-from picklebot.core.agent import SessionMode
-from picklebot.core.events import Event, EventType, Source
+from picklebot.core.events import InboundEvent, Source
 
 if TYPE_CHECKING:
     from picklebot.core.cron_loader import CronDef
@@ -81,18 +80,12 @@ class CronWorker(Worker):
             job_id = str(uuid.uuid4())
 
             # Publish INBOUND event (external work entering the system)
-            event = Event(
-                type=EventType.INBOUND,
-                session_id=job_id,  # Use job_id as session_id for tracking
-                content=cron_def.prompt,
+            event = InboundEvent(
+                session_id=job_id,
+                agent_id=cron_def.agent,
                 source=Source.cron(cron_def.id),
+                content=cron_def.prompt,
                 timestamp=time.time(),
-                metadata={
-                    "job_id": job_id,
-                    "agent_id": cron_def.agent,
-                    "mode": SessionMode.JOB.value,
-                    "cron_id": cron_def.id,
-                },
             )
             await self.context.eventbus.publish(event)
             self.logger.info(f"Dispatched cron job: {cron_def.id}")

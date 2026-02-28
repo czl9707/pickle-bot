@@ -6,7 +6,7 @@ from pathlib import Path
 
 from picklebot.tools.post_message_tool import create_post_message_tool
 from picklebot.utils.config import Config, MessageBusConfig, TelegramConfig
-from picklebot.core.events import Event, EventType
+from picklebot.core.events import OutboundEvent, EventType
 
 
 def _make_context_with_messagebus(
@@ -117,12 +117,12 @@ class TestPostMessageToolExecution:
         event = call_args[0][0]
 
         # Verify event uses session info
-        assert isinstance(event, Event)
+        assert isinstance(event, OutboundEvent)
         assert event.type == EventType.OUTBOUND
         assert event.session_id == "test-session-123"
+        assert event.agent_id == "test-agent"
         assert event.source == "agent:test-agent"
         assert event.content == "Hello from agent!"
-        assert event.metadata["platform"] == "telegram"
 
         # Verify result message
         assert "queued" in result.lower() or "success" in result.lower()

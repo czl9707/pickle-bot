@@ -3,7 +3,7 @@
 import time
 from typing import TYPE_CHECKING
 
-from picklebot.core.events import Event, EventType, Source
+from picklebot.core.events import OutboundEvent, Source
 from picklebot.tools.base import BaseTool, tool
 
 if TYPE_CHECKING:
@@ -66,13 +66,12 @@ def create_post_message_tool(context: "SharedContext") -> BaseTool | None:
         """
         try:
             # Publish OUTBOUND event for the DeliveryWorker to handle
-            event = Event(
-                type=EventType.OUTBOUND,
+            event = OutboundEvent(
                 session_id=session.session_id,
-                content=content,
+                agent_id=session.agent_id,
                 source=Source.agent(session.agent_id),
+                content=content,
                 timestamp=time.time(),
-                metadata={"platform": default_platform},
             )
             await context.eventbus.publish(event)
             return f"Message queued for delivery to {default_platform}"
