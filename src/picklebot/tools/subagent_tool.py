@@ -109,7 +109,7 @@ def create_subagent_dispatch_tool(
                         result_future.set_result(event.content)
 
         # Subscribe to RESULT events
-        shared_context.eventbus.subscribe(EventType.RESULT, handle_result)
+        shared_context.eventbus.subscribe(EventType.DISPATCH_RESULT, handle_result)
 
         try:
             # Publish DISPATCH event

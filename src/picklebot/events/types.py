@@ -10,7 +10,7 @@ class EventType(str, Enum):
     OUTBOUND = "outbound"  # Agent responses to deliver to platforms
     STATUS = "status"  # Status updates
     DISPATCH = "dispatch"  # Internal agent-to-agent delegation
-    RESULT = "result"  # Result of a dispatched job
+    DISPATCH_RESULT = "dispatch_result"  # Result of a dispatched job
 
 
 class Source:

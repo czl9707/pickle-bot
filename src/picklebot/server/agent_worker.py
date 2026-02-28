@@ -71,7 +71,7 @@ class SessionExecutor:
 
             # Publish RESULT event for dispatch callers
             result_event = Event(
-                type=EventType.RESULT,
+                type=EventType.DISPATCH_RESULT,
                 session_id=session_id,
                 content=response,
                 source=Source.agent(self.agent_def.id),
@@ -102,7 +102,7 @@ class SessionExecutor:
             else:
                 # Publish RESULT event with error for dispatch callers
                 result_event = Event(
-                    type=EventType.RESULT,
+                    type=EventType.DISPATCH_RESULT,
                     session_id=session_id or "",
                     content="",
                     source=Source.agent(self.agent_def.id),
@@ -199,7 +199,7 @@ class AgentDispatcherWorker(Worker):
         """Publish a RESULT event with error for failed dispatches."""
         metadata = original_event.metadata or {}
         result_event = Event(
-            type=EventType.RESULT,
+            type=EventType.DISPATCH_RESULT,
             session_id=original_event.session_id,
             content="",
             source="agent:dispatcher",

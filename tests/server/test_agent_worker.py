@@ -79,7 +79,7 @@ async def test_agent_router_publishes_error_for_nonexistent_agent(test_context):
     async def capture_result(event: Event) -> None:
         result_events.append(event)
 
-    test_context.eventbus.subscribe(EventType.RESULT, capture_result)
+    test_context.eventbus.subscribe(EventType.DISPATCH_RESULT, capture_result)
 
     event = make_event(agent_id="nonexistent", job_id="test-job-id")
     router._dispatch_event(event)
@@ -90,7 +90,7 @@ async def test_agent_router_publishes_error_for_nonexistent_agent(test_context):
     # Should have published RESULT with error
     assert len(result_events) == 1
     result_event = result_events[0]
-    assert result_event.type == EventType.RESULT
+    assert result_event.type == EventType.DISPATCH_RESULT
     assert result_event.metadata.get("job_id") == "test-job-id"
     assert "error" in result_event.metadata
     assert "nonexistent" in result_event.metadata["error"]
@@ -398,7 +398,7 @@ You are a test assistant.
     async def capture_result(evt: Event) -> None:
         result_events.append(evt)
 
-    test_context.eventbus.subscribe(EventType.RESULT, capture_result)
+    test_context.eventbus.subscribe(EventType.DISPATCH_RESULT, capture_result)
 
     with patch("picklebot.server.agent_worker.Agent") as MockAgent:
         mock_session = AsyncMock()
@@ -414,7 +414,7 @@ You are a test assistant.
 
     assert len(result_events) == 1
     result_event = result_events[0]
-    assert result_event.type == EventType.RESULT
+    assert result_event.type == EventType.DISPATCH_RESULT
     assert result_event.content == "response text"
     assert result_event.metadata.get("job_id") == "test-job-123"
 
@@ -501,7 +501,7 @@ You are a test assistant.
     async def capture_result(evt: Event) -> None:
         result_events.append(evt)
 
-    test_context.eventbus.subscribe(EventType.RESULT, capture_result)
+    test_context.eventbus.subscribe(EventType.DISPATCH_RESULT, capture_result)
 
     with patch("picklebot.server.agent_worker.Agent") as MockAgent:
         MockAgent.side_effect = Exception("final boom")
@@ -511,7 +511,7 @@ You are a test assistant.
 
     assert len(result_events) == 1
     result_event = result_events[0]
-    assert result_event.type == EventType.RESULT
+    assert result_event.type == EventType.DISPATCH_RESULT
     assert result_event.metadata.get("job_id") == "job-456"
     assert "error" in result_event.metadata
     assert result_event.metadata["error"] == "final boom"

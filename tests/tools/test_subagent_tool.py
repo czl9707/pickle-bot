@@ -146,7 +146,7 @@ You are the target agent.
             job_id = dispatch_event.metadata.get("job_id")
 
             result_event = Event(
-                type=EventType.RESULT,
+                type=EventType.DISPATCH_RESULT,
                 session_id="session-123",
                 content="Task completed successfully",
                 source="agent:target-agent",
@@ -213,7 +213,7 @@ You are the target agent.
             job_id = dispatch_event.metadata.get("job_id")
 
             result_event = Event(
-                type=EventType.RESULT,
+                type=EventType.DISPATCH_RESULT,
                 session_id="session-456",
                 content="Done",
                 source="agent:target-agent",
@@ -306,7 +306,7 @@ You are the target agent.
             job_id = dispatch_event.metadata.get("job_id")
 
             result_event = Event(
-                type=EventType.RESULT,
+                type=EventType.DISPATCH_RESULT,
                 session_id="",
                 content="",
                 source="agent:target-agent",
