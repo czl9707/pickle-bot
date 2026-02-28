@@ -13,7 +13,6 @@ from picklebot.core.context import SharedContext
 from picklebot.events.delivery import DeliveryWorker
 from picklebot.messagebus.cli_bus import CliBus
 from picklebot.server.agent_worker import AgentDispatcherWorker
-from picklebot.server.inbound_bridge import InboundEventBridge
 from picklebot.server.messagebus_worker import MessageBusWorker
 from picklebot.utils.config import Config
 from picklebot.utils.logging import setup_logging
@@ -44,10 +43,6 @@ class ChatLoop:
         # Create DeliveryWorker for handling OUTBOUND events
         self.delivery_worker = DeliveryWorker(self.context)
 
-        # Create INBOUND->Job bridge
-        agent_id = config.default_agent
-        self.inbound_bridge = InboundEventBridge(self.context, agent_id)
-
     async def run(self) -> None:
         """Run the interactive chat loop with event-driven architecture."""
         # Display welcome message
@@ -63,13 +58,13 @@ class ChatLoop:
         # Subscribe DeliveryWorker to handle OUTBOUND events (prints to CLI)
         self.delivery_worker.subscribe(self.context.eventbus)
 
-        # Subscribe InboundEventBridge to create Jobs from INBOUND events
-        self.inbound_bridge.subscribe(self.context.eventbus)
+        # Subscribe AgentDispatcherWorker to handle INBOUND events
+        self.dispatcher.subscribe(self.context.eventbus)
 
         try:
             # Run workers concurrently
             # - MessageBusWorker: reads input, publishes INBOUND events
-            # - AgentDispatcherWorker: processes Jobs, agent publishes OUTBOUND events
+            # - AgentDispatcherWorker: processes INBOUND events + job queue
             # - DeliveryWorker handles OUTBOUND events via subscription (not a task)
             await asyncio.gather(
                 self.dispatcher.run(),

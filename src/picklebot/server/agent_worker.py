@@ -5,7 +5,8 @@ import logging
 from typing import TYPE_CHECKING
 
 from picklebot.server.base import Worker, Job
-from picklebot.core.agent import Agent
+from picklebot.core.agent import Agent, SessionMode
+from picklebot.events.types import Event, EventType
 from picklebot.utils.def_loader import DefNotFoundError
 
 if TYPE_CHECKING:
@@ -76,16 +77,47 @@ class SessionExecutor:
 
 
 class AgentDispatcherWorker(Worker):
-    """Dispatches jobs to session executors with per-agent concurrency control."""
+    """Dispatches jobs to session executors with per-agent concurrency control.
+
+    Subscribes to INBOUND events and also processes jobs from the queue
+    (for subagent dispatch and retries).
+    """
 
     CLEANUP_THRESHOLD = 5
 
-    def __init__(self, context: "SharedContext"):
+    def __init__(self, context: "SharedContext", default_agent_id: str | None = None):
         super().__init__(context)
         self._semaphores: dict[str, asyncio.Semaphore] = {}
+        self._default_agent_id = default_agent_id or context.config.default_agent
+
+    async def handle_inbound(self, event: Event) -> None:
+        """Handle INBOUND event by creating and dispatching a Job."""
+        if event.type != EventType.INBOUND:
+            return
+
+        # Create job from event
+        job = Job(
+            session_id=event.session_id,
+            agent_id=self._default_agent_id,
+            message=event.content,
+            mode=SessionMode.CHAT,
+        )
+        job.result_future = asyncio.get_event_loop().create_future()
+
+        self._dispatch_job(job)
+        self.logger.debug(f"Dispatched job for INBOUND event, session={event.session_id}")
+
+    def subscribe(self) -> None:
+        """Subscribe to INBOUND events."""
+        self.context.eventbus.subscribe(EventType.INBOUND, self.handle_inbound)
+        self.logger.info("AgentDispatcherWorker subscribed to INBOUND events")
+
+    def unsubscribe(self) -> None:
+        """Unsubscribe from INBOUND events."""
+        self.context.eventbus.unsubscribe(self.handle_inbound)
 
     async def run(self) -> None:
-        """Process jobs sequentially, dispatch to executors."""
+        """Process jobs from queue (subagent dispatch, retries)."""
         self.logger.info("AgentDispatcherWorker started")
 
         while True:
