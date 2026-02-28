@@ -51,3 +51,14 @@ class Worker(ABC):
                 await self._task
             except asyncio.CancelledError:
                 pass
+
+
+class SubscriberWorker(Worker):
+    """Worker that only subscribes to events, no active loop."""
+
+    async def run(self) -> None:
+        """Wait for cancellation - actual work happens in event handlers."""
+        try:
+            await asyncio.Future()
+        except asyncio.CancelledError:
+            pass

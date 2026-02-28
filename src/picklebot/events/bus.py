@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Awaitable, Callable, TYPE_CHECKING
 
 from .types import Event, EventType
-from picklebot.utils.worker import Worker
+from picklebot.server.worker import Worker
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext

@@ -1,6 +1,5 @@
 """Base classes for worker architecture."""
 
-# Re-export Worker for backward compatibility
-from picklebot.utils.worker import Worker
+from picklebot.server.worker import Worker, SubscriberWorker
 
-__all__ = ["Worker"]
+__all__ = ["Worker", "SubscriberWorker"]
