@@ -6,6 +6,8 @@ from picklebot.core.events import (
     DispatchResultEvent,
     EventType,
     Source,
+    serialize_event,
+    deserialize_event,
 )
 from picklebot.messagebus.telegram_bus import TelegramContext
 
@@ -204,3 +206,77 @@ class TestSource:
 
     def test_source_cron(self):
         assert Source.cron("daily") == "cron:daily"
+
+
+class TestEventSerialization:
+    """Tests for serialize/deserialize_event helpers."""
+
+    def test_serialize_inbound_event(self):
+        ctx = TelegramContext(user_id="123", chat_id="456")
+        event = InboundEvent(
+            session_id="sess-1",
+            agent_id="pickle",
+            source="telegram:123",
+            content="Hello",
+            timestamp=12345.0,
+            context=ctx,
+        )
+        data = serialize_event(event)
+        assert data["type"] == "inbound"
+
+    def test_deserialize_inbound_event(self):
+        data = {
+            "type": "inbound",
+            "session_id": "sess-1",
+            "agent_id": "pickle",
+            "source": "telegram:123",
+            "content": "Hello",
+            "timestamp": 12345.0,
+            "context": {
+                "type": "TelegramContext",
+                "data": {"user_id": "123", "chat_id": "456"},
+            },
+        }
+        event = deserialize_event(data)
+        assert isinstance(event, InboundEvent)
+        assert event.agent_id == "pickle"
+
+    def test_deserialize_outbound_event(self):
+        data = {
+            "type": "outbound",
+            "session_id": "sess-1",
+            "agent_id": "pickle",
+            "source": "agent:pickle",
+            "content": "Response",
+            "timestamp": 12345.0,
+            "error": "test",
+        }
+        event = deserialize_event(data)
+        assert isinstance(event, OutboundEvent)
+        assert event.error == "test"
+
+    def test_deserialize_dispatch_event(self):
+        data = {
+            "type": "dispatch",
+            "session_id": "job-1",
+            "agent_id": "cookie",
+            "source": "agent:pickle",
+            "content": "Task",
+            "timestamp": 12345.0,
+            "parent_session_id": "parent-1",
+        }
+        event = deserialize_event(data)
+        assert isinstance(event, DispatchEvent)
+        assert event.parent_session_id == "parent-1"
+
+    def test_deserialize_dispatch_result_event(self):
+        data = {
+            "type": "dispatch_result",
+            "session_id": "job-1",
+            "agent_id": "cookie",
+            "source": "agent:cookie",
+            "content": "Done",
+            "timestamp": 12345.0,
+        }
+        event = deserialize_event(data)
+        assert isinstance(event, DispatchResultEvent)

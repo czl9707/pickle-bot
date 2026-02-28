@@ -274,3 +274,28 @@ class DispatchResultEvent:
             timestamp=data["timestamp"],
             error=data.get("error"),
         )
+
+
+# Type alias for all event types
+Event = InboundEvent | OutboundEvent | DispatchEvent | DispatchResultEvent
+
+
+def serialize_event(event: Event) -> dict[str, Any]:
+    """Serialize any event type to dict."""
+    return event.to_dict()
+
+
+def deserialize_event(data: dict[str, Any]) -> Event:
+    """Deserialize dict to appropriate event type."""
+    event_type = data.get("type")
+
+    if event_type == EventType.INBOUND.value:
+        return InboundEvent.from_dict(data)
+    elif event_type == EventType.OUTBOUND.value:
+        return OutboundEvent.from_dict(data)
+    elif event_type == EventType.DISPATCH.value:
+        return DispatchEvent.from_dict(data)
+    elif event_type == EventType.DISPATCH_RESULT.value:
+        return DispatchResultEvent.from_dict(data)
+    else:
+        raise ValueError(f"Unknown event type: {event_type}")
