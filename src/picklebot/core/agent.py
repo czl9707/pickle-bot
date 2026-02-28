@@ -5,7 +5,7 @@ import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from picklebot.core.context import SharedContext
 from picklebot.core.history import HistoryMessage

@@ -80,7 +80,9 @@ class TestToolRegistry:
         registry.register(tool)
 
         mock_session = MagicMock()
-        result = await registry.execute_tool("mock_tool", session=mock_session, arg1="value1")
+        result = await registry.execute_tool(
+            "mock_tool", session=mock_session, arg1="value1"
+        )
 
         # Verify tool received the kwargs and session
         assert tool.last_kwargs == {"arg1": "value1"}

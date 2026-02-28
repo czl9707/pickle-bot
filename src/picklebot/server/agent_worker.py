@@ -2,11 +2,12 @@
 
 import asyncio
 import logging
+import time
 from typing import TYPE_CHECKING
 
 from picklebot.server.base import Worker, Job
 from picklebot.core.agent import Agent, SessionMode
-from picklebot.events.types import Event, EventType
+from picklebot.events.types import Event, EventType, Source
 from picklebot.utils.def_loader import DefNotFoundError
 
 if TYPE_CHECKING:
@@ -63,7 +64,10 @@ class SessionExecutor:
             response = await session.chat(self.job.message)
             self.logger.info(f"Session completed: {session.session_id}")
 
-            self.job.result_future.set_result(response)
+            # Set result on pending future if registered
+            future = self.context.get_future(self.job.job_id)
+            if future and not future.done():
+                future.set_result(response)
 
         except Exception as e:
             self.logger.error(f"Session failed: {e}")
@@ -71,16 +75,34 @@ class SessionExecutor:
             if self.job.retry_count < MAX_RETRIES:
                 self.job.retry_count += 1
                 self.job.message = "."
-                await self.context.agent_queue.put(self.job)
+                # Publish retry as INBOUND event (re-queuing work into the system)
+                retry_event = Event(
+                    type=EventType.INBOUND,
+                    session_id=self.job.session_id,
+                    content=self.job.message,
+                    source=Source.retry(),
+                    timestamp=time.time(),
+                    metadata={
+                        "job_id": self.job.job_id,
+                        "agent_id": self.job.agent_id,
+                        "mode": self.job.mode.value,
+                        "retry_count": self.job.retry_count,
+                    },
+                )
+                await self.context.eventbus.publish(retry_event)
             else:
-                self.job.result_future.set_exception(e)
+                # Set exception on pending future
+                future = self.context.get_future(self.job.job_id)
+                if future and not future.done():
+                    future.set_exception(e)
 
 
 class AgentDispatcherWorker(Worker):
     """Dispatches jobs to session executors with per-agent concurrency control.
 
-    Subscribes to INBOUND events and also processes jobs from the queue
-    (for subagent dispatch and retries).
+    Subscribes to:
+    - INBOUND events (from platforms, cron, retries)
+    - DISPATCH events (from subagent calls)
     """
 
     CLEANUP_THRESHOLD = 5
@@ -91,40 +113,86 @@ class AgentDispatcherWorker(Worker):
         self._default_agent_id = default_agent_id or context.config.default_agent
 
     async def handle_inbound(self, event: Event) -> None:
-        """Handle INBOUND event by creating and dispatching a Job."""
+        """Handle INBOUND event (from platforms, cron, retries)."""
         if event.type != EventType.INBOUND:
             return
 
+        metadata = event.metadata or {}
+        job_id = metadata.get("job_id")
+        agent_id = metadata.get("agent_id", self._default_agent_id)
+        mode_str = metadata.get("mode", "CHAT")
+        retry_count = metadata.get("retry_count", 0)
+
+        try:
+            mode = SessionMode(mode_str)
+        except ValueError:
+            mode = SessionMode.CHAT
+
         # Create job from event
         job = Job(
-            session_id=event.session_id,
-            agent_id=self._default_agent_id,
+            job_id=job_id or event.session_id,
+            agent_id=agent_id,
             message=event.content,
-            mode=SessionMode.CHAT,
+            mode=mode,
+            session_id=event.session_id,
+            retry_count=retry_count,
         )
-        job.result_future = asyncio.get_event_loop().create_future()
 
         self._dispatch_job(job)
-        self.logger.debug(f"Dispatched job for INBOUND event, session={event.session_id}")
+        self.logger.debug(f"Dispatched job for INBOUND event, job_id={job.job_id}")
+
+    async def handle_dispatch(self, event: Event) -> None:
+        """Handle DISPATCH event (from subagent calls)."""
+        if event.type != EventType.DISPATCH:
+            return
+
+        metadata = event.metadata or {}
+        job_id = metadata.get("job_id")
+        agent_id = metadata.get("agent_id", self._default_agent_id)
+        mode_str = metadata.get("mode", "JOB")
+
+        try:
+            mode = SessionMode(mode_str)
+        except ValueError:
+            mode = SessionMode.JOB
+
+        # Create job from event
+        job = Job(
+            job_id=job_id or event.session_id,
+            agent_id=agent_id,
+            message=event.content,
+            mode=mode,
+            session_id=event.session_id if event.session_id != job_id else None,
+            retry_count=metadata.get("retry_count", 0),
+        )
+
+        self._dispatch_job(job)
+        self.logger.debug(f"Dispatched job for DISPATCH event, job_id={job.job_id}")
 
     def subscribe(self) -> None:
-        """Subscribe to INBOUND events."""
+        """Subscribe to INBOUND and DISPATCH events."""
         self.context.eventbus.subscribe(EventType.INBOUND, self.handle_inbound)
-        self.logger.info("AgentDispatcherWorker subscribed to INBOUND events")
+        self.context.eventbus.subscribe(EventType.DISPATCH, self.handle_dispatch)
+        self.logger.info(
+            "AgentDispatcherWorker subscribed to INBOUND and DISPATCH events"
+        )
 
     def unsubscribe(self) -> None:
-        """Unsubscribe from INBOUND events."""
+        """Unsubscribe from events."""
         self.context.eventbus.unsubscribe(self.handle_inbound)
+        self.context.eventbus.unsubscribe(self.handle_dispatch)
 
     async def run(self) -> None:
-        """Process jobs from queue (subagent dispatch, retries)."""
+        """Keep worker alive (jobs dispatched via event handlers)."""
         self.logger.info("AgentDispatcherWorker started")
 
-        while True:
-            job = await self.context.agent_queue.get()
-            self._dispatch_job(job)
-            self.context.agent_queue.task_done()
-            self._maybe_cleanup_semaphores()
+        # Just keep the task alive - actual work is done in event handlers
+        try:
+            while True:
+                await asyncio.sleep(60)
+                self._maybe_cleanup_semaphores()
+        except asyncio.CancelledError:
+            raise
 
     def _dispatch_job(self, job: Job) -> None:
         """Create executor task for job."""
@@ -132,6 +200,10 @@ class AgentDispatcherWorker(Worker):
             agent_def = self.context.agent_loader.load(job.agent_id)
         except DefNotFoundError as e:
             self.logger.error(f"Agent not found: {job.agent_id}: {e}")
+            # Set exception on pending future if registered
+            future = self.context.get_future(job.job_id)
+            if future and not future.done():
+                future.set_exception(e)
             return
 
         sem = self._get_or_create_semaphore(agent_def)

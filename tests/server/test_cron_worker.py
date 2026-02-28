@@ -7,6 +7,7 @@ from unittest.mock import patch
 from picklebot.server.cron_worker import CronWorker, find_due_jobs
 from picklebot.core.cron_loader import CronDef
 from picklebot.core.agent import SessionMode
+from picklebot.events.types import EventType, Event
 
 
 def test_find_due_jobs_returns_matching():
@@ -47,21 +48,17 @@ def test_find_due_jobs_empty_when_no_match():
 
 
 @pytest.mark.anyio
-async def test_cron_worker_uses_context_queue(test_context):
-    """CronWorker should get queue from context."""
-    # Get the context's queue reference before creating worker
-    context_queue = test_context.agent_queue
-
-    worker = CronWorker(test_context)
-
-    # Should not have its own agent_queue attribute, use context's
-    assert not hasattr(worker, "agent_queue") or worker.agent_queue is context_queue
-
-
-@pytest.mark.anyio
 async def test_cron_worker_dispatches_due_job(test_context):
-    """CronWorker dispatches due jobs to the queue."""
+    """CronWorker dispatches due jobs via EventBus as INBOUND events."""
     worker = CronWorker(test_context)
+
+    # Track published events
+    published_events: list[Event] = []
+
+    async def capture_event(event: Event) -> None:
+        published_events.append(event)
+
+    test_context.eventbus.subscribe(EventType.INBOUND, capture_event)
 
     # Create a mock cron job that is due
     mock_cron = CronDef(
@@ -82,13 +79,15 @@ async def test_cron_worker_dispatches_due_job(test_context):
         ):
             await worker._tick()
 
-    # Verify job was dispatched to queue
-    assert not test_context.agent_queue.empty()
-    job = test_context.agent_queue.get_nowait()
-    assert job.session_id is None
-    assert job.agent_id == "pickle"
-    assert job.message == "Test prompt from cron"
-    assert job.mode == SessionMode.JOB
+    # Verify event was published as INBOUND
+    assert len(published_events) == 1
+    event = published_events[0]
+    assert event.type == EventType.INBOUND
+    assert event.content == "Test prompt from cron"
+    assert event.metadata is not None
+    assert event.metadata["agent_id"] == "pickle"
+    assert event.metadata["mode"] == SessionMode.JOB.value
+    assert "job_id" in event.metadata
 
 
 @pytest.mark.anyio
@@ -120,11 +119,6 @@ async def test_one_off_cron_deletion(test_context, one_off, should_delete):
         ):
             with patch("picklebot.server.cron_worker.shutil.rmtree") as mock_rmtree:
                 await worker._tick()
-
-    # Verify job was dispatched
-    assert not test_context.agent_queue.empty()
-    job = test_context.agent_queue.get_nowait()
-    assert job.message == "Test task"
 
     # Verify deletion behavior
     expected_path = test_context.cron_loader.config.crons_path / "test-cron"

@@ -132,7 +132,9 @@ description: An existing skill
         assert tool_func is not None
         # Execute - try to load a skill that doesn't exist
         mock_session = _make_mock_session()
-        result = await tool_func.execute(session=mock_session, skill_name="nonexistent-skill")
+        result = await tool_func.execute(
+            session=mock_session, skill_name="nonexistent-skill"
+        )
 
         # Verify - should return error message
         assert "Error:" in result

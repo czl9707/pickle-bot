@@ -1,6 +1,7 @@
 # tests/events/test_types.py
 from picklebot.events.types import Event, EventType, Source
 
+
 class TestEvent:
     """Tests for Event creation and serialization."""
 

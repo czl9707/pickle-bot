@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 Handler = Callable[[Event], Awaitable[None]]
 
+
 class EventBus:
     """Central event bus with subscription support."""
 

@@ -6,14 +6,24 @@ import pytest
 
 
 @pytest.mark.anyio
-async def test_agent_queue_is_lazy(test_context):
-    """agent_queue should be created lazily on first access."""
-    # Before access, internal storage should be None
-    assert test_context._agent_queue is None
+async def test_register_and_get_future(test_context):
+    """register_future and get_future should work correctly."""
+    loop = asyncio.get_running_loop()
+    future: asyncio.Future[str] = loop.create_future()
 
-    # After access, should be a Queue
-    queue = test_context.agent_queue
-    assert isinstance(queue, asyncio.Queue)
+    test_context.register_future("test-job-id", future)
 
-    # Same queue on subsequent access
-    assert test_context.agent_queue is queue
+    # Should retrieve and remove the future
+    retrieved = test_context.get_future("test-job-id")
+    assert retrieved is future
+
+    # Should return None on second access
+    retrieved_again = test_context.get_future("test-job-id")
+    assert retrieved_again is None
+
+
+@pytest.mark.anyio
+async def test_get_future_returns_none_for_unknown(test_context):
+    """get_future should return None for unknown job_id."""
+    result = test_context.get_future("unknown-job-id")
+    assert result is None

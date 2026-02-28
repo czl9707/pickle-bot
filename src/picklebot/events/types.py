@@ -6,9 +6,10 @@ from typing import Any
 class EventType(str, Enum):
     """Types of events in the system."""
 
-    INBOUND = "inbound"
-    OUTBOUND = "outbound"
-    STATUS = "status"
+    INBOUND = "inbound"  # User messages from platforms
+    OUTBOUND = "outbound"  # Agent responses to deliver
+    STATUS = "status"  # Status updates
+    DISPATCH = "dispatch"  # Job dispatch requests (cron, subagent, retry)
 
 
 class Source:
@@ -35,6 +36,12 @@ class Source:
     def cron(cron_id: str) -> str:
         """Create source for cron-triggered events."""
         return f"cron:{cron_id}"
+
+    @staticmethod
+    def retry() -> str:
+        """Create source for retry events."""
+        return "retry"
+
 
 @dataclass
 class Event:

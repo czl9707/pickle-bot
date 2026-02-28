@@ -82,7 +82,9 @@ async def write_file(path: str, content: str, session: "AgentSession") -> str:
         "required": ["path", "old_text", "new_text"],
     },
 )
-async def edit_file(path: str, old_text: str, new_text: str, session: "AgentSession") -> str:
+async def edit_file(
+    path: str, old_text: str, new_text: str, session: "AgentSession"
+) -> str:
     """Edit a file by replacing old_text with new_text."""
     try:
         content = Path(path).read_text()

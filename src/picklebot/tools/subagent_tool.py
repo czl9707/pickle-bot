@@ -2,10 +2,13 @@
 
 import asyncio
 import json
+import time
+import uuid
 from typing import TYPE_CHECKING
 
 from picklebot.tools.base import BaseTool, tool
 from picklebot.utils.def_loader import DefNotFoundError
+from picklebot.events.types import Event, EventType, Source
 
 if TYPE_CHECKING:
     from picklebot.core.agent import AgentSession
@@ -81,7 +84,6 @@ def create_subagent_dispatch_tool(
             JSON with result and session_id
         """
         from picklebot.core.agent import SessionMode
-        from picklebot.server.base import Job
 
         # Verify agent exists
         try:
@@ -93,19 +95,31 @@ def create_subagent_dispatch_tool(
         if context:
             user_message = f"{task}\n\nContext:\n{context}"
 
-        # Dispatch through queue (works for both server and CLI modes)
-        job = Job(
-            session_id=None,
-            agent_id=agent_id,
-            message=user_message,
-            mode=SessionMode.JOB,
+        # Create job_id and register future for result
+        job_id = str(uuid.uuid4())
+        loop = asyncio.get_running_loop()
+        result_future: asyncio.Future[str] = loop.create_future()
+        shared_context.register_future(job_id, result_future)
+
+        # Publish DISPATCH event
+        event = Event(
+            type=EventType.DISPATCH,
+            session_id=job_id,
+            content=user_message,
+            source=Source.agent(current_agent_id),
+            timestamp=time.time(),
+            metadata={
+                "job_id": job_id,
+                "agent_id": agent_id,
+                "mode": SessionMode.JOB.value,
+            },
         )
-        job.result_future = asyncio.Future()
+        await shared_context.eventbus.publish(event)
 
-        await shared_context.agent_queue.put(job)
-        response = await job.result_future
+        # Wait for result
+        response = await result_future
 
-        result = {"result": response, "session_id": job.session_id}
+        result = {"result": response, "session_id": job_id}
         return json.dumps(result)
 
     return subagent_dispatch

@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
@@ -16,13 +17,11 @@ if TYPE_CHECKING:
 class Job:
     """A unit of work for the AgentWorker."""
 
-    session_id: str | None  # None = new session, set after first pickup
     agent_id: str  # Which agent to run
-    message: str  # User prompt (set to "." after consumed)
+    message: str  # User prompt
     mode: SessionMode  # CHAT or JOB
-    result_future: asyncio.Future[str] = field(
-        default_factory=lambda: asyncio.get_event_loop().create_future()
-    )
+    job_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    session_id: str | None = None  # None = new session, set after first pickup
     retry_count: int = 0
 
 

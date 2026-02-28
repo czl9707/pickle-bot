@@ -1,5 +1,5 @@
 import asyncio
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from picklebot.core.agent_loader import AgentLoader
 from picklebot.core.commands.registry import CommandRegistry
@@ -9,9 +9,6 @@ from picklebot.core.skill_loader import SkillLoader
 from picklebot.events.bus import EventBus
 from picklebot.messagebus.base import MessageBus
 from picklebot.utils.config import Config
-
-if TYPE_CHECKING:
-    from picklebot.server.base import Job
 
 
 class SharedContext:
@@ -25,7 +22,8 @@ class SharedContext:
     command_registry: CommandRegistry
     messagebus_buses: list[MessageBus[Any]]
     eventbus: EventBus
-    _agent_queue: asyncio.Queue["Job"] | None = None
+    # Futures for pending jobs (keyed by job_id)
+    _pending_futures: dict[str, asyncio.Future[str]]
 
     def __init__(
         self, config: Config, buses: list[MessageBus[Any]] | None = None
@@ -44,10 +42,12 @@ class SharedContext:
             self.messagebus_buses = MessageBus.from_config(config)
 
         self.eventbus = EventBus()
+        self._pending_futures = {}
 
-    @property
-    def agent_queue(self) -> asyncio.Queue["Job"]:
-        """Lazily create agent queue on first access."""
-        if self._agent_queue is None:
-            self._agent_queue = asyncio.Queue()
-        return self._agent_queue
+    def register_future(self, job_id: str, future: asyncio.Future[str]) -> None:
+        """Register a future for a pending job."""
+        self._pending_futures[job_id] = future
+
+    def get_future(self, job_id: str) -> asyncio.Future[str] | None:
+        """Get and remove a future for a completed job."""
+        return self._pending_futures.pop(job_id, None)

@@ -251,7 +251,6 @@ class Config(BaseModel):
         with open(config_path, "w") as f:
             yaml.dump(data, f)
 
-
     def set_user(self, key: str, value: Any) -> None:
         """
         Update a config value in config.user.yaml.
@@ -285,13 +284,15 @@ class Config(BaseModel):
 
             # Exclude auto-resolved path fields (they get re-resolved during validation)
             path_fields = {
-                "agents_path", "skills_path", "logging_path",
-                "history_path", "crons_path", "memories_path"
+                "agents_path",
+                "skills_path",
+                "logging_path",
+                "history_path",
+                "crons_path",
+                "memories_path",
             }
             config_data = self.model_dump(
-                mode="json",
-                exclude_none=True,
-                exclude=path_fields
+                mode="json", exclude_none=True, exclude=path_fields
             )
             config_data["workspace"] = self.workspace
 

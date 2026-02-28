@@ -3,13 +3,16 @@
 import asyncio
 import logging
 import shutil
+import time
+import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 from croniter import croniter
 
-from picklebot.server.base import Worker, Job
+from picklebot.server.base import Worker
 from picklebot.core.agent import SessionMode
+from picklebot.events.types import Event, EventType, Source
 
 if TYPE_CHECKING:
     from picklebot.core.cron_loader import CronDef
@@ -52,7 +55,7 @@ def find_due_jobs(
 
 
 class CronWorker(Worker):
-    """Finds due cron jobs, dispatches to agent queue."""
+    """Finds due cron jobs, publishes DISPATCH events."""
 
     def __init__(self, context: "SharedContext"):
         super().__init__(context)
@@ -70,18 +73,28 @@ class CronWorker(Worker):
             await asyncio.sleep(60)
 
     async def _tick(self) -> None:
-        """Find and dispatch due jobs."""
+        """Find and dispatch due jobs via EventBus."""
         jobs = self.context.cron_loader.discover_crons()
         due_jobs = find_due_jobs(jobs)
 
         for cron_def in due_jobs:
-            job = Job(
-                session_id=None,  # Always new session
-                agent_id=cron_def.agent,
-                message=cron_def.prompt,
-                mode=SessionMode.JOB,
+            job_id = str(uuid.uuid4())
+
+            # Publish INBOUND event (external work entering the system)
+            event = Event(
+                type=EventType.INBOUND,
+                session_id=job_id,  # Use job_id as session_id for tracking
+                content=cron_def.prompt,
+                source=Source.cron(cron_def.id),
+                timestamp=time.time(),
+                metadata={
+                    "job_id": job_id,
+                    "agent_id": cron_def.agent,
+                    "mode": SessionMode.JOB.value,
+                    "cron_id": cron_def.id,
+                },
             )
-            await self.context.agent_queue.put(job)
+            await self.context.eventbus.publish(event)
             self.logger.info(f"Dispatched cron job: {cron_def.id}")
 
             # Delete one-off crons after dispatching
