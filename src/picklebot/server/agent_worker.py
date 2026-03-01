@@ -229,7 +229,3 @@ class AgentWorker(SubscriberWorker):
         for agent_id in stale:
             del self._semaphores[agent_id]
             logger.debug(f"Cleaned up semaphore for deleted agent: {agent_id}")
-
-
-# Backward compatibility alias
-AgentDispatcher = AgentWorker

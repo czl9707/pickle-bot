@@ -113,7 +113,9 @@ async def test_cron_worker_dispatches_due_job(test_context, test_agent_def):
         (False, False),
     ],
 )
-async def test_one_off_cron_deletion(test_context, test_agent_def, one_off, should_delete):
+async def test_one_off_cron_deletion(
+    test_context, test_agent_def, one_off, should_delete
+):
     """CronWorker deletes one-off crons but keeps recurring crons."""
     worker = CronWorker(test_context)
 
@@ -129,7 +131,9 @@ async def test_one_off_cron_deletion(test_context, test_agent_def, one_off, shou
     with patch.object(
         test_context.cron_loader, "discover_crons", return_value=[mock_cron]
     ):
-        with patch.object(test_context.agent_loader, "load", return_value=test_agent_def):
+        with patch.object(
+            test_context.agent_loader, "load", return_value=test_agent_def
+        ):
             with patch(
                 "picklebot.server.cron_worker.find_due_jobs", return_value=[mock_cron]
             ):
