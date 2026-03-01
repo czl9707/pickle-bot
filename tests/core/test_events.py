@@ -4,7 +4,6 @@ import time
 from dataclasses import dataclass
 from picklebot.core.events import (
     Event,
-    EventType,
     InboundEvent,
     OutboundEvent,
     DispatchEvent,
@@ -21,9 +20,7 @@ class TestEventBaseClass:
 
         @dataclass
         class TestEvent(Event):
-            @property
-            def type(self) -> EventType:
-                return EventType.INBOUND
+            pass
 
         before = time.time()
         event = TestEvent(
@@ -36,14 +33,12 @@ class TestEventBaseClass:
 
         assert before <= event.timestamp <= after
 
-    def test_event_to_dict_includes_type(self):
-        """to_dict should include event type."""
+    def test_event_to_dict_uses_class_name(self):
+        """to_dict should use class name for type field."""
 
         @dataclass
         class TestEvent(Event):
-            @property
-            def type(self) -> EventType:
-                return EventType.INBOUND
+            extra: str = ""
 
         event = TestEvent(
             session_id="s1",
@@ -51,12 +46,14 @@ class TestEventBaseClass:
             source="test",
             content="hello",
             timestamp=123.0,
+            extra="foo",
         )
 
         result = event.to_dict()
-        assert result["type"] == "inbound"
+        assert result["type"] == "TestEvent"
         assert result["session_id"] == "s1"
         assert result["timestamp"] == 123.0
+        assert result["extra"] == "foo"
 
     def test_event_from_dict_excludes_type(self):
         """from_dict should work without type in constructor."""
@@ -65,12 +62,8 @@ class TestEventBaseClass:
         class TestEvent(Event):
             extra: str = ""
 
-            @property
-            def type(self) -> EventType:
-                return EventType.INBOUND
-
         data = {
-            "type": "inbound",
+            "type": "TestEvent",
             "session_id": "s1",
             "agent_id": "a1",
             "source": "test",
@@ -87,28 +80,30 @@ class TestEventBaseClass:
 class TestTypedEvents:
     """Tests for typed event classes."""
 
-    def test_inbound_event_type_property(self):
-        """InboundEvent.type should return INBOUND."""
+    def test_inbound_event_to_dict_uses_class_name(self):
+        """InboundEvent.to_dict should use 'InboundEvent' as type."""
         event = InboundEvent(
             session_id="s1",
             agent_id="a1",
             source="telegram:user1",
             content="hello",
         )
-        assert event.type == EventType.INBOUND
+        data = event.to_dict()
+        assert data["type"] == "InboundEvent"
 
-    def test_outbound_event_type_property(self):
-        """OutboundEvent.type should return OUTBOUND."""
+    def test_outbound_event_to_dict_uses_class_name(self):
+        """OutboundEvent.to_dict should use 'OutboundEvent' as type."""
         event = OutboundEvent(
             session_id="s1",
             agent_id="a1",
             source="agent:pickle",
             content="response",
         )
-        assert event.type == EventType.OUTBOUND
+        data = event.to_dict()
+        assert data["type"] == "OutboundEvent"
 
-    def test_dispatch_event_type_property(self):
-        """DispatchEvent.type should return DISPATCH."""
+    def test_dispatch_event_to_dict_uses_class_name(self):
+        """DispatchEvent.to_dict should use 'DispatchEvent' as type."""
         event = DispatchEvent(
             session_id="s1",
             agent_id="a1",
@@ -116,17 +111,19 @@ class TestTypedEvents:
             content="task",
             parent_session_id="parent1",
         )
-        assert event.type == EventType.DISPATCH
+        data = event.to_dict()
+        assert data["type"] == "DispatchEvent"
 
-    def test_dispatch_result_event_type_property(self):
-        """DispatchResultEvent.type should return DISPATCH_RESULT."""
+    def test_dispatch_result_event_to_dict_uses_class_name(self):
+        """DispatchResultEvent.to_dict should use 'DispatchResultEvent' as type."""
         event = DispatchResultEvent(
             session_id="s1",
             agent_id="a1",
             source="agent:pickle",
             content="result",
         )
-        assert event.type == EventType.DISPATCH_RESULT
+        data = event.to_dict()
+        assert data["type"] == "DispatchResultEvent"
 
     def test_inbound_event_to_dict_roundtrip(self):
         """InboundEvent should serialize/deserialize correctly."""
@@ -170,7 +167,7 @@ class TestDeserializeEvent:
     def test_deserialize_inbound_event(self):
         """deserialize_event should create correct InboundEvent."""
         data = {
-            "type": "inbound",
+            "type": "InboundEvent",
             "session_id": "s1",
             "agent_id": "a1",
             "source": "telegram:user1",
@@ -186,7 +183,7 @@ class TestDeserializeEvent:
     def test_deserialize_outbound_event(self):
         """deserialize_event should create correct OutboundEvent."""
         data = {
-            "type": "outbound",
+            "type": "OutboundEvent",
             "session_id": "s1",
             "agent_id": "a1",
             "source": "agent:pickle",
@@ -201,7 +198,7 @@ class TestDeserializeEvent:
     def test_deserialize_dispatch_event(self):
         """deserialize_event should create correct DispatchEvent."""
         data = {
-            "type": "dispatch",
+            "type": "DispatchEvent",
             "session_id": "s1",
             "agent_id": "a1",
             "source": "agent:cookie",
@@ -217,7 +214,7 @@ class TestDeserializeEvent:
     def test_deserialize_dispatch_result_event(self):
         """deserialize_event should create correct DispatchResultEvent."""
         data = {
-            "type": "dispatch_result",
+            "type": "DispatchResultEvent",
             "session_id": "s1",
             "agent_id": "a1",
             "source": "agent:sub",
@@ -234,5 +231,32 @@ class TestDeserializeEvent:
         try:
             deserialize_event(data)
             assert False, "Should have raised ValueError"
+        except ValueError as e:
+            assert "Unknown event type" in str(e)
+
+    def test_deserialize_uses_class_name_not_enum_value(self):
+        """deserialize_event should use class names, not enum values."""
+        # Should work with class name
+        data = {
+            "type": "InboundEvent",
+            "session_id": "s1",
+            "agent_id": "a1",
+            "source": "test",
+            "content": "hello",
+        }
+        event = deserialize_event(data)
+        assert isinstance(event, InboundEvent)
+
+        # Should fail with old enum value
+        old_data = {
+            "type": "inbound",  # Old enum value, not class name
+            "session_id": "s1",
+            "agent_id": "a1",
+            "source": "test",
+            "content": "hello",
+        }
+        try:
+            deserialize_event(old_data)
+            assert False, "Should have raised ValueError for old enum value"
         except ValueError as e:
             assert "Unknown event type" in str(e)

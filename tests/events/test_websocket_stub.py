@@ -3,7 +3,13 @@ import pytest
 from unittest.mock import MagicMock
 
 from picklebot.server.websocket_worker import WebSocketWorker
-from picklebot.core.events import OutboundEvent, EventType, Source
+from picklebot.core.events import (
+    OutboundEvent,
+    Source,
+    InboundEvent,
+    DispatchEvent,
+    DispatchResultEvent,
+)
 from picklebot.core.eventbus import EventBus
 
 
@@ -40,7 +46,7 @@ async def test_websocket_worker_handles_event(mock_context):
 def test_websocket_worker_subscribes_to_all_types(mock_context):
     _ = WebSocketWorker(mock_context)  # noqa: F841 - created for side effect
 
-    # WebSocketWorker auto-subscribes to all event types in __init__
-    # Check subscriptions exist for all event types
-    for event_type in EventType:
-        assert len(mock_context.eventbus._subscribers[event_type]) == 1
+    # WebSocketWorker auto-subscribes to all event classes in __init__
+    # Check subscriptions exist for all event classes
+    for event_class in [InboundEvent, OutboundEvent, DispatchEvent, DispatchResultEvent]:
+        assert len(mock_context.eventbus._subscribers[event_class]) == 1

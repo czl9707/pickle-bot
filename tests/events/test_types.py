@@ -6,7 +6,6 @@ from picklebot.core.events import (
     OutboundEvent,
     DispatchEvent,
     DispatchResultEvent,
-    EventType,
     Source,
     serialize_event,
     deserialize_event,
@@ -58,14 +57,14 @@ class TestInboundEvent:
             context=ctx,
         )
         result = event.to_dict()
-        assert result["type"] == "inbound"
+        assert result["type"] == "InboundEvent"
         assert result["session_id"] == "sess-1"
         assert result["agent_id"] == "pickle"
         assert result["context"]["type"] == "TelegramContext"
 
     def test_inbound_event_from_dict(self):
         data = {
-            "type": "inbound",
+            "type": "InboundEvent",
             "session_id": "sess-1",
             "agent_id": "pickle",
             "source": "telegram:123",
@@ -120,7 +119,7 @@ class TestOutboundEvent:
             error="test error",
         )
         data = event.to_dict()
-        assert data["type"] == "outbound"
+        assert data["type"] == "OutboundEvent"
         assert data["error"] == "test error"
 
         restored = OutboundEvent.from_dict(data)
@@ -154,7 +153,7 @@ class TestDispatchEvent:
             parent_session_id="parent-1",
         )
         data = event.to_dict()
-        assert data["type"] == "dispatch"
+        assert data["type"] == "DispatchEvent"
         assert data["parent_session_id"] == "parent-1"
 
         restored = DispatchEvent.from_dict(data)
@@ -187,16 +186,6 @@ class TestDispatchResultEvent:
         assert event.error == "Failed"
 
 
-class TestEventTypeEnum:
-    """Tests for EventType enum (still needed for serialization)."""
-
-    def test_event_type_values(self):
-        assert EventType.INBOUND.value == "inbound"
-        assert EventType.OUTBOUND.value == "outbound"
-        assert EventType.DISPATCH.value == "dispatch"
-        assert EventType.DISPATCH_RESULT.value == "dispatch_result"
-
-
 class TestSource:
     """Tests for Source factory methods."""
 
@@ -224,11 +213,11 @@ class TestEventSerialization:
             context=ctx,
         )
         data = serialize_event(event)
-        assert data["type"] == "inbound"
+        assert data["type"] == "InboundEvent"
 
     def test_deserialize_inbound_event(self):
         data = {
-            "type": "inbound",
+            "type": "InboundEvent",
             "session_id": "sess-1",
             "agent_id": "pickle",
             "source": "telegram:123",
@@ -245,7 +234,7 @@ class TestEventSerialization:
 
     def test_deserialize_outbound_event(self):
         data = {
-            "type": "outbound",
+            "type": "OutboundEvent",
             "session_id": "sess-1",
             "agent_id": "pickle",
             "source": "agent:pickle",
@@ -259,7 +248,7 @@ class TestEventSerialization:
 
     def test_deserialize_dispatch_event(self):
         data = {
-            "type": "dispatch",
+            "type": "DispatchEvent",
             "session_id": "job-1",
             "agent_id": "cookie",
             "source": "agent:pickle",
@@ -273,7 +262,7 @@ class TestEventSerialization:
 
     def test_deserialize_dispatch_result_event(self):
         data = {
-            "type": "dispatch_result",
+            "type": "DispatchResultEvent",
             "session_id": "job-1",
             "agent_id": "cookie",
             "source": "agent:cookie",
@@ -294,3 +283,27 @@ class TestEventSerialization:
         }
         with pytest.raises(ValueError, match="Unknown event type"):
             deserialize_event(data)
+
+    def test_deserialize_uses_class_name_not_enum_value(self):
+        """deserialize_event should use class names, not enum values."""
+        # Should work with class name
+        data = {
+            "type": "InboundEvent",
+            "session_id": "s1",
+            "agent_id": "a1",
+            "source": "test",
+            "content": "hello",
+        }
+        event = deserialize_event(data)
+        assert isinstance(event, InboundEvent)
+
+        # Should fail with old enum value
+        old_data = {
+            "type": "inbound",  # Old enum value, not class name
+            "session_id": "s1",
+            "agent_id": "a1",
+            "source": "test",
+            "content": "hello",
+        }
+        with pytest.raises(ValueError, match="Unknown event type"):
+            deserialize_event(old_data)

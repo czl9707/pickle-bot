@@ -2,20 +2,9 @@
 
 import time
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Any
 
 from picklebot.messagebus.base import MessageContext
-
-
-class EventType(str, Enum):
-    """Types of events in the system."""
-
-    INBOUND = "inbound"  # External work entering the system (platforms, cron, retry)
-    OUTBOUND = "outbound"  # Agent responses to deliver to platforms
-    STATUS = "status"  # Status updates
-    DISPATCH = "dispatch"  # Internal agent-to-agent delegation
-    DISPATCH_RESULT = "dispatch_result"  # Result of a dispatched job
 
 
 class Source:
@@ -91,9 +80,8 @@ def _deserialize_context(data: dict[str, Any] | None) -> MessageContext | None:
 class Event:
     """Base class for all typed events.
 
-    Subclasses must define:
-    - type property returning their EventType
-    - Any additional fields specific to that event type
+    Subclasses define additional fields specific to that event type.
+    Event type is determined by the class name for serialization.
     """
 
     session_id: str
@@ -102,14 +90,9 @@ class Event:
     content: str
     timestamp: float = field(default_factory=time.time)
 
-    @property
-    def type(self) -> EventType:
-        """Return the event type. Must be overridden by subclasses."""
-        raise NotImplementedError("Subclasses must implement type property")
-
     def to_dict(self) -> dict[str, Any]:
         """Serialize event to dictionary, including type."""
-        result: dict[str, Any] = {"type": self.type.value}
+        result: dict[str, Any] = {"type": self.__class__.__name__}
         # Add all dataclass fields
         for field_name in self.__dataclass_fields__:
             value = getattr(self, field_name)
@@ -143,22 +126,12 @@ class InboundEvent(Event):
     retry_count: int = 0
     context: MessageContext | None = None
 
-    @property
-    def type(self) -> EventType:
-        """Return the event type."""
-        return EventType.INBOUND
-
 
 @dataclass
 class OutboundEvent(Event):
     """Event for agent responses to deliver to platforms."""
 
     error: str | None = None
-
-    @property
-    def type(self) -> EventType:
-        """Return the event type."""
-        return EventType.OUTBOUND
 
 
 @dataclass
@@ -168,11 +141,6 @@ class DispatchEvent(Event):
     parent_session_id: str = ""
     retry_count: int = 0
 
-    @property
-    def type(self) -> EventType:
-        """Return the event type."""
-        return EventType.DISPATCH
-
 
 @dataclass
 class DispatchResultEvent(Event):
@@ -180,18 +148,13 @@ class DispatchResultEvent(Event):
 
     error: str | None = None
 
-    @property
-    def type(self) -> EventType:
-        """Return the event type."""
-        return EventType.DISPATCH_RESULT
 
-
-# Registry mapping event type strings to event classes
+# Registry mapping event class names to event classes
 _EVENT_CLASSES: dict[str, type[Event]] = {
-    EventType.INBOUND.value: InboundEvent,
-    EventType.OUTBOUND.value: OutboundEvent,
-    EventType.DISPATCH.value: DispatchEvent,
-    EventType.DISPATCH_RESULT.value: DispatchResultEvent,
+    "InboundEvent": InboundEvent,
+    "OutboundEvent": OutboundEvent,
+    "DispatchEvent": DispatchEvent,
+    "DispatchResultEvent": DispatchResultEvent,
 }
 
 
