@@ -2,10 +2,62 @@
 
 import pytest
 
-from picklebot.core.agent import Agent, SessionMode
+from picklebot.core.agent import Agent, SessionMode, get_source_settings
 from picklebot.core.agent_loader import AgentDef
 from picklebot.core.context import SharedContext
 from picklebot.utils.config import LLMConfig, MessageBusConfig, TelegramConfig
+
+
+class TestGetSourceSettings:
+    """Tests for source-based settings derivation."""
+
+    def test_cron_source_returns_job_settings(self):
+        """Cron sources should return job settings."""
+        max_history, post_message = get_source_settings("cron:daily_summary")
+        assert max_history == 50
+        assert post_message is True
+
+    def test_cron_source_with_complex_id(self):
+        """Cron sources with complex IDs should return job settings."""
+        max_history, post_message = get_source_settings("cron:my-cron-job-123")
+        assert max_history == 50
+        assert post_message is True
+
+    def test_telegram_source_returns_chat_settings(self):
+        """Telegram sources should return chat settings."""
+        max_history, post_message = get_source_settings("telegram:user_123")
+        assert max_history == 100
+        assert post_message is False
+
+    def test_discord_source_returns_chat_settings(self):
+        """Discord sources should return chat settings."""
+        max_history, post_message = get_source_settings("discord:member_456")
+        assert max_history == 100
+        assert post_message is False
+
+    def test_agent_source_returns_chat_settings(self):
+        """Agent (subagent) sources should return chat settings."""
+        max_history, post_message = get_source_settings("agent:cookie")
+        assert max_history == 100
+        assert post_message is False
+
+    def test_cli_source_returns_chat_settings(self):
+        """CLI sources should return chat settings."""
+        max_history, post_message = get_source_settings("cli:default")
+        assert max_history == 100
+        assert post_message is False
+
+    def test_retry_source_returns_chat_settings(self):
+        """Retry sources should return chat settings."""
+        max_history, post_message = get_source_settings("retry")
+        assert max_history == 100
+        assert post_message is False
+
+    def test_unknown_source_returns_chat_settings(self):
+        """Unknown sources should default to chat settings."""
+        max_history, post_message = get_source_settings("unknown")
+        assert max_history == 100
+        assert post_message is False
 
 
 def test_agent_creation_with_new_structure(test_agent, test_agent_def, test_context):

@@ -29,6 +29,20 @@ if TYPE_CHECKING:
     from picklebot.provider import LLMToolCall
 
 
+def get_source_settings(source: str) -> tuple[int, bool]:
+    """Return (max_history, post_message) settings for a given source.
+
+    Args:
+        source: Event source string (e.g., "cron:daily", "telegram:user_123")
+
+    Returns:
+        Tuple of (max_history, post_message_enabled)
+    """
+    if source.startswith("cron:"):
+        return (50, True)
+    return (100, False)
+
+
 class SessionMode(str, Enum):
     """Session mode determines history limit behavior."""
 
