@@ -147,7 +147,9 @@ class AgentWorker(SubscriberWorker):
         # Auto-subscribe to events
         self.context.eventbus.subscribe(InboundEvent, self._dispatch_event)
         self.context.eventbus.subscribe(DispatchEvent, self._dispatch_event)
-        self.logger.info("AgentWorker subscribed to InboundEvent and DispatchEvent events")
+        self.logger.info(
+            "AgentWorker subscribed to InboundEvent and DispatchEvent events"
+        )
 
     async def _dispatch_event(self, event: ProcessableEvent) -> None:
         """Create executor task for typed event."""

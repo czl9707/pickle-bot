@@ -48,5 +48,10 @@ def test_websocket_worker_subscribes_to_all_types(mock_context):
 
     # WebSocketWorker auto-subscribes to all event classes in __init__
     # Check subscriptions exist for all event classes
-    for event_class in [InboundEvent, OutboundEvent, DispatchEvent, DispatchResultEvent]:
+    for event_class in [
+        InboundEvent,
+        OutboundEvent,
+        DispatchEvent,
+        DispatchResultEvent,
+    ]:
         assert len(mock_context.eventbus._subscribers[event_class]) == 1

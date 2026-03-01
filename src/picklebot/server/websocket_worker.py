@@ -30,7 +30,12 @@ class WebSocketWorker(SubscriberWorker):
         self._clients: set = set()  # Future: set of WebSocket connections
 
         # Auto-subscribe to all event classes
-        for event_class in [InboundEvent, OutboundEvent, DispatchEvent, DispatchResultEvent]:
+        for event_class in [
+            InboundEvent,
+            OutboundEvent,
+            DispatchEvent,
+            DispatchResultEvent,
+        ]:
             self.context.eventbus.subscribe(event_class, self.handle_event)
         self.logger.info("WebSocketWorker subscribed to all event types")
 

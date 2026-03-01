@@ -40,9 +40,7 @@ class EventBus(Worker):
         self.pending_dir.mkdir(parents=True, exist_ok=True)
 
     def subscribe(
-        self,
-        event_class: type[E],
-        handler: Callable[[E], Awaitable[None]]
+        self, event_class: type[E], handler: Callable[[E], Awaitable[None]]
     ) -> None:
         """Subscribe a handler to an event class."""
         self._subscribers[event_class].append(handler)
