@@ -1,8 +1,14 @@
 # src/picklebot/core/routing.py
 
+from __future__ import annotations
+
 import re
 from dataclasses import dataclass, field
 from re import Pattern
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from picklebot.core.context import SharedContext
 
 
 @dataclass
@@ -31,3 +37,38 @@ class Binding:
         if ".*" in self.value:
             return 2
         return 1
+
+
+@dataclass
+class RoutingTable:
+    """Routes sources to agents using regex bindings."""
+
+    _context: SharedContext
+    _bindings: list[Binding] | None = field(default=None, init=False)
+    _config_hash: int | None = field(default=None, init=False)
+
+    def _load_bindings(self) -> list[Binding]:
+        """Load and sort bindings from config. Cached until config changes."""
+        bindings_data = self._context.config.routing.get("bindings", [])
+        current_hash = hash(tuple((b["agent"], b["value"]) for b in bindings_data))
+
+        if self._bindings is not None and self._config_hash == current_hash:
+            return self._bindings
+
+        # Rebuild
+        bindings_with_order = [
+            (Binding(agent=b["agent"], value=b["value"]), i)
+            for i, b in enumerate(bindings_data)
+        ]
+        bindings_with_order.sort(key=lambda x: (x[0].tier, x[1]))
+        self._bindings = [b for b, _ in bindings_with_order]
+        self._config_hash = current_hash
+
+        return self._bindings
+
+    def resolve(self, source: str) -> str | None:
+        """Return agent_id for source, or None if no match."""
+        for binding in self._load_bindings():
+            if binding.pattern.match(source):
+                return binding.agent
+        return None
