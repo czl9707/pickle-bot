@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from picklebot.core.history import HistoryStore, HistoryMessage
+from picklebot.core.history import HistoryStore, HistoryMessage, HistorySession
 
 
 class TestFromMessage:
@@ -498,3 +498,65 @@ class TestGetMessagesChunking:
         assert messages[0].content == "msg2"
         assert messages[1].content == "msg3"
         assert messages[2].content == "msg4"
+
+
+class TestHistorySessionWithSource:
+    """Tests for HistorySession with source and context fields."""
+
+    def test_history_session_has_source_field(self):
+        """HistorySession should accept source field."""
+        session = HistorySession(
+            id="test-session",
+            agent_id="pickle",
+            source="telegram:user_123",
+            created_at="2024-01-01T00:00:00",
+            updated_at="2024-01-01T00:00:00",
+        )
+        assert session.source == "telegram:user_123"
+
+    def test_history_session_has_context_field(self):
+        """HistorySession should accept context field."""
+        context_data = {
+            "type": "TelegramContext",
+            "data": {"user_id": "123", "chat_id": "456"},
+        }
+        session = HistorySession(
+            id="test-session",
+            agent_id="pickle",
+            source="telegram:user_123",
+            context=context_data,
+            created_at="2024-01-01T00:00:00",
+            updated_at="2024-01-01T00:00:00",
+        )
+        assert session.context == context_data
+
+    def test_history_session_context_defaults_to_none(self):
+        """HistorySession context should default to None."""
+        session = HistorySession(
+            id="test-session",
+            agent_id="pickle",
+            source="cron:daily",
+            created_at="2024-01-01T00:00:00",
+            updated_at="2024-01-01T00:00:00",
+        )
+        assert session.context is None
+
+    def test_history_session_json_roundtrip_with_source(self):
+        """HistorySession with source should serialize/deserialize correctly."""
+        original = HistorySession(
+            id="test-session",
+            agent_id="pickle",
+            source="telegram:user_123",
+            context={"type": "TelegramContext", "data": {"user_id": "123"}},
+            chunk_count=1,
+            title="Test Chat",
+            message_count=5,
+            created_at="2024-01-01T00:00:00",
+            updated_at="2024-01-01T00:00:00",
+        )
+
+        json_str = original.model_dump_json()
+        restored = HistorySession.model_validate_json(json_str)
+
+        assert restored.source == original.source
+        assert restored.context == original.context

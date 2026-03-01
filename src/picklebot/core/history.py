@@ -21,6 +21,8 @@ class HistorySession(BaseModel):
 
     id: str
     agent_id: str
+    source: str = ""  # Origin of session (e.g., "telegram:user_123", "cron:daily")
+    context: dict[str, Any] | None = None  # Serialized MessageContext
     chunk_count: int = 1  # Number of chunk files
     title: str | None = None
     message_count: int = 0
