@@ -5,7 +5,7 @@ import json
 import logging
 import os
 from collections import defaultdict
-from typing import Awaitable, Callable, TYPE_CHECKING
+from typing import Awaitable, Callable, TypeVar, TYPE_CHECKING
 
 from picklebot.server.worker import Worker
 
@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+E = TypeVar("E", bound=Event)
 Handler = Callable[[Event], Awaitable[None]]
 
 
@@ -33,27 +34,31 @@ class EventBus(Worker):
     def __init__(self, context: "SharedContext"):
         super().__init__(context)
         self.context = context
-        self._subscribers: dict[EventType, list[Handler]] = defaultdict(list)
+        self._subscribers: dict[type[Event], list[Handler]] = defaultdict(list)
         self._queue: asyncio.Queue[Event] = asyncio.Queue()
         self.pending_dir = context.config.event_path / "pending"
         self.pending_dir.mkdir(parents=True, exist_ok=True)
 
-    def subscribe(self, event_type: EventType, handler: Handler) -> None:
-        """Subscribe a handler to an event type."""
-        self._subscribers[event_type].append(handler)
-        logger.debug(f"Subscribed handler to {event_type.value} events")
+    def subscribe(
+        self,
+        event_class: type[E],
+        handler: Callable[[E], Awaitable[None]]
+    ) -> None:
+        """Subscribe a handler to an event class."""
+        self._subscribers[event_class].append(handler)
+        logger.debug(f"Subscribed handler to {event_class.__name__} events")
 
     def unsubscribe(self, handler: Handler) -> None:
         """Remove a handler from all subscriptions."""
-        for event_type in self._subscribers:
-            if handler in self._subscribers[event_type]:
-                self._subscribers[event_type].remove(handler)
-                logger.debug(f"Unsubscribed handler from {event_type.value} events")
+        for event_class in self._subscribers:
+            if handler in self._subscribers[event_class]:
+                self._subscribers[event_class].remove(handler)
+                logger.debug(f"Unsubscribed handler from {event_class.__name__} events")
 
     async def publish(self, event: Event) -> None:
         """Publish an event to the internal queue (non-blocking)."""
         await self._queue.put(event)
-        logger.debug(f"Queued {event.type.value} event from {event.source}")
+        logger.debug(f"Queued {event.__class__.__name__} event from {event.source}")
 
     async def run(self) -> None:
         """Process events from queue, starting with recovery."""
@@ -80,11 +85,11 @@ class EventBus(Worker):
         """Persist if OUTBOUND, then notify subscribers."""
         await self._persist_outbound(event)
         await self._notify_subscribers(event)
-        logger.debug(f"Dispatched {event.type.value} event from {event.source}")
+        logger.debug(f"Dispatched {event.__class__.__name__} event from {event.source}")
 
     async def _notify_subscribers(self, event: Event) -> None:
         """Notify all subscribers of an event (waits for all handlers to complete)."""
-        handlers = self._subscribers.get(event.type, [])
+        handlers = self._subscribers.get(type(event), [])
         if not handlers:
             return
 
