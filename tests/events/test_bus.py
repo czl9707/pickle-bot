@@ -1,6 +1,6 @@
 # tests/events/test_bus.py
 import pytest
-from picklebot.core.events import Event, EventType, Source
+from picklebot.core.events import Event, OutboundEvent, InboundEvent, EventType, Source
 
 
 @pytest.fixture
@@ -22,9 +22,9 @@ async def test_subscribe_and_notify(event_bus):
 
     event_bus.subscribe(EventType.OUTBOUND, handler)
 
-    event = Event(
-        type=EventType.OUTBOUND,
+    event = OutboundEvent(
         session_id="test-session",
+        agent_id="pickle",
         content="Hello",
         source=Source.agent("pickle"),
         timestamp=12345.0,
@@ -50,9 +50,9 @@ async def test_multiple_subscribers(event_bus):
     event_bus.subscribe(EventType.OUTBOUND, handler_1)
     event_bus.subscribe(EventType.OUTBOUND, handler_2)
 
-    event = Event(
-        type=EventType.OUTBOUND,
+    event = OutboundEvent(
         session_id="test-session",
+        agent_id="pickle",
         content="Hello",
         source=Source.agent("pickle"),
         timestamp=12345.0,
@@ -74,9 +74,9 @@ async def test_unsubscribe(event_bus):
     event_bus.subscribe(EventType.OUTBOUND, handler)
     event_bus.unsubscribe(handler)
 
-    event = Event(
-        type=EventType.OUTBOUND,
+    event = OutboundEvent(
         session_id="test-session",
+        agent_id="pickle",
         content="Hello",
         source=Source.agent("pickle"),
         timestamp=12345.0,
@@ -101,16 +101,16 @@ async def test_subscribe_to_multiple_types(event_bus):
     event_bus.subscribe(EventType.OUTBOUND, outbound_handler)
     event_bus.subscribe(EventType.INBOUND, inbound_handler)
 
-    outbound_event = Event(
-        type=EventType.OUTBOUND,
+    outbound_event = OutboundEvent(
         session_id="test",
+        agent_id="test",
         content="Out",
         source=Source.agent("test"),
         timestamp=1.0,
     )
-    inbound_event = Event(
-        type=EventType.INBOUND,
+    inbound_event = InboundEvent(
         session_id="test",
+        agent_id="test",
         content="In",
         source=Source.platform("telegram", "user1"),
         timestamp=2.0,

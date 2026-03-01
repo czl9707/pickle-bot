@@ -1,5 +1,6 @@
 """Event types and data classes for the event bus."""
 
+import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -93,48 +94,57 @@ def _deserialize_context(data: dict[str, Any] | None) -> MessageContext | None:
 
 @dataclass
 class Event:
-    """Platform-agnostic event."""
+    """Base class for all typed events.
 
-    type: EventType
-    session_id: str
-    content: str
-    source: str
-    timestamp: float
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        """Serialize event to dictionary."""
-        return {
-            "type": self.type.value,
-            "session_id": self.session_id,
-            "content": self.content,
-            "source": self.source,
-            "timestamp": self.timestamp,
-            "metadata": self.metadata,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Event":
-        """Deserialize event from dictionary."""
-        return cls(
-            type=EventType(data["type"]),
-            session_id=data["session_id"],
-            content=data["content"],
-            source=data["source"],
-            timestamp=data["timestamp"],
-            metadata=data.get("metadata", {}),
-        )
-
-
-@dataclass
-class InboundEvent:
-    """Event for external work entering the system (platforms, cron, retry)."""
+    Subclasses must define:
+    - type property returning their EventType
+    - Any additional fields specific to that event type
+    """
 
     session_id: str
     agent_id: str
     source: str
     content: str
-    timestamp: float
+    timestamp: float = field(default_factory=time.time)
+
+    @property
+    def type(self) -> EventType:
+        """Return the event type. Must be overridden by subclasses."""
+        raise NotImplementedError("Subclasses must implement type property")
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize event to dictionary, including type."""
+        result = {"type": self.type.value}
+        # Add all dataclass fields
+        for field_name in self.__dataclass_fields__:
+            value = getattr(self, field_name)
+            if field_name == "context":
+                result[field_name] = _serialize_context(value)
+            else:
+                result[field_name] = value
+        return result
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Event":
+        """Deserialize event from dictionary, excluding type field."""
+        # Filter out 'type' - it's determined by the class, not constructor
+        # Also filter to only include fields that this dataclass expects
+        kwargs = {}
+        for k, v in data.items():
+            if k == "type":
+                continue
+            if k == "context":
+                kwargs[k] = _deserialize_context(v)
+            elif k in cls.__dataclass_fields__:
+                kwargs[k] = v
+
+        return cls(**kwargs)
+
+
+@dataclass
+class InboundEvent(Event):
+    """Event for external work entering the system (platforms, cron, retry)."""
+
     retry_count: int = 0
     context: MessageContext | None = None
 
@@ -143,42 +153,11 @@ class InboundEvent:
         """Return the event type."""
         return EventType.INBOUND
 
-    def to_dict(self) -> dict[str, Any]:
-        """Serialize event to dictionary."""
-        return {
-            "type": "inbound",
-            "session_id": self.session_id,
-            "agent_id": self.agent_id,
-            "source": self.source,
-            "content": self.content,
-            "timestamp": self.timestamp,
-            "retry_count": self.retry_count,
-            "context": _serialize_context(self.context),
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "InboundEvent":
-        """Deserialize event from dictionary."""
-        return cls(
-            session_id=data["session_id"],
-            agent_id=data["agent_id"],
-            source=data["source"],
-            content=data["content"],
-            timestamp=data["timestamp"],
-            retry_count=data.get("retry_count", 0),
-            context=_deserialize_context(data.get("context")),
-        )
-
 
 @dataclass
-class OutboundEvent:
+class OutboundEvent(Event):
     """Event for agent responses to deliver to platforms."""
 
-    session_id: str
-    agent_id: str
-    source: str
-    content: str
-    timestamp: float
     error: str | None = None
 
     @property
@@ -186,41 +165,12 @@ class OutboundEvent:
         """Return the event type."""
         return EventType.OUTBOUND
 
-    def to_dict(self) -> dict[str, Any]:
-        """Serialize event to dictionary."""
-        return {
-            "type": "outbound",
-            "session_id": self.session_id,
-            "agent_id": self.agent_id,
-            "source": self.source,
-            "content": self.content,
-            "timestamp": self.timestamp,
-            "error": self.error,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "OutboundEvent":
-        """Deserialize event from dictionary."""
-        return cls(
-            session_id=data["session_id"],
-            agent_id=data["agent_id"],
-            source=data["source"],
-            content=data["content"],
-            timestamp=data["timestamp"],
-            error=data.get("error"),
-        )
-
 
 @dataclass
-class DispatchEvent:
+class DispatchEvent(Event):
     """Event for internal agent-to-agent delegation."""
 
-    session_id: str
-    agent_id: str
-    source: str
-    content: str
-    timestamp: float
-    parent_session_id: str
+    parent_session_id: str = ""
     retry_count: int = 0
 
     @property
@@ -228,42 +178,11 @@ class DispatchEvent:
         """Return the event type."""
         return EventType.DISPATCH
 
-    def to_dict(self) -> dict[str, Any]:
-        """Serialize event to dictionary."""
-        return {
-            "type": "dispatch",
-            "session_id": self.session_id,
-            "agent_id": self.agent_id,
-            "source": self.source,
-            "content": self.content,
-            "timestamp": self.timestamp,
-            "parent_session_id": self.parent_session_id,
-            "retry_count": self.retry_count,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "DispatchEvent":
-        """Deserialize event from dictionary."""
-        return cls(
-            session_id=data["session_id"],
-            agent_id=data["agent_id"],
-            source=data["source"],
-            content=data["content"],
-            timestamp=data["timestamp"],
-            parent_session_id=data["parent_session_id"],
-            retry_count=data.get("retry_count", 0),
-        )
-
 
 @dataclass
-class DispatchResultEvent:
+class DispatchResultEvent(Event):
     """Event for result of a dispatched job."""
 
-    session_id: str
-    agent_id: str
-    source: str
-    content: str
-    timestamp: float
     error: str | None = None
 
     @property
@@ -271,51 +190,27 @@ class DispatchResultEvent:
         """Return the event type."""
         return EventType.DISPATCH_RESULT
 
-    def to_dict(self) -> dict[str, Any]:
-        """Serialize event to dictionary."""
-        return {
-            "type": "dispatch_result",
-            "session_id": self.session_id,
-            "agent_id": self.agent_id,
-            "source": self.source,
-            "content": self.content,
-            "timestamp": self.timestamp,
-            "error": self.error,
-        }
 
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "DispatchResultEvent":
-        """Deserialize event from dictionary."""
-        return cls(
-            session_id=data["session_id"],
-            agent_id=data["agent_id"],
-            source=data["source"],
-            content=data["content"],
-            timestamp=data["timestamp"],
-            error=data.get("error"),
-        )
+# Registry mapping event type strings to event classes
+_EVENT_CLASSES: dict[str, type[Event]] = {
+    EventType.INBOUND.value: InboundEvent,
+    EventType.OUTBOUND.value: OutboundEvent,
+    EventType.DISPATCH.value: DispatchEvent,
+    EventType.DISPATCH_RESULT.value: DispatchResultEvent,
+}
 
 
-# Type alias for all event types
-TypedEvent = InboundEvent | OutboundEvent | DispatchEvent | DispatchResultEvent
-
-
-def serialize_event(event: TypedEvent) -> dict[str, Any]:
+def serialize_event(event: Event) -> dict[str, Any]:
     """Serialize any event type to dict."""
     return event.to_dict()
 
 
-def deserialize_event(data: dict[str, Any]) -> TypedEvent:
+def deserialize_event(data: dict[str, Any]) -> Event:
     """Deserialize dict to appropriate event type."""
     event_type = data.get("type")
 
-    if event_type == EventType.INBOUND.value:
-        return InboundEvent.from_dict(data)
-    elif event_type == EventType.OUTBOUND.value:
-        return OutboundEvent.from_dict(data)
-    elif event_type == EventType.DISPATCH.value:
-        return DispatchEvent.from_dict(data)
-    elif event_type == EventType.DISPATCH_RESULT.value:
-        return DispatchResultEvent.from_dict(data)
-    else:
+    event_class = _EVENT_CLASSES.get(event_type)
+    if event_class is None:
         raise ValueError(f"Unknown event type: {event_type}")
+
+    return event_class.from_dict(data)

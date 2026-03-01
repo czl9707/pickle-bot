@@ -5,7 +5,7 @@ import json
 import time
 from typing import TYPE_CHECKING
 
-from picklebot.core.events import DispatchEvent, DispatchResultEvent, Source, TypedEvent
+from picklebot.core.events import DispatchEvent, DispatchResultEvent, Event, Source
 from picklebot.tools.base import BaseTool, tool
 from picklebot.utils.def_loader import DefNotFoundError
 
@@ -101,7 +101,7 @@ def create_subagent_dispatch_tool(
         result_future: asyncio.Future[str] = loop.create_future()
 
         # Create temp handler that filters by session_id
-        async def handle_result(event: TypedEvent) -> None:
+        async def handle_result(event: Event) -> None:
             if (
                 isinstance(event, DispatchResultEvent)
                 and event.session_id == session_id

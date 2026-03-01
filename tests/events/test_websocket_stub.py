@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import MagicMock
 
 from picklebot.server.websocket_worker import WebSocketWorker
-from picklebot.core.events import Event, EventType, Source
+from picklebot.core.events import OutboundEvent, EventType, Source
 from picklebot.core.eventbus import EventBus
 
 
@@ -25,9 +25,9 @@ def test_websocket_worker_creation(mock_context):
 async def test_websocket_worker_handles_event(mock_context):
     worker = WebSocketWorker(mock_context)
 
-    event = Event(
-        type=EventType.OUTBOUND,
+    event = OutboundEvent(
         session_id="test",
+        agent_id="test",
         content="Hello",
         source=Source.agent("test"),
         timestamp=1.0,

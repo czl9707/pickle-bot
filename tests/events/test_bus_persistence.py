@@ -3,7 +3,7 @@
 import asyncio
 import json
 import pytest
-from picklebot.core.events import Event, EventType, Source
+from picklebot.core.events import Event, OutboundEvent, InboundEvent, EventType, Source
 
 
 @pytest.fixture
@@ -22,9 +22,9 @@ def test_event_bus_has_persistence_dir(event_bus, events_dir):
 
 @pytest.mark.asyncio
 async def test_persist_outbound_event(event_bus, events_dir):
-    event = Event(
-        type=EventType.OUTBOUND,
+    event = OutboundEvent(
         session_id="test-session",
+        agent_id="pickle",
         content="Hello",
         source=Source.agent("pickle"),
         timestamp=12345.0,
@@ -45,23 +45,15 @@ async def test_persist_outbound_event(event_bus, events_dir):
 
 @pytest.mark.asyncio
 async def test_persist_skips_non_outbound(event_bus, events_dir):
-    inbound_event = Event(
-        type=EventType.INBOUND,
+    inbound_event = InboundEvent(
         session_id="test-session",
+        agent_id="test",
         content="Hi",
         source=Source.platform("telegram", "user1"),
         timestamp=12345.0,
     )
-    status_event = Event(
-        type=EventType.STATUS,
-        session_id="test-session",
-        content="Working...",
-        source=Source.agent("test"),
-        timestamp=12345.0,
-    )
 
     await event_bus._persist_outbound(inbound_event)
-    await event_bus._persist_outbound(status_event)
 
     # No files should be created
     pending_files = list((events_dir / "pending").glob("*.json"))
@@ -70,9 +62,9 @@ async def test_persist_skips_non_outbound(event_bus, events_dir):
 
 @pytest.mark.asyncio
 async def test_ack_deletes_persisted_event(event_bus, events_dir):
-    event = Event(
-        type=EventType.OUTBOUND,
+    event = OutboundEvent(
         session_id="test-session",
+        agent_id="pickle",
         content="Hello",
         source=Source.agent("pickle"),
         timestamp=12345.0,
@@ -94,9 +86,9 @@ async def test_ack_deletes_persisted_event(event_bus, events_dir):
 @pytest.mark.asyncio
 async def test_atomic_write(event_bus, events_dir):
     """Test that files are written atomically (tmp + fsync + rename)."""
-    event = Event(
-        type=EventType.OUTBOUND,
+    event = OutboundEvent(
         session_id="test-session",
+        agent_id="pickle",
         content="Hello",
         source=Source.agent("pickle"),
         timestamp=12345.0,
@@ -125,9 +117,9 @@ async def test_publish_outbound_persists_and_notifies(event_bus, events_dir):
     eventbus_task = event_bus.start()
 
     try:
-        event = Event(
-            type=EventType.OUTBOUND,
+        event = OutboundEvent(
             session_id="test-session",
+            agent_id="pickle",
             content="Hello",
             source=Source.agent("pickle"),
             timestamp=12345.0,
@@ -164,9 +156,9 @@ async def test_publish_inbound_no_persist_inbound(event_bus, events_dir):
     eventbus_task = event_bus.start()
 
     try:
-        event = Event(
-            type=EventType.INBOUND,
+        event = InboundEvent(
             session_id="test-session",
+            agent_id="test",
             content="Hi",
             source=Source.platform("telegram", "user1"),
             timestamp=12345.0,
