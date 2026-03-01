@@ -27,7 +27,9 @@ def client():
         context = SharedContext(config)
 
         # Create a test session
-        context.history_store.create_session("pickle", "test-session")
+        context.history_store.create_session(
+            "pickle", "test-session", source="telegram:user_123"
+        )
         context.history_store.save_message(
             "test-session",
             HistoryMessage(role="user", content="Hello"),
@@ -117,7 +119,9 @@ class TestGetSession:
             )
             context = SharedContext(config)
 
-            context.history_store.create_session("pickle", "multi-session")
+            context.history_store.create_session(
+                "pickle", "multi-session", source="telegram:user_456"
+            )
             context.history_store.save_message(
                 "multi-session",
                 HistoryMessage(role="user", content="First"),

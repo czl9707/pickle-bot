@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
     from picklebot.core.agent_loader import AgentDef
     from picklebot.provider.llm import LLMToolCall
+    from picklebot.messagebus.base import MessageContext
 
 
 def get_source_settings(source: str) -> tuple[int, bool]:
@@ -60,15 +61,15 @@ class Agent:
         self.context = context
         self.llm = LLMProvider.from_config(agent_def.llm)
 
-    def _build_tools(self, mode: SessionMode) -> ToolRegistry:
+    def _build_tools(self, include_post_message: bool) -> ToolRegistry:
         """
-        Build a ToolRegistry with tools appropriate for the session mode.
+        Build a ToolRegistry with tools appropriate for the session.
 
         Args:
-            mode: Session mode (CHAT or JOB)
+            include_post_message: Whether to include the post_message tool
 
         Returns:
-            ToolRegistry with base tools + mode-appropriate optional tools
+            ToolRegistry with base tools + optional tools
         """
         registry = ToolRegistry.with_builtins()
 
@@ -91,8 +92,8 @@ class Agent:
         if webread_tool:
             registry.register(webread_tool)
 
-        # Register post_message tool only in JOB mode
-        if mode == SessionMode.JOB:
+        # Register post_message tool if requested (for cron/job sources)
+        if include_post_message:
             post_tool = create_post_message_tool(self.context)
             if post_tool:
                 registry.register(post_tool)
@@ -100,40 +101,51 @@ class Agent:
         return registry
 
     def new_session(
-        self, mode: SessionMode, session_id: str | None = None
+        self,
+        source: str,
+        context: "MessageContext | None" = None,
+        session_id: str | None = None,
     ) -> "AgentSession":
         """
         Create a new conversation session.
 
         Args:
-            mode: Session mode (CHAT or JOB) determines history limit and tool availability
+            source: Event source (e.g., "telegram:user_123", "cron:daily")
+            context: Optional MessageContext from the message bus
             session_id: Optional session_id to use (for recovery scenarios)
 
         Returns:
-            A new Session instance with mode-appropriate tools.
+            A new Session instance with source-appropriate tools.
         """
         session_id = session_id or str(uuid.uuid4())
 
-        # Determine max_history based on mode
-        if mode == SessionMode.CHAT:
-            max_history = self.context.config.chat_max_history
-        else:
-            max_history = self.context.config.job_max_history
+        # Derive settings from source
+        max_history, include_post_message = get_source_settings(source)
 
         # Build tools for this session
-        tools = self._build_tools(mode)
+        tools = self._build_tools(include_post_message)
+
+        # Serialize context for storage if provided
+        context_dict = None
+        if context is not None:
+            context_dict = (
+                context.model_dump() if hasattr(context, "model_dump") else None
+            )
 
         session = AgentSession(
             session_id=session_id,
             agent_id=self.agent_def.id,
-            context=self.context,
+            shared_context=self.context,
             agent=self,
             tools=tools,
-            mode=mode,
+            source=source,
+            context=context,
             max_history=max_history,
         )
 
-        self.context.history_store.create_session(self.agent_def.id, session_id)
+        self.context.history_store.create_session(
+            self.agent_def.id, session_id, source, context_dict
+        )
         return session
 
     def resume_session(self, session_id: str) -> "AgentSession":
@@ -155,7 +167,11 @@ class Agent:
             raise ValueError(f"Session not found: {session_id}")
 
         session_info = session_query[0]
-        max_history = self.context.config.chat_max_history
+
+        # Derive settings from stored source (default to empty string if not stored)
+        source = session_info.source or ""
+        max_history, include_post_message = get_source_settings(source)
+
         history_messages = self.context.history_store.get_messages(
             session_id, max_history=max_history
         )
@@ -163,18 +179,19 @@ class Agent:
         # Convert HistoryMessage to litellm Message format
         messages: list[Message] = [msg.to_message() for msg in history_messages]
 
-        # Build tools for resumed session (default to CHAT mode)
-        tools = self._build_tools(SessionMode.CHAT)
+        # Build tools for resumed session (no post_message by default)
+        tools = self._build_tools(include_post_message=False)
 
         return AgentSession(
             session_id=session_info.id,
             agent_id=session_info.agent_id,
-            context=self.context,
+            shared_context=self.context,
             agent=self,
             tools=tools,
-            mode=SessionMode.CHAT,  # Default to CHAT mode for resumed sessions
+            source=source,
+            context=None,  # Context not available when resuming
             messages=messages,
-            max_history=self.context.config.chat_max_history,
+            max_history=max_history,
         )
 
 
@@ -184,12 +201,13 @@ class AgentSession:
 
     session_id: str
     agent_id: str
-    context: "SharedContext"
+    shared_context: "SharedContext"  # Shared app context (DI container)
     agent: Agent  # Reference to parent agent for LLM access
     tools: ToolRegistry  # Session's own tool registry
-    mode: SessionMode  # Session mode (CHAT or JOB)
+    source: str  # Event source (e.g., "telegram:user_123", "cron:daily")
     max_history: int  # Max messages to include in LLM context
 
+    context: "MessageContext | None" = None  # Platform-specific message context
     messages: list[Message] = field(default_factory=list)
     started_at: datetime = field(default_factory=datetime.now)
 
@@ -210,7 +228,7 @@ class AgentSession:
     def _persist_message(self, message: Message) -> None:
         """Save to HistoryStore."""
         history_msg = HistoryMessage.from_message(message)
-        self.context.history_store.save_message(self.session_id, history_msg)
+        self.shared_context.history_store.save_message(self.session_id, history_msg)
 
     async def chat(self, message: str) -> str:
         """

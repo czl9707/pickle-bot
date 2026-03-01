@@ -162,7 +162,9 @@ class TestHistoryStoreInit:
 class TestCreateSession:
     def test_creates_session(self, history_store):
         """create_session should return session metadata."""
-        session = history_store.create_session("test-agent", "session-123", source="cli:test")
+        session = history_store.create_session(
+            "test-agent", "session-123", source="cli:test"
+        )
 
         assert session["id"] == "session-123"
         assert session["agent_id"] == "test-agent"
@@ -514,7 +516,10 @@ class TestHistoryStoreWithSource:
 
     def test_create_session_with_source_and_context(self, history_store):
         """create_session should store source and context."""
-        context = {"type": "TelegramContext", "data": {"user_id": "456", "chat_id": "789"}}
+        context = {
+            "type": "TelegramContext",
+            "data": {"user_id": "456", "chat_id": "789"},
+        }
         result = history_store.create_session(
             agent_id="pickle",
             session_id="test-123",

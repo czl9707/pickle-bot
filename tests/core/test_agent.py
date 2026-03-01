@@ -2,7 +2,7 @@
 
 import pytest
 
-from picklebot.core.agent import Agent, SessionMode, get_source_settings
+from picklebot.core.agent import Agent, AgentSession, get_source_settings
 from picklebot.core.agent_loader import AgentDef
 from picklebot.core.context import SharedContext
 from picklebot.utils.config import LLMConfig, MessageBusConfig, TelegramConfig
@@ -67,34 +67,34 @@ def test_agent_creation_with_new_structure(test_agent, test_agent_def, test_cont
 
 
 def test_agent_new_session(test_agent, test_agent_def):
-    """Agent should create new session with self reference and correct mode defaults."""
-    session = test_agent.new_session(SessionMode.CHAT)
+    """Agent should create new session with self reference and correct source defaults."""
+    session = test_agent.new_session(source="telegram:user_123")
 
     assert session.session_id is not None
     assert session.agent_id == test_agent_def.id
     assert session.agent is test_agent
-    assert session.max_history == 50  # chat default
+    assert session.max_history == 100  # chat default from get_source_settings
 
 
 def test_agent_new_session_with_custom_session_id(test_agent):
     """Agent.new_session should accept optional session_id parameter."""
     custom_id = "custom-session-123"
-    session = test_agent.new_session(SessionMode.CHAT, session_id=custom_id)
+    session = test_agent.new_session(source="telegram:user_123", session_id=custom_id)
 
     assert session.session_id == custom_id
 
 
 @pytest.mark.parametrize(
-    "mode,expected_history_attr",
+    "source,expected_max_history",
     [
-        (SessionMode.CHAT, "chat_max_history"),
-        (SessionMode.JOB, "job_max_history"),
+        ("telegram:user_123", 100),  # chat source -> 100
+        ("cron:daily_job", 50),  # cron source -> 50
     ],
 )
-def test_session_max_history(test_agent, test_config, mode, expected_history_attr):
-    """Agent.new_session should use correct max_history based on mode."""
-    session = test_agent.new_session(mode)
-    assert session.max_history == getattr(test_config, expected_history_attr)
+def test_session_max_history(test_agent, source, expected_max_history):
+    """Agent.new_session should use correct max_history based on source."""
+    session = test_agent.new_session(source)
+    assert session.max_history == expected_max_history
 
 
 def _create_agent_with_skills(test_config, allow_skills: bool) -> Agent:
@@ -129,7 +129,7 @@ def _create_agent_with_skills(test_config, allow_skills: bool) -> Agent:
 def test_skill_tool_registration(test_config, allow_skills, expected):
     """Session should register skill tool based on allow_skills setting."""
     agent = _create_agent_with_skills(test_config, allow_skills)
-    session = agent.new_session(SessionMode.CHAT)
+    session = agent.new_session(source="telegram:user_123")
     tool_names = [s["function"]["name"] for s in session.tools.get_tool_schemas()]
 
     assert ("skill" in tool_names) == expected
@@ -165,7 +165,7 @@ def test_subagent_dispatch_registration(
     agent = _create_agent_with_other_agents(
         test_config, test_agent_def, has_other_agents
     )
-    session = agent.new_session(SessionMode.CHAT)
+    session = agent.new_session(source="telegram:user_123")
     tool_names = [s["function"]["name"] for s in session.tools.get_tool_schemas()]
 
     assert ("subagent_dispatch" in tool_names) == expected
@@ -195,16 +195,144 @@ def _create_agent_with_messagebus(test_config) -> Agent:
 
 
 @pytest.mark.parametrize(
-    "mode,expected",
+    "source,expected",
     [
-        (SessionMode.CHAT, False),
-        (SessionMode.JOB, True),
+        ("telegram:user_123", False),  # chat source -> no post_message
+        ("cron:daily_job", True),  # cron source -> post_message
     ],
 )
-def test_post_message_availability(test_config, mode, expected):
-    """post_message tool should only be available in JOB mode."""
+def test_post_message_availability(test_config, source, expected):
+    """post_message tool should only be available for cron sources."""
     agent = _create_agent_with_messagebus(test_config)
-    session = agent.new_session(mode)
+    session = agent.new_session(source=source)
     tool_names = [s["function"]["name"] for s in session.tools.get_tool_schemas()]
 
     assert ("post_message" in tool_names) == expected
+
+
+class TestAgentSessionWithSource:
+    """Tests for AgentSession with source field."""
+
+    def test_agent_session_has_source_field(self):
+        """AgentSession should have source field."""
+        from dataclasses import fields
+
+        field_names = [f.name for f in fields(AgentSession)]
+        assert "source" in field_names
+
+    def test_agent_session_has_context_field(self):
+        """AgentSession should have context field for MessageContext."""
+        from dataclasses import fields
+
+        field_names = [f.name for f in fields(AgentSession)]
+        assert "context" in field_names
+
+
+class TestAgentNewSessionWithSource:
+    """Tests for Agent.new_session with source parameter."""
+
+    @pytest.fixture
+    def mock_context(self, tmp_path):
+        """Create a mock SharedContext for testing."""
+        from unittest.mock import MagicMock
+        from picklebot.core.history import HistoryStore
+
+        context = MagicMock()
+        context.config.chat_max_history = 100
+        context.config.job_max_history = 50
+        context.config.messagebus = MagicMock()
+        context.config.messagebus.enabled = True
+        context.config.messagebus.default_platform = "telegram"
+        context.config.messagebus.telegram = MagicMock()
+        context.config.messagebus.telegram.enabled = True
+        context.config.websearch = None
+        context.config.webread = None
+        context.history_store = HistoryStore(tmp_path)
+        context.skill_loader = MagicMock()
+        context.skill_loader.list_skills.return_value = []
+        # Mock messagebus_buses for post_message_tool
+        mock_bus = MagicMock()
+        mock_bus.platform_name = "telegram"
+        context.messagebus_buses = [mock_bus]
+
+        return context
+
+    @pytest.fixture
+    def mock_agent_def(self):
+        """Create a mock AgentDef for testing."""
+        from unittest.mock import MagicMock
+
+        agent_def = MagicMock()
+        agent_def.id = "test-agent"
+        agent_def.llm = LLMConfig(provider="openai", model="gpt-4", api_key="test-key")
+        agent_def.system_prompt = "You are a test agent."
+        agent_def.allow_skills = False
+        agent_def.max_concurrency = 1
+        return agent_def
+
+    def test_new_session_accepts_source(self, mock_context, mock_agent_def):
+        """new_session should accept source parameter."""
+        agent = Agent(mock_agent_def, mock_context)
+        session = agent.new_session(source="telegram:user_123")
+
+        assert session.source == "telegram:user_123"
+
+    def test_new_session_accepts_context(self, mock_context, mock_agent_def):
+        """new_session should accept context parameter."""
+        from picklebot.messagebus.cli_bus import CliContext
+
+        agent = Agent(mock_agent_def, mock_context)
+        context = CliContext(user_id="test-user")
+        session = agent.new_session(source="cli:test-user", context=context)
+
+        assert session.context is not None
+        assert session.context.user_id == "test-user"
+
+    def test_new_session_derives_max_history_from_source_cron(
+        self, mock_context, mock_agent_def
+    ):
+        """new_session should derive max_history from source for cron."""
+        agent = Agent(mock_agent_def, mock_context)
+        session = agent.new_session(source="cron:daily_job")
+
+        assert session.max_history == 50
+
+    def test_new_session_derives_max_history_from_source_chat(
+        self, mock_context, mock_agent_def
+    ):
+        """new_session should derive max_history from source for chat."""
+        agent = Agent(mock_agent_def, mock_context)
+        session = agent.new_session(source="telegram:user_123")
+
+        assert session.max_history == 100
+
+    def test_new_session_includes_post_message_for_cron(
+        self, mock_context, mock_agent_def
+    ):
+        """new_session should include post_message tool for cron sources."""
+        agent = Agent(mock_agent_def, mock_context)
+        session = agent.new_session(source="cron:daily_job")
+
+        tool_names = [s["function"]["name"] for s in session.tools.get_tool_schemas()]
+        assert "post_message" in tool_names
+
+    def test_new_session_excludes_post_message_for_chat(
+        self, mock_context, mock_agent_def
+    ):
+        """new_session should NOT include post_message tool for chat sources."""
+        agent = Agent(mock_agent_def, mock_context)
+        session = agent.new_session(source="telegram:user_123")
+
+        tool_names = [s["function"]["name"] for s in session.tools.get_tool_schemas()]
+        assert "post_message" not in tool_names
+
+    def test_new_session_persists_source_to_history(self, mock_context, mock_agent_def):
+        """new_session should persist source to HistoryStore."""
+        agent = Agent(mock_agent_def, mock_context)
+        session = agent.new_session(source="telegram:user_123")
+
+        # Check that history store has the session with source
+        sessions = mock_context.history_store.list_sessions()
+        stored = next((s for s in sessions if s.id == session.session_id), None)
+        assert stored is not None
+        assert stored.source == "telegram:user_123"

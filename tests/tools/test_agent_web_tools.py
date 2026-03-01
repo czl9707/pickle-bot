@@ -2,7 +2,7 @@
 
 import pytest
 
-from picklebot.core.agent import Agent, SessionMode
+from picklebot.core.agent import Agent
 from picklebot.core.agent_loader import AgentDef
 from picklebot.core.context import SharedContext
 from picklebot.utils.config import (
@@ -50,7 +50,7 @@ class TestAgentWebTools:
         context = SharedContext(config=web_test_config)
         agent = Agent(agent_def, context)
 
-        registry = agent._build_tools(mode=SessionMode.CHAT)
+        registry = agent._build_tools(include_post_message=False)
         tool_names = list(registry._tools.keys())
 
         if should_exist:
