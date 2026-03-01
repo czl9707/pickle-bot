@@ -145,12 +145,12 @@ You are the target agent.
                 while not dispatched_events:
                     await asyncio.sleep(0.01)
 
-                # Get the job_id (session_id of the dispatch event) and publish RESULT
+                # Get the session_id from dispatch event and publish RESULT
                 dispatch_event = dispatched_events[0]
-                job_id = dispatch_event.session_id
+                session_id = dispatch_event.session_id
 
                 result_event = DispatchResultEvent(
-                    session_id=job_id,
+                    session_id=session_id,
                     agent_id="target-agent",
                     source="agent:target-agent",
                     content="Task completed successfully",
@@ -224,10 +224,10 @@ You are the target agent.
                     await asyncio.sleep(0.01)
 
                 dispatch_event = dispatched_events[0]
-                job_id = dispatch_event.session_id
+                session_id = dispatch_event.session_id
 
                 result_event = DispatchResultEvent(
-                    session_id=job_id,
+                    session_id=session_id,
                     agent_id="target-agent",
                     source="agent:target-agent",
                     content="Done",
@@ -326,10 +326,10 @@ You are the target agent.
                     await asyncio.sleep(0.01)
 
                 dispatch_event = dispatched_events[0]
-                job_id = dispatch_event.session_id
+                session_id = dispatch_event.session_id
 
                 result_event = DispatchResultEvent(
-                    session_id=job_id,
+                    session_id=session_id,
                     agent_id="target-agent",
                     source="agent:target-agent",
                     content="",

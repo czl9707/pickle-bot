@@ -3,15 +3,14 @@
 import asyncio
 import json
 import time
-import uuid
 from typing import TYPE_CHECKING
 
+from picklebot.core.events import DispatchEvent, DispatchResultEvent, Source, TypedEvent
 from picklebot.tools.base import BaseTool, tool
 from picklebot.utils.def_loader import DefNotFoundError
-from picklebot.core.events import DispatchEvent, DispatchResultEvent, Source, TypedEvent
 
 if TYPE_CHECKING:
-    from picklebot.core.agent import AgentSession
+    from picklebot.core.agent import Agent, AgentSession, SessionMode
     from picklebot.core.context import SharedContext
 
 
@@ -82,24 +81,31 @@ def create_subagent_dispatch_tool(
         Returns:
             JSON with result and session_id
         """
-        # Verify agent exists
+        # Verify agent exists and create session
+        from picklebot.core.agent import Agent, SessionMode
+
         try:
-            shared_context.agent_loader.load(agent_id)
+            agent_def = shared_context.agent_loader.load(agent_id)
         except DefNotFoundError:
             raise ValueError(f"Agent '{agent_id}' not found")
+
+        agent = Agent(agent_def, shared_context)
+        agent_session = agent.new_session(SessionMode.JOB)
+        session_id = agent_session.session_id
 
         user_message = task
         if context:
             user_message = f"{task}\n\nContext:\n{context}"
 
-        # Create job_id and local future for result
-        job_id = str(uuid.uuid4())
         loop = asyncio.get_running_loop()
         result_future: asyncio.Future[str] = loop.create_future()
 
-        # Create temp handler that filters by job_id
+        # Create temp handler that filters by session_id
         async def handle_result(event: TypedEvent) -> None:
-            if isinstance(event, DispatchResultEvent) and event.session_id == job_id:
+            if (
+                isinstance(event, DispatchResultEvent)
+                and event.session_id == session_id
+            ):
                 if not result_future.done():
                     if event.error:
                         result_future.set_exception(Exception(event.error))
@@ -114,7 +120,7 @@ def create_subagent_dispatch_tool(
         try:
             # Publish DISPATCH event
             event = DispatchEvent(
-                session_id=job_id,
+                session_id=session_id,
                 agent_id=agent_id,
                 source=Source.agent(current_agent_id),
                 content=user_message,
@@ -129,7 +135,7 @@ def create_subagent_dispatch_tool(
             # Always unsubscribe
             shared_context.eventbus.unsubscribe(handle_result)
 
-        result = {"result": response, "session_id": job_id}
+        result = {"result": response, "session_id": session_id}
         return json.dumps(result)
 
     return subagent_dispatch

@@ -4,13 +4,13 @@ import asyncio
 import logging
 import shutil
 import time
-import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 from croniter import croniter
 
 from .worker import Worker
+from picklebot.core.agent import Agent, SessionMode
 from picklebot.core.events import InboundEvent, Source
 
 if TYPE_CHECKING:
@@ -77,11 +77,14 @@ class CronWorker(Worker):
         due_jobs = find_due_jobs(jobs)
 
         for cron_def in due_jobs:
-            job_id = str(uuid.uuid4())
+            # Create session for this cron job
+            agent_def = self.context.agent_loader.load(cron_def.agent)
+            agent = Agent(agent_def, self.context)
+            session = agent.new_session(SessionMode.JOB)
 
             # Publish INBOUND event (external work entering the system)
             event = InboundEvent(
-                session_id=job_id,
+                session_id=session.session_id,
                 agent_id=cron_def.agent,
                 source=Source.cron(cron_def.id),
                 content=cron_def.prompt,

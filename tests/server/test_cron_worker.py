@@ -48,7 +48,7 @@ def test_find_due_jobs_empty_when_no_match():
 
 
 @pytest.mark.anyio
-async def test_cron_worker_dispatches_due_job(test_context):
+async def test_cron_worker_dispatches_due_job(test_context, test_agent_def):
     """CronWorker dispatches due jobs via EventBus as INBOUND events."""
     worker = CronWorker(test_context)
 
@@ -68,20 +68,23 @@ async def test_cron_worker_dispatches_due_job(test_context):
         mock_cron = CronDef(
             id="test-cron",
             name="Test Cron",
-            agent="pickle",
+            agent="test-agent",
             schedule="*/5 * * * *",  # Every 5 minutes
             prompt="Test prompt from cron",
         )
 
-        # Mock discover_crons to return our known cron job
+        # Mock discover_crons and agent_loader
         with patch.object(
             test_context.cron_loader, "discover_crons", return_value=[mock_cron]
         ):
-            # Patch find_due_jobs to return our mock (ensures it's considered due)
-            with patch(
-                "picklebot.server.cron_worker.find_due_jobs", return_value=[mock_cron]
+            with patch.object(
+                test_context.agent_loader, "load", return_value=test_agent_def
             ):
-                await worker._tick()
+                with patch(
+                    "picklebot.server.cron_worker.find_due_jobs",
+                    return_value=[mock_cron],
+                ):
+                    await worker._tick()
 
         # Wait for EventBus to process the queued event
         await asyncio.sleep(0.1)
@@ -93,7 +96,7 @@ async def test_cron_worker_dispatches_due_job(test_context):
         assert event.content == "Test prompt from cron"
         # InboundEvent has agent_id directly (not in metadata)
         assert isinstance(event, InboundEvent)
-        assert event.agent_id == "pickle"
+        assert event.agent_id == "test-agent"
     finally:
         eventbus_task.cancel()
         try:
@@ -110,14 +113,14 @@ async def test_cron_worker_dispatches_due_job(test_context):
         (False, False),
     ],
 )
-async def test_one_off_cron_deletion(test_context, one_off, should_delete):
+async def test_one_off_cron_deletion(test_context, test_agent_def, one_off, should_delete):
     """CronWorker deletes one-off crons but keeps recurring crons."""
     worker = CronWorker(test_context)
 
     mock_cron = CronDef(
         id="test-cron",
         name="Test Cron",
-        agent="pickle",
+        agent="test-agent",
         schedule="*/5 * * * *",
         prompt="Test task",
         one_off=one_off,
@@ -126,11 +129,12 @@ async def test_one_off_cron_deletion(test_context, one_off, should_delete):
     with patch.object(
         test_context.cron_loader, "discover_crons", return_value=[mock_cron]
     ):
-        with patch(
-            "picklebot.server.cron_worker.find_due_jobs", return_value=[mock_cron]
-        ):
-            with patch("picklebot.server.cron_worker.shutil.rmtree") as mock_rmtree:
-                await worker._tick()
+        with patch.object(test_context.agent_loader, "load", return_value=test_agent_def):
+            with patch(
+                "picklebot.server.cron_worker.find_due_jobs", return_value=[mock_cron]
+            ):
+                with patch("picklebot.server.cron_worker.shutil.rmtree") as mock_rmtree:
+                    await worker._tick()
 
     # Verify deletion behavior
     expected_path = test_context.cron_loader.config.crons_path / "test-cron"
