@@ -101,11 +101,8 @@ def create_subagent_dispatch_tool(
         result_future: asyncio.Future[str] = loop.create_future()
 
         # Create temp handler that filters by session_id
-        async def handle_result(event: Event) -> None:
-            if (
-                isinstance(event, DispatchResultEvent)
-                and event.session_id == session_id
-            ):
+        async def handle_result(event: DispatchResultEvent) -> None:
+            if event.session_id == session_id:
                 if not result_future.done():
                     if event.error:
                         result_future.set_exception(Exception(event.error))

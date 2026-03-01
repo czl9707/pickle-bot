@@ -146,29 +146,9 @@ class AgentWorker(SubscriberWorker):
         self._semaphores: dict[str, asyncio.Semaphore] = {}
 
         # Auto-subscribe to events
-        self.context.eventbus.subscribe(EventType.INBOUND, self.handle_inbound)
-        self.context.eventbus.subscribe(EventType.DISPATCH, self.handle_dispatch)
+        self.context.eventbus.subscribe(EventType.INBOUND, self._dispatch_event)
+        self.context.eventbus.subscribe(EventType.DISPATCH, self._dispatch_event)
         self.logger.info("AgentWorker subscribed to INBOUND and DISPATCH events")
-
-    async def handle_inbound(self, event: Event) -> None:
-        """Handle INBOUND event (from platforms, cron, retries)."""
-        # Type-check: only process InboundEvent instances
-        if not isinstance(event, InboundEvent):
-            return
-
-        await self._dispatch_event(event)
-        logger.debug(f"Dispatched job for INBOUND event, session_id={event.session_id}")
-
-    async def handle_dispatch(self, event: Event) -> None:
-        """Handle DISPATCH event (from subagent calls)."""
-        # Type-check: only process DispatchEvent instances
-        if not isinstance(event, DispatchEvent):
-            return
-
-        await self._dispatch_event(event)
-        logger.debug(
-            f"Dispatched job for DISPATCH event, session_id={event.session_id}"
-        )
 
     async def _dispatch_event(self, event: ProcessableEvent) -> None:
         """Create executor task for typed event."""

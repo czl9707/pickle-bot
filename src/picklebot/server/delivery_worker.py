@@ -104,10 +104,6 @@ class DeliveryWorker(SubscriberWorker):
 
     async def handle_event(self, event: OutboundEvent) -> None:
         """Handle an outbound message event."""
-        # Type check - only handle OutboundEvent
-        if not isinstance(event, OutboundEvent):
-            return
-
         try:
             # Look up where to deliver
             platform_info = self._lookup_platform(event.session_id)

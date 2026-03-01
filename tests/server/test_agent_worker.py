@@ -626,7 +626,7 @@ async def test_agent_dispatcher_handles_inbound_event(test_context):
         timestamp=time.time(),
     )
 
-    await router.handle_inbound(event)
+    await router._dispatch_event(event)
 
     assert len(dispatched_events) == 1
     dispatched = dispatched_events[0]
@@ -657,7 +657,7 @@ async def test_agent_dispatcher_handles_dispatch_event(test_context):
         parent_session_id="parent-123",
     )
 
-    await router.handle_dispatch(event)
+    await router._dispatch_event(event)
 
     assert len(dispatched_events) == 1
     dispatched = dispatched_events[0]

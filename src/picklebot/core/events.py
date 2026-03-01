@@ -109,7 +109,7 @@ class Event:
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize event to dictionary, including type."""
-        result = {"type": self.type.value}
+        result: dict[str, Any] = {"type": self.type.value}
         # Add all dataclass fields
         for field_name in self.__dataclass_fields__:
             value = getattr(self, field_name)
