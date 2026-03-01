@@ -7,7 +7,7 @@ from dataclasses import replace
 from typing import TYPE_CHECKING, Union
 
 from .worker import SubscriberWorker
-from picklebot.core.agent import Agent, SessionMode
+from picklebot.core.agent import Agent
 from picklebot.core.events import (
     Event,
     EventType,
@@ -51,10 +51,6 @@ class SessionExecutor:
         # Extract fields from typed event
         self.agent_id = event.agent_id
         self.retry_count = event.retry_count
-        # DispatchEvent always uses JOB mode, InboundEvent uses CHAT mode
-        self.mode = (
-            SessionMode.JOB if isinstance(event, DispatchEvent) else SessionMode.CHAT
-        )
 
     async def run(self) -> None:
         """Wait for semaphore, execute session, release."""
@@ -68,14 +64,20 @@ class SessionExecutor:
         try:
             agent = Agent(self.agent_def, self.context)
 
+            # Extract source and context from event
+            source = self.event.source
+            context = (
+                self.event.context if isinstance(self.event, InboundEvent) else None
+            )
+
             if session_id:
                 try:
                     session = agent.resume_session(session_id)
                 except ValueError:
                     logger.warning(f"Session {session_id} not found, creating new")
-                    session = agent.new_session(self.mode, session_id=session_id)
+                    session = agent.new_session(source, context, session_id=session_id)
             else:
-                session = agent.new_session(self.mode)
+                session = agent.new_session(source, context)
                 session_id = session.session_id
 
             response = await session.chat(self.event.content)

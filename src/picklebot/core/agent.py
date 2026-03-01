@@ -3,7 +3,6 @@ import json
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
 from typing import TYPE_CHECKING
 
 from picklebot.core.history import HistoryMessage
@@ -39,13 +38,6 @@ def get_source_settings(source: str) -> tuple[int, bool]:
     if source.startswith("cron:"):
         return (50, True)
     return (100, False)
-
-
-class SessionMode(str, Enum):
-    """Session mode determines history limit behavior."""
-
-    CHAT = "chat"
-    JOB = "job"
 
 
 class Agent:

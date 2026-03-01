@@ -82,7 +82,7 @@ def create_subagent_dispatch_tool(
             JSON with result and session_id
         """
         # Verify agent exists and create session
-        from picklebot.core.agent import Agent, SessionMode
+        from picklebot.core.agent import Agent
 
         try:
             agent_def = shared_context.agent_loader.load(agent_id)
@@ -90,7 +90,7 @@ def create_subagent_dispatch_tool(
             raise ValueError(f"Agent '{agent_id}' not found")
 
         agent = Agent(agent_def, shared_context)
-        agent_session = agent.new_session(SessionMode.JOB)
+        agent_session = agent.new_session(Source.agent(current_agent_id))
         session_id = agent_session.session_id
 
         user_message = task

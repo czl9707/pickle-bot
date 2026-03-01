@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from croniter import croniter
 
 from .worker import Worker
-from picklebot.core.agent import Agent, SessionMode
+from picklebot.core.agent import Agent
 from picklebot.core.events import InboundEvent, Source
 
 if TYPE_CHECKING:
@@ -80,7 +80,7 @@ class CronWorker(Worker):
             # Create session for this cron job
             agent_def = self.context.agent_loader.load(cron_def.agent)
             agent = Agent(agent_def, self.context)
-            session = agent.new_session(SessionMode.JOB)
+            session = agent.new_session(Source.cron(cron_def.id))
 
             # Publish INBOUND event (external work entering the system)
             event = InboundEvent(

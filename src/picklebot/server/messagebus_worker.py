@@ -5,7 +5,7 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from .worker import Worker
-from picklebot.core.agent import SessionMode, Agent
+from picklebot.core.agent import Agent
 from picklebot.core.events import InboundEvent, Source
 from picklebot.utils.def_loader import DefNotFoundError
 
@@ -37,9 +37,9 @@ class MessageBusWorker(Worker):
         # CLI has a single session stored in the worker
         if platform == "cli":
             if not self._cli_session_id:
-                session = self.agent.new_session(SessionMode.CHAT)
+                session = self.agent.new_session(Source.platform(platform, user_id))
                 self._cli_session_id = session.session_id
-            return session.session_id
+            return self._cli_session_id
 
         # Other platforms use typed config
         platform_config = getattr(self.context.config.messagebus, platform, None)
@@ -49,7 +49,7 @@ class MessageBusWorker(Worker):
                 return session_id
 
         # No existing session - create new
-        session = self.agent.new_session(SessionMode.CHAT)
+        session = self.agent.new_session(Source.platform(platform, user_id))
         self.context.config.set_runtime(
             f"messagebus.{platform}.sessions.{user_id}", session.session_id
         )
