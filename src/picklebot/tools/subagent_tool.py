@@ -10,7 +10,7 @@ from picklebot.tools.base import BaseTool, tool
 from picklebot.utils.def_loader import DefNotFoundError
 
 if TYPE_CHECKING:
-    from picklebot.core.agent import Agent, AgentSession, SessionMode
+    from picklebot.core.agent import AgentSession
     from picklebot.core.context import SharedContext
 
 
