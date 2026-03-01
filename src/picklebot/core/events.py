@@ -43,16 +43,11 @@ class Source:
         """Create source for cron-triggered events."""
         return f"cron:{cron_id}"
 
-    @staticmethod
-    def retry() -> str:
-        """Create source for retry events."""
-        return "retry"
 
-
-def _serialize_context(context: MessageContext | None) -> dict[str, Any] | None:
+def _serialize_context(context: MessageContext | None) -> dict[str, Any]:
     """Serialize a MessageContext to a dictionary."""
     if context is None:
-        return None
+        return {}
 
     # Get the class name to identify the context type
     context_type = type(context).__name__
@@ -69,7 +64,7 @@ def _serialize_context(context: MessageContext | None) -> dict[str, Any] | None:
 
 def _deserialize_context(data: dict[str, Any] | None) -> MessageContext | None:
     """Deserialize a dictionary back to a MessageContext."""
-    if data is None:
+    if not data:
         return None
 
     context_type = data.get("type")
@@ -207,7 +202,7 @@ def serialize_event(event: Event) -> dict[str, Any]:
 
 def deserialize_event(data: dict[str, Any]) -> Event:
     """Deserialize dict to appropriate event type."""
-    event_type = data.get("type")
+    event_type: str = data.get("type")
 
     event_class = _EVENT_CLASSES.get(event_type)
     if event_class is None:

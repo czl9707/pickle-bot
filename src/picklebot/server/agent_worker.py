@@ -63,40 +63,34 @@ class SessionExecutor:
 
     async def _execute(self) -> None:
         """Run the actual agent session."""
-        session_id = self.event.session_id or None
-
+        session_id = self.event.session_id
         try:
             agent = Agent(self.agent_def, self.context)
 
-            if session_id:
-                try:
-                    session = agent.resume_session(session_id)
-                except ValueError:
-                    logger.warning(f"Session {session_id} not found, creating new")
-                    session = agent.new_session(self.mode, session_id=session_id)
-            else:
-                session = agent.new_session(self.mode)
-                session_id = session.session_id
+            try:
+                session = agent.resume_session(session_id)
+            except ValueError:
+                logger.warning(f"Session {session_id} not found, creating new")
+                session = agent.new_session(self.mode, session_id=session_id)
+
 
             response = await session.chat(self.event.content)
             logger.info(f"Session completed: {session_id}")
 
             # Publish result event based on input type
             if isinstance(self.event, DispatchEvent):
-                result_event = DispatchResultEvent(
+                result_event: Event = DispatchResultEvent(
                     session_id=session_id,
                     agent_id=self.agent_def.id,
                     source=Source.agent(self.agent_def.id),
                     content=response,
-                    timestamp=time.time(),
                 )
             else:
-                result_event = OutboundEvent(
+                result_event: Event = OutboundEvent(
                     session_id=session_id,
                     agent_id=self.agent_def.id,
                     source=Source.agent(self.agent_def.id),
                     content=response,
-                    timestamp=time.time(),
                 )
             await self.context.eventbus.publish(result_event)
 
@@ -119,7 +113,6 @@ class SessionExecutor:
                         agent_id=self.agent_def.id,
                         source=Source.agent(self.agent_def.id),
                         content="",
-                        timestamp=time.time(),
                         error=str(e),
                     )
                 else:
@@ -128,7 +121,6 @@ class SessionExecutor:
                         agent_id=self.agent_def.id,
                         source=Source.agent(self.agent_def.id),
                         content="",
-                        timestamp=time.time(),
                         error=str(e),
                     )
                 await self.context.eventbus.publish(result_event)
@@ -184,21 +176,19 @@ class AgentWorker(SubscriberWorker):
 
             # Publish result event with error based on input type
             if isinstance(event, DispatchEvent):
-                result_event = DispatchResultEvent(
+                result_event: Event = DispatchResultEvent(
                     session_id=event.session_id,
                     agent_id=agent_id,
                     source="agent:dispatcher",
                     content="",
-                    timestamp=time.time(),
                     error=str(e),
                 )
             else:
-                result_event = OutboundEvent(
+                result_event: Event = OutboundEvent(
                     session_id=event.session_id,
                     agent_id=agent_id,
                     source="agent:dispatcher",
                     content="",
-                    timestamp=time.time(),
                     error=str(e),
                 )
             await self.context.eventbus.publish(result_event)
