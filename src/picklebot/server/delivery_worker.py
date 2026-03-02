@@ -5,7 +5,7 @@ import random
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 
-from picklebot.core.events import OutboundEvent
+from picklebot.core.events import EventSource, OutboundEvent
 from picklebot.core.history import HistorySession
 from .worker import SubscriberWorker
 
@@ -122,8 +122,16 @@ class DeliveryWorker(SubscriberWorker):
                 )
                 return
 
-            platform, user_id = session_info.source.split(":", 1)
-            context = self._build_context(platform, user_id, session_info)
+            # Parse source string to EventSource
+            source = EventSource.from_string(session_info.source)
+
+            # Get platform name from source
+            platform = source.platform_name
+            if not platform:
+                self.logger.warning(
+                    f"Source {session_info.source} is not a platform source, skipping"
+                )
+                return
 
             limit = PLATFORM_LIMITS.get(platform, float("inf"))
             if limit != float("inf"):
@@ -136,7 +144,7 @@ class DeliveryWorker(SubscriberWorker):
             bus = self._get_bus(platform)
             if bus:
                 for chunk in chunks:
-                    await bus.reply(chunk, context)
+                    await bus.reply(chunk, source)
 
             self.context.eventbus.ack(event)
             self.logger.info(
@@ -145,28 +153,6 @@ class DeliveryWorker(SubscriberWorker):
 
         except Exception as e:
             self.logger.error(f"Failed to deliver message: {e}")
-
-    def _build_context(
-        self, platform: str, user_id: str, session_info: HistorySession
-    ) -> Any:
-        """Rebuild platform context from stored session info."""
-        if platform == "telegram":
-            from picklebot.messagebus.telegram_bus import TelegramContext
-
-            return TelegramContext(user_id=user_id, chat_id=user_id)
-        elif platform == "discord":
-            from picklebot.messagebus.discord_bus import DiscordContext
-
-            stored = session_info.context or {}
-            return DiscordContext(
-                user_id=user_id, channel_id=stored.get("channel_id", user_id)
-            )
-        elif platform == "cli":
-            from picklebot.messagebus.cli_bus import CliContext
-
-            return CliContext(user_id=user_id)
-        else:
-            raise ValueError(f"Unknown platform: {platform}")
 
     def _get_bus(self, platform: str) -> "MessageBus[Any] | None":
         """Get the message bus for a platform."""

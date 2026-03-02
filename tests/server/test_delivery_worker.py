@@ -23,7 +23,7 @@ def test_get_session_source_returns_session(mock_context):
     mock_session = HistorySession(
         id="session-123",
         agent_id="pickle",
-        source="telegram:123456",
+        source="platform-telegram:123456:123456",
         created_at="2026-03-01T10:00:00",
         updated_at="2026-03-01T10:00:00",
     )
@@ -33,7 +33,7 @@ def test_get_session_source_returns_session(mock_context):
     result = worker._get_session_source("session-123")
 
     assert result == mock_session
-    assert result.source == "telegram:123456"
+    assert result.source == "platform-telegram:123456:123456"
 
 
 def test_get_session_source_returns_none_if_not_found(mock_context):
@@ -74,7 +74,7 @@ async def test_handle_event_delivers_to_platform(mock_context):
     mock_session = HistorySession(
         id="session-123",
         agent_id="pickle",
-        source="telegram:123456",
+        source="platform-telegram:123456:123456",
         created_at="2026-03-01T10:00:00",
         updated_at="2026-03-01T10:00:00",
     )
@@ -109,7 +109,7 @@ async def test_delivery_worker_handles_cli_platform(mock_context):
     mock_session = HistorySession(
         id="test-session",
         agent_id="pickle",
-        source="cli:cli-user",
+        source="platform-cli:cli-user",
         created_at="2026-03-01T10:00:00",
         updated_at="2026-03-01T10:00:00",
     )
