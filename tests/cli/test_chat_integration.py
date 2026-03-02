@@ -106,7 +106,7 @@ async def test_cli_message_flow_through_workers(integration_config: Config):
             # Verify event structure
             assert isinstance(event, InboundEvent)
             assert event.content == "test message"
-            assert event.source.startswith("cli:")
+            assert str(event.source).startswith("platform-cli:")
             assert event.timestamp > 0
 
             # Wait a bit for bus to process quit command
