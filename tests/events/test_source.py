@@ -103,3 +103,27 @@ class TestTelegramEventSource:
         assert isinstance(source, TelegramEventSource)
         assert source.user_id == "12345"
         assert source.chat_id == "67890"
+
+
+class TestDiscordEventSource:
+    """Tests for DiscordEventSource."""
+
+    def test_string_roundtrip(self):
+        """Discord source should serialize and deserialize correctly."""
+        from picklebot.messagebus.discord_bus import DiscordEventSource
+
+        original = DiscordEventSource(user_id="12345", channel_id="67890")
+        serialized = str(original)
+        deserialized = DiscordEventSource.from_string(serialized)
+
+        assert serialized == "platform-discord:12345:67890"
+        assert deserialized.user_id == "12345"
+        assert deserialized.channel_id == "67890"
+
+    def test_type_properties(self):
+        """Discord source should have correct type properties."""
+        from picklebot.messagebus.discord_bus import DiscordEventSource
+
+        source = DiscordEventSource(user_id="12345", channel_id="67890")
+        assert source.is_platform is True
+        assert source.platform_name == "discord"

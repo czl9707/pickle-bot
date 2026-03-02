@@ -7,10 +7,32 @@ from typing import Callable, Awaitable
 
 import discord
 
+from picklebot.core.events import EventSource
 from picklebot.messagebus.base import MessageBus, MessageContext
 from picklebot.utils.config import DiscordConfig
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class DiscordEventSource(EventSource):
+    """Source for Discord-originated events."""
+
+    _namespace = "platform-discord"
+    user_id: str
+    channel_id: str
+
+    def __str__(self) -> str:
+        return f"platform-discord:{self.user_id}:{self.channel_id}"
+
+    @classmethod
+    def from_string(cls, s: str) -> "DiscordEventSource":
+        _, user_id, channel_id = s.split(":")
+        return cls(user_id=user_id, channel_id=channel_id)
+
+    @property
+    def platform_name(self) -> str:
+        return "discord"
 
 
 @dataclass
