@@ -1,6 +1,7 @@
 """Shared test fixtures for picklebot test suite."""
 
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -73,3 +74,21 @@ def temp_crons_dir(tmp_path: Path) -> Path:
 def history_store(tmp_path: Path) -> HistoryStore:
     """HistoryStore instance for testing."""
     return HistoryStore(tmp_path / "history", max_history_file_size=3)
+
+
+@pytest.fixture
+def mock_context(tmp_path: Path) -> MagicMock:
+    """Mock SharedContext for worker tests (no real agent loading)."""
+    from picklebot.core.eventbus import EventBus
+
+    context = MagicMock()
+    context.config = MagicMock()
+    context.config.messagebus = MagicMock()
+    context.config.messagebus.telegram = None
+    context.config.messagebus.discord = None
+    context.config.event_path = tmp_path / ".events"
+    context.eventbus = EventBus(context)
+    context.messagebus_buses = []
+    context.history_store = MagicMock()
+    context.history_store.list_sessions = MagicMock(return_value=[])
+    return context
