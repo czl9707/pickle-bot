@@ -7,21 +7,35 @@ from typing import Callable, Awaitable
 
 import discord
 
-from picklebot.messagebus.base import MessageBus, MessageContext
+from picklebot.core.events import EventSource
+from picklebot.messagebus.base import MessageBus
 from picklebot.utils.config import DiscordConfig
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class DiscordContext(MessageContext):
-    """Context for Discord messages."""
+class DiscordEventSource(EventSource):
+    """Source for Discord-originated events."""
 
-    user_id: str  # author.id - for whitelisting
-    channel_id: str  # channel.id - for replying
+    _namespace = "platform-discord"
+    user_id: str
+    channel_id: str
+
+    def __str__(self) -> str:
+        return f"platform-discord:{self.user_id}:{self.channel_id}"
+
+    @classmethod
+    def from_string(cls, s: str) -> "DiscordEventSource":
+        _, user_id, channel_id = s.split(":")
+        return cls(user_id=user_id, channel_id=channel_id)
+
+    @property
+    def platform_name(self) -> str:
+        return "discord"
 
 
-class DiscordBus(MessageBus[DiscordContext]):
+class DiscordBus(MessageBus[DiscordEventSource]):
     """Discord platform implementation using discord.py."""
 
     platform_name = "discord"
@@ -38,7 +52,7 @@ class DiscordBus(MessageBus[DiscordContext]):
         self._running_task: asyncio.Task | None = None
 
     async def run(
-        self, on_message: Callable[[str, DiscordContext], Awaitable[None]]
+        self, on_message: Callable[[str, DiscordEventSource], Awaitable[None]]
     ) -> None:
         """Run the Discord message bus. Blocks until stop() is called.
 
@@ -84,10 +98,10 @@ class DiscordBus(MessageBus[DiscordContext]):
                 f"Received Discord message from user {user_id} in channel {channel_id}"
             )
 
-            ctx = DiscordContext(user_id=user_id, channel_id=channel_id)
+            source = DiscordEventSource(user_id=user_id, channel_id=channel_id)
 
             try:
-                await on_message(content, ctx)
+                await on_message(content, source)
             except Exception as e:
                 logger.error(f"Error in message callback: {e}")
 
@@ -99,25 +113,25 @@ class DiscordBus(MessageBus[DiscordContext]):
         logger.info("DiscordBus started")
         await self._running_task
 
-    def is_allowed(self, context: DiscordContext) -> bool:
+    def is_allowed(self, source: DiscordEventSource) -> bool:
         """Check if sender is whitelisted."""
         if not self.config.allowed_user_ids:
             return True
-        return context.user_id in self.config.allowed_user_ids
+        return source.user_id in self.config.allowed_user_ids
 
-    async def reply(self, content: str, context: DiscordContext) -> None:
+    async def reply(self, content: str, source: DiscordEventSource) -> None:
         """Reply to incoming message in the same channel."""
         if not self.client:
             raise RuntimeError("DiscordBus not started")
 
         try:
-            channel = self.client.get_channel(int(context.channel_id))
+            channel = self.client.get_channel(int(source.channel_id))
             if not channel:
-                raise ValueError(f"Channel {context.channel_id} not found")
+                raise ValueError(f"Channel {source.channel_id} not found")
 
             # Type ignore: discord.py returns a union, but we know text channels have send()
             await channel.send(content)  # type: ignore[union-attr]
-            logger.debug(f"Sent Discord reply to {context.channel_id}")
+            logger.debug(f"Sent Discord reply to {source.channel_id}")
         except Exception as e:
             logger.error(f"Failed to send Discord reply: {e}")
             raise

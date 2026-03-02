@@ -5,22 +5,26 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from picklebot.messagebus.cli_bus import CliBus, CliContext
+from picklebot.messagebus.cli_bus import CliBus, CliEventSource
 
 
-class TestCliContext:
-    """Tests for CliContext."""
+class TestCliEventSource:
+    """Tests for CliEventSource."""
 
-    def test_cli_context_has_user_id(self):
-        """CliContext should have user_id field."""
-        ctx = CliContext()
-        assert ctx.user_id == "cli-user"
+    def test_cli_event_source_has_user_id(self):
+        """CliEventSource should have user_id field with default."""
+        source = CliEventSource()
+        assert source.user_id == "cli-user"
 
-    def test_cli_context_is_dataclass(self):
-        """CliContext should be a dataclass."""
-        ctx1 = CliContext()
-        ctx2 = CliContext()
-        assert ctx1 == ctx2  # Dataclass equality
+    def test_cli_event_source_custom_user_id(self):
+        """CliEventSource should accept custom user_id."""
+        source = CliEventSource(user_id="custom-user")
+        assert source.user_id == "custom-user"
+
+    def test_cli_event_source_str_representation(self):
+        """CliEventSource should have correct string representation."""
+        source = CliEventSource(user_id="test-user")
+        assert str(source) == "platform-cli:test-user"
 
 
 class TestCliBusProperties:
@@ -34,8 +38,8 @@ class TestCliBusProperties:
     def test_is_allowed_always_true(self):
         """CliBus.is_allowed should always return True."""
         bus = CliBus()
-        ctx = CliContext()
-        assert bus.is_allowed(ctx) is True
+        source = CliEventSource()
+        assert bus.is_allowed(source) is True
 
 
 class TestCliBusReplyAndPost:
@@ -44,10 +48,10 @@ class TestCliBusReplyAndPost:
     def test_reply_prints_to_stdout(self, capsys):
         """reply() should print content to stdout via Rich Console."""
         bus = CliBus()
-        ctx = CliContext()
+        source = CliEventSource()
 
         # Run async function
-        asyncio.run(bus.reply("Hello, CLI!", ctx))
+        asyncio.run(bus.reply("Hello, CLI!", source))
 
         # Check stdout contains the message
         captured = capsys.readouterr()
@@ -105,10 +109,10 @@ class TestCliBusRun:
         # Verify on_message was called with correct args
         assert on_message.called
         call_args = on_message.call_args
-        message, context = call_args[0]
+        message, source = call_args[0]
         assert message == "Hello"
-        assert isinstance(context, CliContext)
-        assert context.user_id == "cli-user"
+        assert isinstance(source, CliEventSource)
+        assert source.user_id == "cli-user"
 
     @pytest.mark.asyncio
     async def test_run_handles_quit_command(self):

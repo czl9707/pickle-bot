@@ -22,20 +22,28 @@ from litellm.types.completion import (
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
     from picklebot.core.agent_loader import AgentDef
+    from picklebot.core.events import EventSource
     from picklebot.provider.llm import LLMToolCall
-    from picklebot.messagebus.base import MessageContext
 
 
-def get_source_settings(source: str) -> tuple[int, bool]:
+def get_source_settings(source: "EventSource | str") -> tuple[int, bool]:
     """Return (max_history, post_message) settings for a given source.
 
     Args:
-        source: Event source string (e.g., "cron:daily", "telegram:user_123")
+        source: EventSource object or string (e.g., CronEventSource or "cron:daily")
 
     Returns:
         Tuple of (max_history, post_message_enabled)
     """
-    if source.startswith("cron:"):
+    # Accept both EventSource objects and strings for backwards compatibility
+    if hasattr(source, "is_cron"):
+        # EventSource object
+        is_cron = source.is_cron  # type: ignore
+    else:
+        # String (legacy)
+        is_cron = str(source).startswith("cron:")
+
+    if is_cron:
         return (50, True)
     return (100, False)
 

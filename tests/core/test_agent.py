@@ -274,16 +274,16 @@ class TestAgentNewSessionWithSource:
 
         assert session.source == "telegram:user_123"
 
-    def test_new_session_accepts_context(self, mock_context, mock_agent_def):
-        """new_session should accept context parameter."""
-        from picklebot.messagebus.cli_bus import CliContext
+    def test_new_session_context_from_source(self, mock_context, mock_agent_def):
+        """new_session should get context info from EventSource string format."""
+        from picklebot.messagebus.cli_bus import CliEventSource
 
         agent = Agent(mock_agent_def, mock_context)
-        context = CliContext(user_id="test-user")
-        session = agent.new_session(source="cli:test-user", context=context)
+        source = CliEventSource(user_id="test-user")
+        session = agent.new_session(source=str(source))
 
-        assert session.context is not None
-        assert session.context.user_id == "test-user"
+        # Source is stored as string
+        assert session.source == str(source)
 
     def test_new_session_derives_max_history_from_source_cron(
         self, mock_context, mock_agent_def

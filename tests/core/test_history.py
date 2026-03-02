@@ -517,16 +517,16 @@ class TestHistoryStoreWithSource:
     def test_create_session_with_source_and_context(self, history_store):
         """create_session should store source and context."""
         context = {
-            "type": "TelegramContext",
-            "data": {"user_id": "456", "chat_id": "789"},
+            "user_id": "456",
+            "chat_id": "789",
         }
         result = history_store.create_session(
             agent_id="pickle",
             session_id="test-123",
-            source="telegram:user_456",
+            source="platform-telegram:456:789",
             context=context,
         )
-        assert result["source"] == "telegram:user_456"
+        assert result["source"] == "platform-telegram:456:789"
         assert result["context"] == context
 
     def test_list_sessions_includes_source(self, history_store):

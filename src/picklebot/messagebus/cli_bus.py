@@ -7,19 +7,33 @@ from typing import Callable, Awaitable
 
 from rich.console import Console
 
-from picklebot.messagebus.base import MessageBus, MessageContext
+from picklebot.core.events import EventSource
+from picklebot.messagebus.base import MessageBus
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class CliContext(MessageContext):
-    """Context for CLI messages."""
+class CliEventSource(EventSource):
+    """Source for CLI-originated events."""
 
+    _namespace = "platform-cli"
     user_id: str = "cli-user"
 
+    def __str__(self) -> str:
+        return f"platform-cli:{self.user_id}"
 
-class CliBus(MessageBus[CliContext]):
+    @classmethod
+    def from_string(cls, s: str) -> "CliEventSource":
+        _, user_id = s.split(":", 1)
+        return cls(user_id=user_id)
+
+    @property
+    def platform_name(self) -> str:
+        return "cli"
+
+
+class CliBus(MessageBus[CliEventSource]):
     """CLI platform implementation using stdin/stdout."""
 
     platform_name = "cli"
@@ -30,12 +44,12 @@ class CliBus(MessageBus[CliContext]):
         self._stop_event = asyncio.Event()
         self._running = False
 
-    def is_allowed(self, context: CliContext) -> bool:
+    def is_allowed(self, source: CliEventSource) -> bool:
         """Check if sender is whitelisted. CLI always allows all users."""
-        return True
+        return True  # CLI always allowed
 
     async def run(
-        self, on_message: Callable[[str, CliContext], Awaitable[None]]
+        self, on_message: Callable[[str, CliEventSource], Awaitable[None]]
     ) -> None:
         """Run the CLI message bus. Blocks until stop() is called or quit command.
 
@@ -64,12 +78,12 @@ class CliBus(MessageBus[CliContext]):
                     if not user_input.strip():
                         continue
 
-                    # Create context and call the message callback
-                    ctx = CliContext()
-                    logger.debug(f"Received CLI message from user {ctx.user_id}")
+                    # Create source and call the message callback
+                    source = CliEventSource()
+                    logger.debug(f"Received CLI message from user {source.user_id}")
 
                     try:
-                        await on_message(user_input, ctx)
+                        await on_message(user_input, source)
                     except Exception as e:
                         logger.error(f"Error in message callback: {e}")
 
@@ -85,10 +99,11 @@ class CliBus(MessageBus[CliContext]):
             self._running = False
             logger.info("CliBus stopped")
 
-    async def reply(self, content: str, context: CliContext) -> None:
+    async def reply(self, content: str, source: CliEventSource) -> None:
         """Reply to incoming message by printing to stdout."""
+        # CLI just prints to stdout
         self.console.print(content)
-        logger.debug(f"Sent CLI reply to {context.user_id}")
+        logger.debug(f"Sent CLI reply to {source.user_id}")
 
     async def post(self, content: str, target: str | None = None) -> None:
         """Post proactive message to stdout. Target parameter is ignored."""

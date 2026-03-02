@@ -11,10 +11,12 @@ from picklebot.core.events import (
     DispatchEvent,
     DispatchResultEvent,
     Source,
+    AgentEventSource,
     serialize_event,
     deserialize_event,
 )
-from picklebot.messagebus.telegram_bus import TelegramContext
+from picklebot.messagebus.telegram_bus import TelegramEventSource
+from picklebot.messagebus.cli_bus import CliEventSource
 
 
 class TestEventBaseClass:
@@ -31,7 +33,7 @@ class TestEventBaseClass:
         event = TestEvent(
             session_id="s1",
             agent_id="a1",
-            source="test",
+            source=AgentEventSource(agent_id="test"),
             content="hello",
         )
         after = time.time()
@@ -48,7 +50,7 @@ class TestEventBaseClass:
         event = TestEvent(
             session_id="s1",
             agent_id="a1",
-            source="test",
+            source=AgentEventSource(agent_id="test"),
             content="hello",
             timestamp=123.0,
             extra="foo",
@@ -71,7 +73,7 @@ class TestEventBaseClass:
             "type": "TestEvent",
             "session_id": "s1",
             "agent_id": "a1",
-            "source": "test",
+            "source": "agent:test",
             "content": "hello",
             "timestamp": 123.0,
             "extra": "foo",
@@ -80,83 +82,77 @@ class TestEventBaseClass:
         event = TestEvent.from_dict(data)
         assert event.session_id == "s1"
         assert event.extra == "foo"
+        assert isinstance(event.source, AgentEventSource)
 
 
 class TestInboundEvent:
     """Tests for InboundEvent."""
 
     def test_inbound_event_creation(self):
-        ctx = TelegramContext(user_id="123", chat_id="456")
+        source = TelegramEventSource(user_id="123", chat_id="456")
         event = InboundEvent(
             session_id="sess-1",
             agent_id="pickle",
-            source="telegram:123",
+            source=source,
             content="Hello",
             timestamp=12345.0,
             retry_count=0,
-            context=ctx,
         )
         assert event.session_id == "sess-1"
         assert event.agent_id == "pickle"
-        assert event.source == "telegram:123"
+        assert event.source.user_id == "123"
         assert event.content == "Hello"
         assert event.timestamp == 12345.0
         assert event.retry_count == 0
-        assert event.context == ctx
 
     def test_inbound_event_defaults(self):
+        source = CliEventSource(user_id="cli-user")
         event = InboundEvent(
             session_id="sess-1",
             agent_id="pickle",
-            source="cli:cli-user",
+            source=source,
             content="Hi",
             timestamp=12345.0,
         )
         assert event.retry_count == 0
-        assert event.context is None
 
     def test_inbound_event_to_dict(self):
-        ctx = TelegramContext(user_id="123", chat_id="456")
+        source = TelegramEventSource(user_id="123", chat_id="456")
         event = InboundEvent(
             session_id="sess-1",
             agent_id="pickle",
-            source="telegram:123",
+            source=source,
             content="Hello",
             timestamp=12345.0,
-            context=ctx,
         )
         result = event.to_dict()
         assert result["type"] == "InboundEvent"
         assert result["session_id"] == "sess-1"
         assert result["agent_id"] == "pickle"
-        assert result["context"]["type"] == "TelegramContext"
+        assert "context" not in result  # context field removed
 
     def test_inbound_event_from_dict(self):
         data = {
             "type": "InboundEvent",
             "session_id": "sess-1",
             "agent_id": "pickle",
-            "source": "telegram:123",
+            "source": "platform-telegram:123:456",
             "content": "Hello",
             "timestamp": 12345.0,
             "retry_count": 1,
-            "context": {
-                "type": "TelegramContext",
-                "data": {"user_id": "123", "chat_id": "456"},
-            },
         }
         event = InboundEvent.from_dict(data)
         assert event.session_id == "sess-1"
         assert event.agent_id == "pickle"
-        assert isinstance(event.context, TelegramContext)
-        assert event.context.chat_id == "456"
+        assert isinstance(event.source, TelegramEventSource)
 
     def test_inbound_event_roundtrip(self):
         """InboundEvent should serialize/deserialize correctly."""
+        source = TelegramEventSource(user_id="user1", chat_id="chat1")
         original = InboundEvent(
             session_id="s1",
             agent_id="a1",
-            source="telegram:user1",
+            source=source,
             content="hello",
             timestamp=123.0,
             retry_count=2,
@@ -166,7 +162,7 @@ class TestInboundEvent:
 
         assert restored.session_id == original.session_id
         assert restored.agent_id == original.agent_id
-        assert restored.source == original.source
+        assert restored.source.user_id == original.source.user_id
         assert restored.content == original.content
         assert restored.timestamp == original.timestamp
         assert restored.retry_count == original.retry_count
@@ -176,10 +172,11 @@ class TestOutboundEvent:
     """Tests for OutboundEvent."""
 
     def test_outbound_event_creation(self):
+        source = AgentEventSource(agent_id="pickle")
         event = OutboundEvent(
             session_id="sess-1",
             agent_id="pickle",
-            source="agent:pickle",
+            source=source,
             content="Response",
             timestamp=12345.0,
         )
@@ -188,10 +185,11 @@ class TestOutboundEvent:
         assert event.error is None
 
     def test_outbound_event_with_error(self):
+        source = AgentEventSource(agent_id="pickle")
         event = OutboundEvent(
             session_id="sess-1",
             agent_id="pickle",
-            source="agent:pickle",
+            source=source,
             content="",
             timestamp=12345.0,
             error="Something failed",
@@ -199,10 +197,11 @@ class TestOutboundEvent:
         assert event.error == "Something failed"
 
     def test_outbound_event_serialization(self):
+        source = AgentEventSource(agent_id="pickle")
         event = OutboundEvent(
             session_id="sess-1",
             agent_id="pickle",
-            source="agent:pickle",
+            source=source,
             content="Response",
             timestamp=12345.0,
             error="test error",
@@ -219,10 +218,11 @@ class TestDispatchEvent:
     """Tests for DispatchEvent."""
 
     def test_dispatch_event_creation(self):
+        source = AgentEventSource(agent_id="pickle")
         event = DispatchEvent(
             session_id="job-1",
             agent_id="cookie",
-            source="agent:pickle",
+            source=source,
             content="Remember this",
             timestamp=12345.0,
             retry_count=0,
@@ -233,10 +233,11 @@ class TestDispatchEvent:
         assert event.parent_session_id == "parent-sess-1"
 
     def test_dispatch_event_serialization(self):
+        source = AgentEventSource(agent_id="pickle")
         event = DispatchEvent(
             session_id="job-1",
             agent_id="cookie",
-            source="agent:pickle",
+            source=source,
             content="Task",
             timestamp=12345.0,
             parent_session_id="parent-1",
@@ -253,10 +254,11 @@ class TestDispatchResultEvent:
     """Tests for DispatchResultEvent."""
 
     def test_dispatch_result_event_creation(self):
+        source = AgentEventSource(agent_id="cookie")
         event = DispatchResultEvent(
             session_id="job-1",
             agent_id="cookie",
-            source="agent:cookie",
+            source=source,
             content="Done",
             timestamp=12345.0,
         )
@@ -264,10 +266,11 @@ class TestDispatchResultEvent:
         assert event.error is None
 
     def test_dispatch_result_event_with_error(self):
+        source = AgentEventSource(agent_id="cookie")
         event = DispatchResultEvent(
             session_id="job-1",
             agent_id="cookie",
-            source="agent:cookie",
+            source=source,
             content="",
             timestamp=12345.0,
             error="Failed",
@@ -288,38 +291,99 @@ class TestSource:
         assert Source.cron("daily") == "cron:daily"
 
 
+class TestEventSourceSerialization:
+    """Tests for EventSource serialization in events."""
+
+    def test_inbound_event_with_agent_source(self):
+        """InboundEvent should serialize/deserialize with AgentEventSource."""
+        from picklebot.core.events import InboundEvent, AgentEventSource
+
+        source = AgentEventSource(agent_id="pickle")
+        event = InboundEvent(
+            session_id="sess-1",
+            agent_id="pickle",
+            source=source,
+            content="hello",
+        )
+
+        data = event.to_dict()
+        assert data["source"] == "agent:pickle"
+
+        restored = InboundEvent.from_dict(data)
+        assert isinstance(restored.source, AgentEventSource)
+        assert restored.source.agent_id == "pickle"
+
+    def test_inbound_event_with_platform_source(self):
+        """InboundEvent should serialize/deserialize with platform sources."""
+        from picklebot.core.events import InboundEvent
+        from picklebot.messagebus.telegram_bus import TelegramEventSource
+
+        source = TelegramEventSource(user_id="123", chat_id="456")
+        event = InboundEvent(
+            session_id="sess-1",
+            agent_id="pickle",
+            source=source,
+            content="hello",
+        )
+
+        data = event.to_dict()
+        assert data["source"] == "platform-telegram:123:456"
+
+        restored = InboundEvent.from_dict(data)
+        assert isinstance(restored.source, TelegramEventSource)
+        assert restored.source.user_id == "123"
+        assert restored.source.chat_id == "456"
+
+
+def test_inbound_event_no_context_field():
+    """InboundEvent should not have context field after refactor."""
+    from picklebot.core.events import InboundEvent, AgentEventSource
+
+    source = AgentEventSource(agent_id="pickle")
+    event = InboundEvent(
+        session_id="sess-1",
+        agent_id="pickle",
+        source=source,
+        content="hello",
+    )
+
+    # Should not have context attribute
+    assert not hasattr(event, "context")
+
+    # Serialization should not include context
+    data = event.to_dict()
+    assert "context" not in data
+
+
 class TestEventSerialization:
     """Tests for serialize/deserialize_event helpers."""
 
     def test_serialize_inbound_event(self):
-        ctx = TelegramContext(user_id="123", chat_id="456")
+        source = TelegramEventSource(user_id="123", chat_id="456")
         event = InboundEvent(
             session_id="sess-1",
             agent_id="pickle",
-            source="telegram:123",
+            source=source,
             content="Hello",
             timestamp=12345.0,
-            context=ctx,
         )
         data = serialize_event(event)
         assert data["type"] == "InboundEvent"
+        assert "context" not in data  # context field removed
 
     def test_deserialize_inbound_event(self):
         data = {
             "type": "InboundEvent",
             "session_id": "sess-1",
             "agent_id": "pickle",
-            "source": "telegram:123",
+            "source": "platform-telegram:123:456",
             "content": "Hello",
             "timestamp": 12345.0,
-            "context": {
-                "type": "TelegramContext",
-                "data": {"user_id": "123", "chat_id": "456"},
-            },
         }
         event = deserialize_event(data)
         assert isinstance(event, InboundEvent)
         assert event.agent_id == "pickle"
+        assert isinstance(event.source, TelegramEventSource)
 
     def test_deserialize_outbound_event(self):
         data = {
@@ -366,7 +430,7 @@ class TestEventSerialization:
             "type": "unknown_type",
             "session_id": "sess-1",
             "agent_id": "pickle",
-            "source": "test",
+            "source": "agent:test",
             "content": "test",
             "timestamp": 12345.0,
         }
@@ -380,7 +444,7 @@ class TestEventSerialization:
             "type": "InboundEvent",
             "session_id": "s1",
             "agent_id": "a1",
-            "source": "test",
+            "source": "agent:test",
             "content": "hello",
         }
         event = deserialize_event(data)
@@ -391,7 +455,7 @@ class TestEventSerialization:
             "type": "inbound",  # Old enum value, not class name
             "session_id": "s1",
             "agent_id": "a1",
-            "source": "test",
+            "source": "agent:test",
             "content": "hello",
         }
         with pytest.raises(ValueError, match="Unknown event type"):

@@ -2,11 +2,11 @@
 
 import asyncio
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from .worker import Worker
 from picklebot.core.agent import Agent
-from picklebot.core.events import InboundEvent
+from picklebot.core.events import EventSource, InboundEvent
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
@@ -55,11 +55,11 @@ class MessageBusWorker(Worker):
     def _create_callback(self, platform: str):
         """Create callback for a specific platform."""
 
-        async def callback(message: str, context: Any) -> None:
+        async def callback(message: str, source: EventSource) -> None:
             try:
                 bus = self.bus_map[platform]
 
-                if not bus.is_allowed(context):
+                if not bus.is_allowed(source):
                     self.logger.debug(
                         f"Ignored non-whitelisted message from {platform}"
                     )
@@ -72,26 +72,29 @@ class MessageBusWorker(Worker):
                         message, self.context
                     )
                     if result:
-                        return await bus.reply(result, context)
+                        await bus.reply(result, source)
+                    return
 
-                # Build source and resolve agent
-                user_id = context.user_id
-                source = f"{platform}:{user_id}"
-                agent_id = self.context.routing_table.resolve(source)
+                # Use str(source) for routing/session lookup
+                source_str = str(source)
+                agent_id = self.context.routing_table.resolve(source_str)
 
-                session_id = self._get_or_create_session_id(source, agent_id)
+                if not agent_id:
+                    self.logger.debug(f"No routing match for {source_str}")
+                    return
 
-                # Publish INBOUND event
+                session_id = self._get_or_create_session_id(source_str, agent_id)
+
+                # Publish INBOUND event with typed source
                 event = InboundEvent(
                     session_id=session_id,
                     agent_id=agent_id,
                     source=source,
                     content=message,
                     timestamp=time.time(),
-                    context=context,
                 )
                 await self.context.eventbus.publish(event)
-                self.logger.debug(f"Published INBOUND event from {source}")
+                self.logger.debug(f"Published INBOUND event from {source_str}")
 
             except Exception as e:
                 self.logger.error(f"Error processing message from {platform}: {e}")

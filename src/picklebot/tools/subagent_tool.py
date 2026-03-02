@@ -5,7 +5,12 @@ import json
 import time
 from typing import TYPE_CHECKING
 
-from picklebot.core.events import DispatchEvent, DispatchResultEvent, Source
+from picklebot.core.events import (
+    AgentEventSource,
+    DispatchEvent,
+    DispatchResultEvent,
+    Source,
+)
 from picklebot.tools.base import BaseTool, tool
 from picklebot.utils.def_loader import DefNotFoundError
 
@@ -117,7 +122,7 @@ def create_subagent_dispatch_tool(
             event = DispatchEvent(
                 session_id=session_id,
                 agent_id=agent_id,
-                source=Source.agent(current_agent_id),
+                source=AgentEventSource(agent_id=current_agent_id),
                 content=user_message,
                 timestamp=time.time(),
                 parent_session_id=session.session_id,

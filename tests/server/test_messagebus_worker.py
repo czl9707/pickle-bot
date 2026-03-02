@@ -6,26 +6,60 @@ from unittest.mock import patch, AsyncMock, MagicMock, Mock
 from dataclasses import dataclass
 
 from picklebot.server.messagebus_worker import MessageBusWorker
-from picklebot.messagebus.base import MessageContext
 from picklebot.core.commands import CommandRegistry
 from picklebot.core.context import SharedContext
-from picklebot.core.events import InboundEvent
+from picklebot.core.events import EventSource, InboundEvent
 
 
 @dataclass
-class FakeContext(MessageContext):
-    """Fake context with user_id for testing."""
+class FakeEventSource(EventSource):
+    """Fake source for generic testing."""
 
+    _namespace = "platform-fake"
     user_id: str
     chat_id: str
 
+    def __str__(self) -> str:
+        return f"platform-fake:{self.user_id}:{self.chat_id}"
+
+    @classmethod
+    def from_string(cls, s: str) -> "FakeEventSource":
+        _, user_id, chat_id = s.split(":")
+        return cls(user_id=user_id, chat_id=chat_id)
+
 
 @dataclass
-class FakeDiscordContext(MessageContext):
-    """Fake context for Discord testing."""
+class FakeTelegramEventSource(EventSource):
+    """Fake source for Telegram testing."""
 
+    _namespace = "platform-telegram"
+    user_id: str
+    chat_id: str
+
+    def __str__(self) -> str:
+        return f"platform-telegram:{self.user_id}:{self.chat_id}"
+
+    @classmethod
+    def from_string(cls, s: str) -> "FakeTelegramEventSource":
+        _, user_id, chat_id = s.split(":")
+        return cls(user_id=user_id, chat_id=chat_id)
+
+
+@dataclass
+class FakeDiscordEventSource(EventSource):
+    """Fake source for Discord testing."""
+
+    _namespace = "platform-discord"
     user_id: str
     channel_id: str
+
+    def __str__(self) -> str:
+        return f"platform-discord:{self.user_id}:{self.channel_id}"
+
+    @classmethod
+    def from_string(cls, s: str) -> "FakeDiscordEventSource":
+        _, user_id, channel_id = s.split(":")
+        return cls(user_id=user_id, channel_id=channel_id)
 
 
 class FakeBus:
@@ -40,26 +74,26 @@ class FakeBus:
         self.started = True
         self._callback = callback
         # Simulate receiving a message
-        await callback("hello", {"chat_id": "123"})
+        await callback("hello", FakeEventSource(user_id="123", chat_id="456"))
 
     async def stop(self):
         self.started = False
 
-    def is_allowed(self, context):
+    def is_allowed(self, source):
         return True
 
-    async def reply(self, content, context):
+    async def reply(self, content, source):
         self.messages.append(content)
 
 
 class FakeBusWithUser(FakeBus):
-    """Fake bus that provides user_id in context."""
+    """Fake bus that provides user_id in source."""
 
     async def run(self, callback):
         self.started = True
         self._callback = callback
         # Simulate receiving a message with user context
-        await callback("hello", FakeContext(user_id="123", chat_id="456"))
+        await callback("hello", FakeEventSource(user_id="123", chat_id="456"))
 
 
 class FakeTelegramBus(FakeBus):
@@ -73,7 +107,7 @@ class FakeTelegramBus(FakeBus):
         self.started = True
         self._callback = callback
         # Simulate receiving a message with user context
-        await callback("hello", FakeContext(user_id="123", chat_id="456"))
+        await callback("hello", FakeTelegramEventSource(user_id="123", chat_id="456"))
 
 
 class FakeDiscordBus(FakeBus):
@@ -87,7 +121,7 @@ class FakeDiscordBus(FakeBus):
         self.started = True
         self._callback = callback
         # Simulate receiving a message with user context
-        await callback("hello", FakeDiscordContext(user_id="456", channel_id="789"))
+        await callback("hello", FakeDiscordEventSource(user_id="456", channel_id="789"))
 
 
 class BlockingBusWithUser(FakeBusWithUser):
@@ -153,11 +187,7 @@ You are a test assistant.
         assert isinstance(event, InboundEvent)
         assert event.content == "hello"
         assert event.session_id == "test-session-123"
-        assert event.source == "fake:123"
-        # InboundEvent has context field directly (not metadata)
-        assert isinstance(event, InboundEvent)
-        assert event.context is not None
-        assert event.context.chat_id == "456"
+        assert str(event.source) == "platform-fake:123:456"
     finally:
         eventbus_task.cancel()
         try:
@@ -263,7 +293,7 @@ You are a test assistant.
 
     # Pre-configure a session in source cache
     test_context.config.sources = {
-        "telegram:123": {"session_id": "existing-session-uuid"}
+        "platform-telegram:123:456": {"session_id": "existing-session-uuid"}
     }
 
     bus = FakeTelegramBus()
@@ -354,11 +384,7 @@ You are a test assistant.
         # Verify event has Discord metadata (channel_id, not chat_id)
         assert len(published_events) == 1
         event = published_events[0]
-        assert event.source == "discord:456"
-        # InboundEvent has context field directly (not metadata)
-        assert isinstance(event, InboundEvent)
-        assert event.context is not None
-        assert event.context.channel_id == "789"
+        assert str(event.source) == "platform-discord:456:789"
     finally:
         eventbus_task.cancel()
         try:
@@ -402,14 +428,14 @@ class TestMessageBusWorkerSlashCommands:
 
         worker = MessageBusWorker(mock_context)
 
-        # Create mock bus and context
+        # Create mock bus and source
         mock_bus = MagicMock()
         mock_bus.platform_name = "test"
         mock_bus.is_allowed.return_value = True
         mock_bus.reply = AsyncMock()
 
-        mock_msg_context = MagicMock()
-        mock_msg_context.user_id = "user123"
+        mock_source = MagicMock(spec=EventSource)
+        mock_source.__str__ = lambda self: "platform-test:user123:chat456"
 
         # Add bus to bus_map
         worker.bus_map["test"] = mock_bus
@@ -418,7 +444,7 @@ class TestMessageBusWorkerSlashCommands:
         callback = worker._create_callback("test")
 
         # Send slash command
-        await callback("/help", mock_msg_context)
+        await callback("/help", mock_source)
 
         # Should have replied directly
         mock_bus.reply.assert_called_once()
@@ -462,7 +488,7 @@ You are a test assistant.
     assert not hasattr(worker, "agent")
 
     # Routing should be done via routing_table.resolve
-    assert test_context.routing_table.resolve("fake:123") == "test"
+    assert test_context.routing_table.resolve("platform-fake:123:456") == "test"
 
 
 @pytest.mark.anyio
@@ -580,11 +606,13 @@ class TestMessageBusWorkerRouting:
     def test_get_or_create_session_uses_source_cache(self, mock_context):
         """_get_or_create_session_id should check source cache first."""
         mock_context.config.sources = {
-            "telegram:123456": {"session_id": "existing-session"}
+            "platform-telegram:123456:789": {"session_id": "existing-session"}
         }
 
         worker = MessageBusWorker(mock_context)
-        session_id = worker._get_or_create_session_id("telegram:123456", "cookie")
+        session_id = worker._get_or_create_session_id(
+            "platform-telegram:123456:789", "cookie"
+        )
 
         assert session_id == "existing-session"
 
@@ -598,11 +626,13 @@ class TestMessageBusWorkerRouting:
             MockAgent.return_value.new_session.return_value = mock_session
 
             worker = MessageBusWorker(mock_context)
-            session_id = worker._get_or_create_session_id("telegram:123456", "cookie")
+            session_id = worker._get_or_create_session_id(
+                "platform-telegram:123456:789", "cookie"
+            )
 
             assert session_id == "new-session-id"
             mock_context.config.set_runtime.assert_called_once_with(
-                "sources.telegram:123456", {"session_id": "new-session-id"}
+                "sources.platform-telegram:123456:789", {"session_id": "new-session-id"}
             )
 
     def test_messagebus_worker_routes_unknown_source_to_default(self, mock_context):

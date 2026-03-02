@@ -8,21 +8,35 @@ from typing import Callable, Awaitable
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 
-from picklebot.messagebus.base import MessageBus, MessageContext
+from picklebot.core.events import EventSource
+from picklebot.messagebus.base import MessageBus
 from picklebot.utils.config import TelegramConfig
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class TelegramContext(MessageContext):
-    """Context for Telegram messages."""
+class TelegramEventSource(EventSource):
+    """Source for Telegram-originated events."""
 
+    _namespace = "platform-telegram"
     user_id: str
     chat_id: str
 
+    def __str__(self) -> str:
+        return f"platform-telegram:{self.user_id}:{self.chat_id}"
 
-class TelegramBus(MessageBus[TelegramContext]):
+    @classmethod
+    def from_string(cls, s: str) -> "TelegramEventSource":
+        _, user_id, chat_id = s.split(":")
+        return cls(user_id=user_id, chat_id=chat_id)
+
+    @property
+    def platform_name(self) -> str:
+        return "telegram"
+
+
+class TelegramBus(MessageBus[TelegramEventSource]):
     """Telegram platform implementation using python-telegram-bot."""
 
     platform_name = "telegram"
@@ -39,14 +53,14 @@ class TelegramBus(MessageBus[TelegramContext]):
         self._running_task: asyncio.Task | None = None
         self._stop_event: asyncio.Event | None = None
 
-    def is_allowed(self, context: TelegramContext) -> bool:
+    def is_allowed(self, source: TelegramEventSource) -> bool:
         """Check if sender is whitelisted."""
         if not self.config.allowed_user_ids:
             return True
-        return context.user_id in self.config.allowed_user_ids
+        return source.user_id in self.config.allowed_user_ids
 
     async def run(
-        self, on_message: Callable[[str, TelegramContext], Awaitable[None]]
+        self, on_message: Callable[[str, TelegramEventSource], Awaitable[None]]
     ) -> None:
         """Run the Telegram message bus. Blocks until stop() is called.
 
@@ -77,10 +91,10 @@ class TelegramBus(MessageBus[TelegramContext]):
                     f"Received Telegram message from user {user_id} in chat {chat_id}"
                 )
 
-                ctx = TelegramContext(user_id=user_id, chat_id=chat_id)
+                source = TelegramEventSource(user_id=user_id, chat_id=chat_id)
 
                 try:
-                    await on_message(message, ctx)
+                    await on_message(message, source)
                 except Exception as e:
                     logger.error(f"Error in message callback: {e}")
 
@@ -111,16 +125,16 @@ class TelegramBus(MessageBus[TelegramContext]):
         self._running_task = asyncio.create_task(run_until_stopped())
         await self._running_task
 
-    async def reply(self, content: str, context: TelegramContext) -> None:
+    async def reply(self, content: str, source: TelegramEventSource) -> None:
         """Reply to incoming message."""
         if not self.application:
             raise RuntimeError("TelegramBus not started")
 
         try:
             await self.application.bot.send_message(
-                chat_id=int(context.chat_id), text=content
+                chat_id=int(source.chat_id), text=content
             )
-            logger.debug(f"Sent Telegram reply to {context.chat_id}")
+            logger.debug(f"Sent Telegram reply to {source.chat_id}")
         except Exception as e:
             logger.error(f"Failed to send Telegram reply: {e}")
             raise

@@ -3,20 +3,15 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Awaitable, Generic, TypeVar, Any
 
+from picklebot.core.events import EventSource
 from picklebot.utils.config import Config
 
 
-class MessageContext(ABC):
-    """Abstract base for message context."""
-
-    pass
-
-
-T = TypeVar("T", bound=MessageContext)
+T = TypeVar("T", bound=EventSource)
 
 
 class MessageBus(ABC, Generic[T]):
-    """Abstract base for messaging platforms with platform-specific context."""
+    """Abstract base for messaging platforms with EventSource-based context."""
 
     @property
     @abstractmethod
@@ -35,7 +30,7 @@ class MessageBus(ABC, Generic[T]):
         Run the message bus. Blocks until stop() is called.
 
         Args:
-            on_message: Callback async function(message: str, context: T)
+            on_message: Callback async function(message: str, source: T)
 
         Raises:
             RuntimeError: If run() is called when already running.
@@ -43,12 +38,12 @@ class MessageBus(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    def is_allowed(self, context: T) -> bool:
+    def is_allowed(self, source: T) -> bool:
         """
         Check if sender is whitelisted.
 
         Args:
-            context: Platform-specific message context
+            source: Platform-specific event source
 
         Returns:
             True if sender is allowed
@@ -56,13 +51,13 @@ class MessageBus(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    async def reply(self, content: str, context: T) -> None:
+    async def reply(self, content: str, source: T) -> None:
         """
         Reply to incoming message.
 
         Args:
             content: Message content to send
-            context: Platform-specific context from incoming message
+            source: Platform-specific event source from incoming message
         """
         pass
 

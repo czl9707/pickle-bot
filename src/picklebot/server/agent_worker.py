@@ -61,11 +61,10 @@ class SessionExecutor:
         try:
             agent = Agent(self.agent_def, self.context)
 
-            # Extract source and context from event
+            # Extract source from event
             source = self.event.source
-            context = (
-                self.event.context if isinstance(self.event, InboundEvent) else None
-            )
+            # context now comes from source (EventSource) - will be extracted in subsequent task
+            context = None
 
             if session_id:
                 try:
