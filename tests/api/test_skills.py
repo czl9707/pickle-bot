@@ -1,67 +1,22 @@
 """Tests for skills API router."""
 
 import pytest
-from fastapi.testclient import TestClient
-from pathlib import Path
-import tempfile
 
-from picklebot.api import create_app
 from picklebot.api.schemas import SkillCreate
-from picklebot.core.context import SharedContext
-from picklebot.utils.config import Config, LLMConfig
 
 
 @pytest.fixture
-def client():
-    """Create test client with temporary workspace."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        workspace = Path(tmpdir)
-        skills_path = workspace / "skills"
-        skills_path.mkdir()
-
-        # Create a test skill
-        test_skill_dir = skills_path / "test-skill"
-        test_skill_dir.mkdir()
-        (test_skill_dir / "SKILL.md").write_text(
-            """---
-name: Test Skill
-description: A test skill
----
-# Test Skill
-
-This is a test skill.
-"""
-        )
-
-        config = Config(
-            workspace=workspace,
-            llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
-            default_agent="pickle",
-        )
-        context = SharedContext(config)
-        app = create_app(context)
-
-        with TestClient(app) as client:
-            yield client
+def client(api_client_with_skill):
+    """Create test client with test skill."""
+    client, _ = api_client_with_skill
+    return client
 
 
 class TestListSkills:
-    def test_list_skills_returns_empty_list_when_no_skills(self):
+    def test_list_skills_returns_empty_list_when_no_skills(self, api_client):
         """GET /skills returns empty list when no skills exist."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            workspace = Path(tmpdir)
-            (workspace / "skills").mkdir()
-
-            config = Config(
-                workspace=workspace,
-                llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
-                default_agent="pickle",
-            )
-            context = SharedContext(config)
-            app = create_app(context)
-
-            with TestClient(app) as client:
-                response = client.get("/skills")
+        client, _ = api_client
+        response = client.get("/skills")
 
         assert response.status_code == 200
         assert response.json() == []

@@ -1,66 +1,22 @@
 """Tests for crons API router."""
 
 import pytest
-from fastapi.testclient import TestClient
-from pathlib import Path
-import tempfile
 
-from picklebot.api import create_app
 from picklebot.api.schemas import CronCreate
-from picklebot.core.context import SharedContext
-from picklebot.utils.config import Config, LLMConfig
 
 
 @pytest.fixture
-def client():
-    """Create test client with temporary workspace."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        workspace = Path(tmpdir)
-        crons_path = workspace / "crons"
-        crons_path.mkdir()
-
-        # Create a test cron
-        test_cron_dir = crons_path / "test-cron"
-        test_cron_dir.mkdir()
-        (test_cron_dir / "CRON.md").write_text(
-            """---
-name: Test Cron
-agent: pickle
-schedule: "0 * * * *"
----
-Check for updates.
-"""
-        )
-
-        config = Config(
-            workspace=workspace,
-            llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
-            default_agent="pickle",
-        )
-        context = SharedContext(config)
-        app = create_app(context)
-
-        with TestClient(app) as client:
-            yield client
+def client(api_client_with_cron):
+    """Create test client with test cron."""
+    client, _ = api_client_with_cron
+    return client
 
 
 class TestListCrons:
-    def test_list_crons_returns_empty_list_when_no_crons(self):
+    def test_list_crons_returns_empty_list_when_no_crons(self, api_client):
         """GET /crons returns empty list when no crons exist."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            workspace = Path(tmpdir)
-            (workspace / "crons").mkdir()
-
-            config = Config(
-                workspace=workspace,
-                llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
-                default_agent="pickle",
-            )
-            context = SharedContext(config)
-            app = create_app(context)
-
-            with TestClient(app) as client:
-                response = client.get("/crons")
+        client, _ = api_client
+        response = client.get("/crons")
 
         assert response.status_code == 200
         assert response.json() == []
