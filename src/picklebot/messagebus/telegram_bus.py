@@ -8,10 +8,32 @@ from typing import Callable, Awaitable
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 
+from picklebot.core.events import EventSource
 from picklebot.messagebus.base import MessageBus, MessageContext
 from picklebot.utils.config import TelegramConfig
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class TelegramEventSource(EventSource):
+    """Source for Telegram-originated events."""
+
+    _namespace = "platform-telegram"
+    user_id: str
+    chat_id: str
+
+    def __str__(self) -> str:
+        return f"platform-telegram:{self.user_id}:{self.chat_id}"
+
+    @classmethod
+    def from_string(cls, s: str) -> "TelegramEventSource":
+        _, user_id, chat_id = s.split(":")
+        return cls(user_id=user_id, chat_id=chat_id)
+
+    @property
+    def platform_name(self) -> str:
+        return "telegram"
 
 
 @dataclass

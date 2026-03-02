@@ -67,3 +67,39 @@ class TestCronEventSource:
         assert source.is_agent is False
         assert source.is_platform is False
         assert source.platform_name is None
+
+
+class TestTelegramEventSource:
+    """Tests for TelegramEventSource."""
+
+    def test_string_roundtrip(self):
+        """Telegram source should serialize and deserialize correctly."""
+        from picklebot.messagebus.telegram_bus import TelegramEventSource
+
+        original = TelegramEventSource(user_id="12345", chat_id="67890")
+        serialized = str(original)
+        deserialized = TelegramEventSource.from_string(serialized)
+
+        assert serialized == "platform-telegram:12345:67890"
+        assert deserialized.user_id == "12345"
+        assert deserialized.chat_id == "67890"
+
+    def test_type_properties(self):
+        """Telegram source should have correct type properties."""
+        from picklebot.messagebus.telegram_bus import TelegramEventSource
+
+        source = TelegramEventSource(user_id="12345", chat_id="67890")
+        assert source.is_platform is True
+        assert source.is_agent is False
+        assert source.is_cron is False
+        assert source.platform_name == "telegram"
+
+    def test_via_base_from_string(self):
+        """Telegram source should be parseable via EventSource.from_string."""
+        from picklebot.core.events import EventSource
+        from picklebot.messagebus.telegram_bus import TelegramEventSource
+
+        source = EventSource.from_string("platform-telegram:12345:67890")
+        assert isinstance(source, TelegramEventSource)
+        assert source.user_id == "12345"
+        assert source.chat_id == "67890"

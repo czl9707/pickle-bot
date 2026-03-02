@@ -3,9 +3,10 @@
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import Any, ClassVar, TYPE_CHECKING
 
-from picklebot.messagebus.base import MessageContext
+if TYPE_CHECKING:
+    from picklebot.messagebus.base import MessageContext
 
 
 class EventSource(ABC):
@@ -112,7 +113,7 @@ class Source:
         return f"cron:{cron_id}"
 
 
-def _serialize_context(context: MessageContext | None) -> dict[str, Any]:
+def _serialize_context(context: "MessageContext | None") -> dict[str, Any]:
     """Serialize a MessageContext to a dictionary."""
     if context is None:
         return {}
@@ -130,7 +131,7 @@ def _serialize_context(context: MessageContext | None) -> dict[str, Any]:
     return {"type": context_type, "data": {}}
 
 
-def _deserialize_context(data: dict[str, Any] | None) -> MessageContext | None:
+def _deserialize_context(data: dict[str, Any] | None) -> "MessageContext | None":
     """Deserialize a dictionary back to a MessageContext."""
     if not data:
         return None
@@ -203,7 +204,7 @@ class InboundEvent(Event):
     """Event for external work entering the system (platforms, cron, retry)."""
 
     retry_count: int = 0
-    context: MessageContext | None = None
+    context: "MessageContext | None" = None
 
 
 @dataclass
