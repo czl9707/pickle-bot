@@ -51,8 +51,9 @@ def test_binding_matches_full_string():
 
 
 class MockConfig:
-    def __init__(self, bindings):
+    def __init__(self, bindings, default_agent="pickle"):
         self.routing = {"bindings": bindings}
+        self.default_agent = default_agent
 
 
 class MockContext:
