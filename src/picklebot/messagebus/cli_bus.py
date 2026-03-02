@@ -7,9 +7,30 @@ from typing import Callable, Awaitable
 
 from rich.console import Console
 
+from picklebot.core.events import EventSource
 from picklebot.messagebus.base import MessageBus, MessageContext
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class CliEventSource(EventSource):
+    """Source for CLI-originated events."""
+
+    _namespace = "platform-cli"
+    user_id: str
+
+    def __str__(self) -> str:
+        return f"platform-cli:{self.user_id}"
+
+    @classmethod
+    def from_string(cls, s: str) -> "CliEventSource":
+        _, user_id = s.split(":", 1)
+        return cls(user_id=user_id)
+
+    @property
+    def platform_name(self) -> str:
+        return "cli"
 
 
 @dataclass

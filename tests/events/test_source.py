@@ -127,3 +127,26 @@ class TestDiscordEventSource:
         source = DiscordEventSource(user_id="12345", channel_id="67890")
         assert source.is_platform is True
         assert source.platform_name == "discord"
+
+
+class TestCliEventSource:
+    """Tests for CliEventSource."""
+
+    def test_string_roundtrip(self):
+        """CLI source should serialize and deserialize correctly."""
+        from picklebot.messagebus.cli_bus import CliEventSource
+
+        original = CliEventSource(user_id="default")
+        serialized = str(original)
+        deserialized = CliEventSource.from_string(serialized)
+
+        assert serialized == "platform-cli:default"
+        assert deserialized.user_id == "default"
+
+    def test_type_properties(self):
+        """CLI source should have correct type properties."""
+        from picklebot.messagebus.cli_bus import CliEventSource
+
+        source = CliEventSource(user_id="default")
+        assert source.is_platform is True
+        assert source.platform_name == "cli"
