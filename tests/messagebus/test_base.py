@@ -6,8 +6,8 @@ import pytest
 from typing import Any
 
 from picklebot.messagebus.base import MessageBus
-from picklebot.messagebus.telegram_bus import TelegramBus, TelegramContext
-from picklebot.messagebus.discord_bus import DiscordBus, DiscordContext
+from picklebot.messagebus.telegram_bus import TelegramBus, TelegramEventSource
+from picklebot.messagebus.discord_bus import DiscordBus, DiscordEventSource
 from picklebot.utils.config import (
     TelegramConfig,
     DiscordConfig,
@@ -72,14 +72,14 @@ class MockBus(MessageBus[Any]):
             lambda: TelegramConfig(
                 bot_token="test-token", allowed_user_ids=["whitelisted"]
             ),
-            lambda user_id: TelegramContext(user_id=user_id, chat_id="123"),
+            lambda user_id: TelegramEventSource(user_id=user_id, chat_id="123"),
         ),
         (
             "discord",
             lambda: DiscordConfig(
                 bot_token="test-token", allowed_user_ids=["whitelisted"]
             ),
-            lambda user_id: DiscordContext(user_id=user_id, channel_id="123"),
+            lambda user_id: DiscordEventSource(user_id=user_id, channel_id="123"),
         ),
     ],
 )
@@ -161,20 +161,20 @@ def test_messagebus_from_config_disabled_platform(tmp_path):
     assert len(buses) == 0
 
 
-class TestContextDataclasses:
-    """Tests for platform context dataclasses."""
+class TestEventSourceDataclasses:
+    """Tests for platform EventSource dataclasses."""
 
-    def test_telegram_context_fields(self):
-        """TelegramContext should have user_id and chat_id."""
-        ctx = TelegramContext(user_id="111", chat_id="222")
-        assert ctx.user_id == "111"
-        assert ctx.chat_id == "222"
+    def test_telegram_event_source_fields(self):
+        """TelegramEventSource should have user_id and chat_id."""
+        source = TelegramEventSource(user_id="111", chat_id="222")
+        assert source.user_id == "111"
+        assert source.chat_id == "222"
 
-    def test_discord_context_fields(self):
-        """DiscordContext should have user_id and channel_id."""
-        ctx = DiscordContext(user_id="333", channel_id="444")
-        assert ctx.user_id == "333"
-        assert ctx.channel_id == "444"
+    def test_discord_event_source_fields(self):
+        """DiscordEventSource should have user_id and channel_id."""
+        source = DiscordEventSource(user_id="333", channel_id="444")
+        assert source.user_id == "333"
+        assert source.channel_id == "444"
 
 
 @pytest.mark.parametrize("bus_type", ["telegram", "discord"])
