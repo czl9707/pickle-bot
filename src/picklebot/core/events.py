@@ -70,6 +70,22 @@ class AgentEventSource(EventSource):
         return cls(agent_id=agent_id)
 
 
+@dataclass
+class CronEventSource(EventSource):
+    """Source for cron-triggered events."""
+
+    _namespace = "cron"
+    cron_id: str
+
+    def __str__(self) -> str:
+        return f"cron:{self.cron_id}"
+
+    @classmethod
+    def from_string(cls, s: str) -> "CronEventSource":
+        _, cron_id = s.split(":", 1)
+        return cls(cron_id=cron_id)
+
+
 class Source:
     """Factory for creating typed event sources.
 

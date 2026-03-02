@@ -42,3 +42,28 @@ class TestAgentEventSource:
         assert source.is_platform is False
         assert source.is_cron is False
         assert source.platform_name is None
+
+
+class TestCronEventSource:
+    """Tests for CronEventSource."""
+
+    def test_string_roundtrip(self):
+        """Cron source should serialize and deserialize correctly."""
+        from picklebot.core.events import CronEventSource
+
+        original = CronEventSource(cron_id="daily-summary")
+        serialized = str(original)
+        deserialized = CronEventSource.from_string(serialized)
+
+        assert serialized == "cron:daily-summary"
+        assert deserialized.cron_id == "daily-summary"
+
+    def test_type_properties(self):
+        """Cron source should have correct type properties."""
+        from picklebot.core.events import CronEventSource
+
+        source = CronEventSource(cron_id="daily-summary")
+        assert source.is_cron is True
+        assert source.is_agent is False
+        assert source.is_platform is False
+        assert source.platform_name is None
