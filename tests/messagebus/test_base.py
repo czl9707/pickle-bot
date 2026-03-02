@@ -1,5 +1,7 @@
 """Tests for MessageBus abstract interface."""
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from typing import Any
 
@@ -13,6 +15,30 @@ from picklebot.utils.config import (
     Config,
     LLMConfig,
 )
+
+
+def _create_mock_telegram_app():
+    """Create a mock Telegram Application for testing."""
+    mock_app = MagicMock()
+    mock_app.updater = MagicMock()
+    mock_app.updater.running = True
+    mock_app.updater.start_polling = AsyncMock()
+    mock_app.updater.stop = AsyncMock()
+    mock_app.initialize = AsyncMock()
+    mock_app.start = AsyncMock()
+    mock_app.stop = AsyncMock()
+    mock_app.shutdown = AsyncMock()
+    mock_app.add_handler = MagicMock()
+    mock_app.bot = MagicMock()
+    return mock_app
+
+
+def _create_mock_discord_client():
+    """Create a mock Discord Client for testing."""
+    mock_client = MagicMock()
+    mock_client.start = AsyncMock()
+    mock_client.close = AsyncMock()
+    return mock_client
 
 
 class MockBus(MessageBus[Any]):
@@ -149,3 +175,20 @@ class TestContextDataclasses:
         ctx = DiscordContext(user_id="333", channel_id="444")
         assert ctx.user_id == "333"
         assert ctx.channel_id == "444"
+
+
+@pytest.mark.parametrize("bus_type", ["telegram", "discord"])
+class TestMessageBusLifecycle:
+    """Shared lifecycle tests for all bus implementations."""
+
+    @pytest.mark.anyio
+    async def test_stop_without_run_is_safe(self, bus_type):
+        """Calling stop without run should be safe - no-op."""
+        if bus_type == "telegram":
+            config = TelegramConfig(bot_token="test_token")
+            bus = TelegramBus(config)
+        else:
+            config = DiscordConfig(bot_token="test_token")
+            bus = DiscordBus(config)
+
+        await bus.stop()  # Should not raise
