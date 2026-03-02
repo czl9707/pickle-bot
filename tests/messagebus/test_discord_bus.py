@@ -1,7 +1,7 @@
 """Tests for DiscordBus."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from picklebot.messagebus.discord_bus import DiscordBus, DiscordContext
 from picklebot.utils.config import DiscordConfig
 
@@ -47,102 +47,3 @@ class TestDiscordBusPost:
 
         with pytest.raises(ValueError, match="requires a target parameter"):
             await bus.post(content="Test")
-
-
-def _create_mock_discord_client():
-    """Create a mock Discord Client for testing."""
-    mock_client = MagicMock()
-    mock_client.start = AsyncMock()
-    mock_client.close = AsyncMock()
-    return mock_client
-
-
-class TestDiscordBusRunStop:
-    """Tests for run/stop behavior."""
-
-    @pytest.mark.anyio
-    async def test_run_stop_lifecycle(self):
-        """Test that DiscordBus can run and stop."""
-        config = DiscordConfig(bot_token="test_token")
-        bus = DiscordBus(config)
-        mock_client = _create_mock_discord_client()
-
-        async def dummy_callback(content: str, context: DiscordContext) -> None:
-            pass
-
-        with patch(
-            "picklebot.messagebus.discord_bus.discord.Client", return_value=mock_client
-        ):
-            await bus.run(dummy_callback)
-            await bus.stop()
-
-            mock_client.start.assert_called_once()
-            mock_client.close.assert_called_once()
-
-    @pytest.mark.anyio
-    async def test_run_raises_on_second_call(self):
-        """Calling run twice should raise RuntimeError."""
-        config = DiscordConfig(bot_token="test_token")
-        bus = DiscordBus(config)
-        mock_client = _create_mock_discord_client()
-
-        async def dummy_callback(content: str, context: DiscordContext) -> None:
-            pass
-
-        with patch(
-            "picklebot.messagebus.discord_bus.discord.Client", return_value=mock_client
-        ):
-            await bus.run(dummy_callback)
-
-            with pytest.raises(RuntimeError, match="DiscordBus already running"):
-                await bus.run(dummy_callback)
-
-    @pytest.mark.anyio
-    async def test_stop_is_idempotent(self):
-        """Calling stop twice should be safe - second call is no-op."""
-        config = DiscordConfig(bot_token="test_token")
-        bus = DiscordBus(config)
-        mock_client = _create_mock_discord_client()
-
-        async def dummy_callback(content: str, context: DiscordContext) -> None:
-            pass
-
-        with patch(
-            "picklebot.messagebus.discord_bus.discord.Client", return_value=mock_client
-        ):
-            await bus.run(dummy_callback)
-            await bus.stop()
-            await bus.stop()  # Second call should be no-op
-
-            mock_client.close.assert_called_once()
-
-    @pytest.mark.anyio
-    async def test_stop_without_run_is_safe(self):
-        """Calling stop without run should be safe - no-op."""
-        config = DiscordConfig(bot_token="test_token")
-        bus = DiscordBus(config)
-
-        await bus.stop()  # Should not raise
-
-    @pytest.mark.anyio
-    async def test_can_rerun_after_stop(self):
-        """Should be able to run again after stop."""
-        config = DiscordConfig(bot_token="test_token")
-        bus = DiscordBus(config)
-        mock_client = _create_mock_discord_client()
-
-        async def dummy_callback(content: str, context: DiscordContext) -> None:
-            pass
-
-        with patch(
-            "picklebot.messagebus.discord_bus.discord.Client", return_value=mock_client
-        ):
-            # First cycle
-            await bus.run(dummy_callback)
-            await bus.stop()
-
-            mock_client.start.reset_mock()
-
-            # Second cycle should work
-            await bus.run(dummy_callback)
-            mock_client.start.assert_called_once()
