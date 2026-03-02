@@ -61,7 +61,11 @@ def make_dispatch_event(
 @pytest.mark.anyio
 async def test_agent_worker_processes_event(test_context, tmp_path):
     """AgentWorker processes an event."""
-    create_test_agent(tmp_path, agent_id="test-agent", system_prompt="You are a test assistant. Respond briefly.")
+    create_test_agent(
+        tmp_path,
+        agent_id="test-agent",
+        system_prompt="You are a test assistant. Respond briefly.",
+    )
 
     router = AgentWorker(test_context)
 
@@ -177,7 +181,11 @@ async def test_session_executor_recovers_missing_session(test_context, tmp_path)
 @pytest.mark.anyio
 async def test_session_executor_runs_session(test_context, tmp_path):
     """SessionExecutor runs a session successfully."""
-    create_test_agent(tmp_path, agent_id="test-agent", system_prompt="You are a test assistant. Respond briefly.")
+    create_test_agent(
+        tmp_path,
+        agent_id="test-agent",
+        system_prompt="You are a test assistant. Respond briefly.",
+    )
 
     agent_def = test_context.agent_loader.load("test-agent")
     semaphore = asyncio.Semaphore(1)
