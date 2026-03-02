@@ -128,7 +128,7 @@ No API key needed - uses local browser.
 
 Chat via Telegram and Discord with shared conversation history.
 
-**Platforms:** Telegram, Discord
+**Platforms:** Telegram, Discord, CLI
 
 **Features:**
 - Switch platforms mid-conversation (history carries over)
@@ -140,6 +140,22 @@ Chat via Telegram and Discord with shared conversation history.
 telegram:
   allowed_chat_ids: ["123456789"]  # Empty = allow all
 ```
+
+## Routing
+
+Route different sources to different agents.
+
+**Config:**
+```yaml
+routing:
+  bindings:
+    - agent: pickle
+      value: "platform-telegram:.*"    # All Telegram to pickle
+    - agent: cookie
+      value: "platform-discord:.*"     # All Discord to cookie
+```
+
+**Pattern matching:** Regex patterns, most specific wins. Falls back to `default_agent` if no match.
 
 ## HTTP API
 
