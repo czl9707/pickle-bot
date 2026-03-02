@@ -3,10 +3,7 @@
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from picklebot.messagebus.base import MessageContext
+from typing import Any, ClassVar
 
 
 class EventSource(ABC):
@@ -113,49 +110,6 @@ class Source:
         return f"cron:{cron_id}"
 
 
-def _serialize_context(context: "MessageContext | None") -> dict[str, Any]:
-    """Serialize a MessageContext to a dictionary."""
-    if context is None:
-        return {}
-
-    # Get the class name to identify the context type
-    context_type = type(context).__name__
-
-    # Extract dataclass fields if it's a dataclass
-    if hasattr(context, "__dataclass_fields__"):
-        data = {}
-        for field_name in context.__dataclass_fields__:
-            data[field_name] = getattr(context, field_name)
-        return {"type": context_type, "data": data}
-
-    return {"type": context_type, "data": {}}
-
-
-def _deserialize_context(data: dict[str, Any] | None) -> "MessageContext | None":
-    """Deserialize a dictionary back to a MessageContext."""
-    if not data:
-        return None
-
-    context_type = data.get("type")
-    context_data = data.get("data", {})
-
-    # Import here to avoid circular imports
-    if context_type == "TelegramContext":
-        from picklebot.messagebus.telegram_bus import TelegramContext
-
-        return TelegramContext(**context_data)
-    elif context_type == "DiscordContext":
-        from picklebot.messagebus.discord_bus import DiscordContext
-
-        return DiscordContext(**context_data)
-    elif context_type == "CliContext":
-        from picklebot.messagebus.cli_bus import CliContext
-
-        return CliContext(**context_data)
-
-    return None
-
-
 @dataclass
 class Event:
     """Base class for all typed events.
@@ -173,33 +127,25 @@ class Event:
     def to_dict(self) -> dict[str, Any]:
         """Serialize event to dictionary, including type."""
         result: dict[str, Any] = {"type": self.__class__.__name__}
-        # Add all dataclass fields
         for field_name in self.__dataclass_fields__:
             value = getattr(self, field_name)
             if field_name == "source":
-                result[field_name] = str(value)  # Serialize via __str__
-            elif field_name == "context":
-                result[field_name] = _serialize_context(value)
+                result[field_name] = str(value)
             else:
                 result[field_name] = value
         return result
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Event":
-        """Deserialize event from dictionary, excluding type field."""
-        # Filter out 'type' - it's determined by the class, not constructor
-        # Also filter to only include fields that this dataclass expects
+        """Deserialize event from dictionary."""
         kwargs = {}
         for k, v in data.items():
             if k == "type":
                 continue
             if k == "source":
-                kwargs[k] = EventSource.from_string(v)  # Deserialize
-            elif k == "context":
-                kwargs[k] = _deserialize_context(v)
+                kwargs[k] = EventSource.from_string(v)
             elif k in cls.__dataclass_fields__:
                 kwargs[k] = v
-
         return cls(**kwargs)
 
 
@@ -208,7 +154,7 @@ class InboundEvent(Event):
     """Event for external work entering the system (platforms, cron, retry)."""
 
     retry_count: int = 0
-    context: "MessageContext | None" = None
+    # context field removed - source now carries all data
 
 
 @dataclass

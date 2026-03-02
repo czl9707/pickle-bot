@@ -93,7 +93,6 @@ class MessageBusWorker(Worker):
                     source=source,
                     content=message,
                     timestamp=time.time(),
-                    context=context,
                 )
                 await self.context.eventbus.publish(event)
                 self.logger.debug(f"Published INBOUND event from {source}")

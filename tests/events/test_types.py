@@ -15,7 +15,7 @@ from picklebot.core.events import (
     serialize_event,
     deserialize_event,
 )
-from picklebot.messagebus.telegram_bus import TelegramContext, TelegramEventSource
+from picklebot.messagebus.telegram_bus import TelegramEventSource
 from picklebot.messagebus.cli_bus import CliEventSource
 
 
@@ -89,7 +89,6 @@ class TestInboundEvent:
     """Tests for InboundEvent."""
 
     def test_inbound_event_creation(self):
-        ctx = TelegramContext(user_id="123", chat_id="456")
         source = TelegramEventSource(user_id="123", chat_id="456")
         event = InboundEvent(
             session_id="sess-1",
@@ -98,7 +97,6 @@ class TestInboundEvent:
             content="Hello",
             timestamp=12345.0,
             retry_count=0,
-            context=ctx,
         )
         assert event.session_id == "sess-1"
         assert event.agent_id == "pickle"
@@ -106,7 +104,6 @@ class TestInboundEvent:
         assert event.content == "Hello"
         assert event.timestamp == 12345.0
         assert event.retry_count == 0
-        assert event.context == ctx
 
     def test_inbound_event_defaults(self):
         source = CliEventSource(user_id="cli-user")
@@ -118,10 +115,8 @@ class TestInboundEvent:
             timestamp=12345.0,
         )
         assert event.retry_count == 0
-        assert event.context is None
 
     def test_inbound_event_to_dict(self):
-        ctx = TelegramContext(user_id="123", chat_id="456")
         source = TelegramEventSource(user_id="123", chat_id="456")
         event = InboundEvent(
             session_id="sess-1",
@@ -129,13 +124,12 @@ class TestInboundEvent:
             source=source,
             content="Hello",
             timestamp=12345.0,
-            context=ctx,
         )
         result = event.to_dict()
         assert result["type"] == "InboundEvent"
         assert result["session_id"] == "sess-1"
         assert result["agent_id"] == "pickle"
-        assert result["context"]["type"] == "TelegramContext"
+        assert "context" not in result  # context field removed
 
     def test_inbound_event_from_dict(self):
         data = {
@@ -146,16 +140,10 @@ class TestInboundEvent:
             "content": "Hello",
             "timestamp": 12345.0,
             "retry_count": 1,
-            "context": {
-                "type": "TelegramContext",
-                "data": {"user_id": "123", "chat_id": "456"},
-            },
         }
         event = InboundEvent.from_dict(data)
         assert event.session_id == "sess-1"
         assert event.agent_id == "pickle"
-        assert isinstance(event.context, TelegramContext)
-        assert event.context.chat_id == "456"
         assert isinstance(event.source, TelegramEventSource)
 
     def test_inbound_event_roundtrip(self):
@@ -347,11 +335,30 @@ class TestEventSourceSerialization:
         assert restored.source.chat_id == "456"
 
 
+def test_inbound_event_no_context_field():
+    """InboundEvent should not have context field after refactor."""
+    from picklebot.core.events import InboundEvent, AgentEventSource
+
+    source = AgentEventSource(agent_id="pickle")
+    event = InboundEvent(
+        session_id="sess-1",
+        agent_id="pickle",
+        source=source,
+        content="hello",
+    )
+
+    # Should not have context attribute
+    assert not hasattr(event, "context")
+
+    # Serialization should not include context
+    data = event.to_dict()
+    assert "context" not in data
+
+
 class TestEventSerialization:
     """Tests for serialize/deserialize_event helpers."""
 
     def test_serialize_inbound_event(self):
-        ctx = TelegramContext(user_id="123", chat_id="456")
         source = TelegramEventSource(user_id="123", chat_id="456")
         event = InboundEvent(
             session_id="sess-1",
@@ -359,10 +366,10 @@ class TestEventSerialization:
             source=source,
             content="Hello",
             timestamp=12345.0,
-            context=ctx,
         )
         data = serialize_event(event)
         assert data["type"] == "InboundEvent"
+        assert "context" not in data  # context field removed
 
     def test_deserialize_inbound_event(self):
         data = {
@@ -372,10 +379,6 @@ class TestEventSerialization:
             "source": "platform-telegram:123:456",
             "content": "Hello",
             "timestamp": 12345.0,
-            "context": {
-                "type": "TelegramContext",
-                "data": {"user_id": "123", "chat_id": "456"},
-            },
         }
         event = deserialize_event(data)
         assert isinstance(event, InboundEvent)

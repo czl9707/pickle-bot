@@ -154,10 +154,6 @@ You are a test assistant.
         assert event.content == "hello"
         assert event.session_id == "test-session-123"
         assert event.source == "fake:123"
-        # InboundEvent has context field directly (not metadata)
-        assert isinstance(event, InboundEvent)
-        assert event.context is not None
-        assert event.context.chat_id == "456"
     finally:
         eventbus_task.cancel()
         try:
@@ -355,10 +351,6 @@ You are a test assistant.
         assert len(published_events) == 1
         event = published_events[0]
         assert event.source == "discord:456"
-        # InboundEvent has context field directly (not metadata)
-        assert isinstance(event, InboundEvent)
-        assert event.context is not None
-        assert event.context.channel_id == "789"
     finally:
         eventbus_task.cancel()
         try:
