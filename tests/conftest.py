@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from fastapi.testclient import TestClient
 
 from picklebot.core.agent import Agent
 from picklebot.core.agent_loader import AgentDef
@@ -92,3 +93,55 @@ def mock_context(tmp_path: Path) -> MagicMock:
     context.history_store = MagicMock()
     context.history_store.list_sessions = MagicMock(return_value=[])
     return context
+
+
+@pytest.fixture
+def api_client(tmp_path: Path):
+    """TestClient with pre-configured workspace. Yields (client, workspace)."""
+    from picklebot.api import create_app
+
+    # Ensure directories exist
+    (tmp_path / "agents").mkdir(exist_ok=True)
+    (tmp_path / "skills").mkdir(exist_ok=True)
+    (tmp_path / "crons").mkdir(exist_ok=True)
+
+    config = Config(
+        workspace=tmp_path,
+        llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
+        default_agent="pickle",
+    )
+    context = SharedContext(config)
+    app = create_app(context)
+
+    with TestClient(app) as client:
+        yield client, tmp_path
+
+
+@pytest.fixture
+def api_client_with_agent(api_client):
+    """TestClient with a test agent already created."""
+    from tests.helpers import create_test_agent
+
+    client, workspace = api_client
+    create_test_agent(workspace, agent_id="test-agent")
+    return client, workspace
+
+
+@pytest.fixture
+def api_client_with_skill(api_client):
+    """TestClient with a test skill already created."""
+    from tests.helpers import create_test_skill
+
+    client, workspace = api_client
+    create_test_skill(workspace, skill_id="test-skill")
+    return client, workspace
+
+
+@pytest.fixture
+def api_client_with_cron(api_client):
+    """TestClient with a test cron already created."""
+    from tests.helpers import create_test_cron
+
+    client, workspace = api_client
+    create_test_cron(workspace, cron_id="test-cron")
+    return client, workspace
