@@ -604,3 +604,38 @@ class TestMessageBusWorkerRouting:
             mock_context.config.set_runtime.assert_called_once_with(
                 "sources.telegram:123456", {"session_id": "new-session-id"}
             )
+
+    def test_messagebus_worker_routes_unknown_source_to_default(self, mock_context):
+        """MessageBusWorker should route unknown sources to default_agent."""
+        from picklebot.core.routing import RoutingTable
+        from picklebot.messagebus.telegram_bus import TelegramContext
+
+        mock_context.config.routing = {"bindings": []}
+        mock_context.config.default_agent = "pickle"
+        mock_context.config.set_runtime = Mock()
+
+        # Use real RoutingTable to verify fallback to default_agent
+        mock_context.routing_table = RoutingTable(mock_context)
+
+        # Add a mock bus for telegram
+        mock_bus = MagicMock()
+        mock_bus.platform_name = "telegram"
+        mock_bus.is_allowed = MagicMock(return_value=True)
+        mock_bus.reply = AsyncMock()
+        mock_context.messagebus_buses = [mock_bus]
+
+        # Mock Agent to avoid loading actual agent
+        with patch("picklebot.server.messagebus_worker.Agent") as MockAgent:
+            mock_session = Mock(session_id="new-session-id")
+            MockAgent.return_value.new_session.return_value = mock_session
+
+            worker = MessageBusWorker(mock_context)
+            callback = worker._create_callback("telegram")
+
+            # This should NOT be skipped even with empty bindings
+            asyncio.run(
+                callback("hello", TelegramContext(user_id="999", chat_id="999"))
+            )
+
+        # Verify event was published (using default_agent)
+        assert mock_context.eventbus.publish.called
