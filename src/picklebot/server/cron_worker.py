@@ -11,7 +11,7 @@ from croniter import croniter
 
 from .worker import Worker
 from picklebot.core.agent import Agent
-from picklebot.core.events import InboundEvent, Source
+from picklebot.core.events import CronEventSource, InboundEvent, Source
 
 if TYPE_CHECKING:
     from picklebot.core.cron_loader import CronDef
@@ -86,7 +86,7 @@ class CronWorker(Worker):
             event = InboundEvent(
                 session_id=session.session_id,
                 agent_id=cron_def.agent,
-                source=Source.cron(cron_def.id),
+                source=CronEventSource(cron_id=cron_def.id),
                 content=cron_def.prompt,
                 timestamp=time.time(),
             )
