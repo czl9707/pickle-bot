@@ -3,78 +3,27 @@
 import asyncio
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock, Mock
-from dataclasses import dataclass
 
 from picklebot.server.messagebus_worker import MessageBusWorker
 from picklebot.core.commands import CommandRegistry
 from picklebot.core.context import SharedContext
 from picklebot.core.events import EventSource, InboundEvent
-
-
-@dataclass
-class FakeEventSource(EventSource):
-    """Fake source for generic testing."""
-
-    _namespace = "platform-fake"
-    user_id: str
-    chat_id: str
-
-    def __str__(self) -> str:
-        return f"platform-fake:{self.user_id}:{self.chat_id}"
-
-    @classmethod
-    def from_string(cls, s: str) -> "FakeEventSource":
-        _, user_id, chat_id = s.split(":")
-        return cls(user_id=user_id, chat_id=chat_id)
-
-
-@dataclass
-class FakeTelegramEventSource(EventSource):
-    """Fake source for Telegram testing."""
-
-    _namespace = "platform-telegram"
-    user_id: str
-    chat_id: str
-
-    def __str__(self) -> str:
-        return f"platform-telegram:{self.user_id}:{self.chat_id}"
-
-    @classmethod
-    def from_string(cls, s: str) -> "FakeTelegramEventSource":
-        _, user_id, chat_id = s.split(":")
-        return cls(user_id=user_id, chat_id=chat_id)
-
-
-@dataclass
-class FakeDiscordEventSource(EventSource):
-    """Fake source for Discord testing."""
-
-    _namespace = "platform-discord"
-    user_id: str
-    channel_id: str
-
-    def __str__(self) -> str:
-        return f"platform-discord:{self.user_id}:{self.channel_id}"
-
-    @classmethod
-    def from_string(cls, s: str) -> "FakeDiscordEventSource":
-        _, user_id, channel_id = s.split(":")
-        return cls(user_id=user_id, channel_id=channel_id)
+from picklebot.messagebus.telegram_bus import TelegramEventSource
+from picklebot.messagebus.discord_bus import DiscordEventSource
+from picklebot.messagebus.cli_bus import CliEventSource
 
 
 class FakeBus:
-    """Fake MessageBus for testing."""
+    """Fake MessageBus for testing - uses real EventSource types."""
 
-    def __init__(self):
-        self.platform_name = "fake"
+    def __init__(self, platform_name: str = "fake"):
+        self.platform_name = platform_name
         self.messages: list[str] = []
         self.started = False
 
     async def run(self, callback):
         self.started = True
         self._callback = callback
-        # Simulate receiving a message
-        await callback("hello", FakeEventSource(user_id="123", chat_id="456"))
 
     async def stop(self):
         self.started = False
@@ -86,48 +35,49 @@ class FakeBus:
         self.messages.append(content)
 
 
-class FakeBusWithUser(FakeBus):
-    """Fake bus that provides user_id in source."""
-
-    async def run(self, callback):
-        self.started = True
-        self._callback = callback
-        # Simulate receiving a message with user context
-        await callback("hello", FakeEventSource(user_id="123", chat_id="456"))
-
-
 class FakeTelegramBus(FakeBus):
-    """Fake bus that reports as telegram platform."""
+    """Fake bus that uses TelegramEventSource."""
 
     def __init__(self):
-        super().__init__()
-        self.platform_name = "telegram"
+        super().__init__(platform_name="telegram")
 
     async def run(self, callback):
         self.started = True
         self._callback = callback
-        # Simulate receiving a message with user context
-        await callback("hello", FakeTelegramEventSource(user_id="123", chat_id="456"))
+        # Use real TelegramEventSource
+        await callback("hello", TelegramEventSource(user_id="123", chat_id="456"))
 
 
 class FakeDiscordBus(FakeBus):
-    """Fake bus that reports as discord platform."""
+    """Fake bus that uses DiscordEventSource."""
 
     def __init__(self):
-        super().__init__()
-        self.platform_name = "discord"
+        super().__init__(platform_name="discord")
 
     async def run(self, callback):
         self.started = True
         self._callback = callback
-        # Simulate receiving a message with user context
-        await callback("hello", FakeDiscordEventSource(user_id="456", channel_id="789"))
+        # Use real DiscordEventSource
+        await callback("hello", DiscordEventSource(user_id="456", channel_id="789"))
 
 
-class BlockingBusWithUser(FakeBusWithUser):
+class FakeCliBus(FakeBus):
+    """Fake bus that uses CliEventSource."""
+
+    def __init__(self):
+        super().__init__(platform_name="cli")
+
+    async def run(self, callback):
+        self.started = True
+        self._callback = callback
+        # Use real CliEventSource
+        await callback("hello", CliEventSource(user_id="123"))
+
+
+class BlockingBus(FakeBus):
     """Fake bus that blocks all messages."""
 
-    def is_allowed(self, context):
+    def is_allowed(self, source):
         return False
 
 
@@ -151,7 +101,7 @@ You are a test assistant.
 """
     )
 
-    bus = FakeBusWithUser()
+    bus = FakeCliBus()
     published_events: list[InboundEvent] = []
 
     async def capture_event(event: InboundEvent):
@@ -187,7 +137,7 @@ You are a test assistant.
         assert isinstance(event, InboundEvent)
         assert event.content == "hello"
         assert event.session_id == "test-session-123"
-        assert str(event.source) == "platform-fake:123:456"
+        assert str(event.source) == "platform-cli:123"
     finally:
         eventbus_task.cancel()
         try:
@@ -216,7 +166,7 @@ You are a test assistant.
 """
     )
 
-    bus = BlockingBusWithUser()
+    bus = BlockingBus()
     published_events: list[InboundEvent] = []
 
     async def capture_event(event: InboundEvent):
@@ -258,7 +208,7 @@ You are a test assistant.
 """
     )
 
-    bus = FakeBusWithUser()
+    bus = FakeCliBus()
     with patch.object(test_context, "messagebus_buses", [bus]):
         # Mock routing table
         test_context.routing_table.resolve = Mock(return_value="test")
@@ -476,7 +426,7 @@ You are a test assistant.
 """
     )
 
-    bus = FakeBusWithUser()
+    bus = FakeCliBus()
     with patch.object(test_context, "messagebus_buses", [bus]):
         # Mock routing table to resolve to test agent
         test_context.routing_table.resolve = Mock(return_value="test")
@@ -488,7 +438,7 @@ You are a test assistant.
     assert not hasattr(worker, "agent")
 
     # Routing should be done via routing_table.resolve
-    assert test_context.routing_table.resolve("platform-fake:123:456") == "test"
+    assert test_context.routing_table.resolve("platform-cli:123") == "test"
 
 
 @pytest.mark.anyio
@@ -511,7 +461,7 @@ You are a test assistant.
 """
     )
 
-    bus = FakeBusWithUser()
+    bus = FakeCliBus()
     published_events: list[InboundEvent] = []
 
     async def capture_event(event: InboundEvent):
@@ -638,7 +588,6 @@ class TestMessageBusWorkerRouting:
     def test_messagebus_worker_routes_unknown_source_to_default(self, mock_context):
         """MessageBusWorker should route unknown sources to default_agent."""
         from picklebot.core.routing import RoutingTable
-        from picklebot.messagebus.telegram_bus import TelegramContext
 
         mock_context.config.routing = {"bindings": []}
         mock_context.config.default_agent = "pickle"
@@ -663,8 +612,9 @@ class TestMessageBusWorkerRouting:
             callback = worker._create_callback("telegram")
 
             # This should NOT be skipped even with empty bindings
+            # Use real TelegramEventSource instead of removed TelegramContext
             asyncio.run(
-                callback("hello", TelegramContext(user_id="999", chat_id="999"))
+                callback("hello", TelegramEventSource(user_id="999", chat_id="999"))
             )
 
         # Verify event was published (using default_agent)
