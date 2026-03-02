@@ -78,34 +78,20 @@ class TestPlatformConfig:
             (DiscordConfig, "789012"),
         ],
     )
-    def test_platform_config_allows_user_fields(self, config_class, user_id):
-        """Platform configs should accept allowed_user_ids and default_chat_id."""
+    def test_platform_config_allows_user_ids(self, config_class, user_id):
+        """Platform configs should accept allowed_user_ids."""
         config = config_class(
             enabled=True,
             bot_token="test-token",
             allowed_user_ids=[user_id],
-            default_chat_id=user_id,
         )
         assert config.allowed_user_ids == [user_id]
-        assert config.default_chat_id == user_id
 
     @pytest.mark.parametrize("config_class", [TelegramConfig, DiscordConfig])
     def test_platform_config_defaults(self, config_class):
         """Platform config user fields should have sensible defaults."""
         config = config_class(enabled=True, bot_token="test-token")
         assert config.allowed_user_ids == []
-        assert config.default_chat_id is None
-
-    @pytest.mark.parametrize("config_class", [TelegramConfig, DiscordConfig])
-    def test_platform_config_has_sessions_field(self, config_class):
-        """Platform configs should have sessions field for storing user session IDs."""
-        config = config_class(enabled=True, bot_token="test-token")
-        assert config.sessions == {}
-
-        config_with_sessions = config_class(
-            enabled=True, bot_token="test-token", sessions={"123456": "uuid-abc-123"}
-        )
-        assert config_with_sessions.sessions == {"123456": "uuid-abc-123"}
 
 
 class TestSessionHistoryLimits:
@@ -166,46 +152,15 @@ class TestMessageBusConfig:
         )
         assert not config.messagebus.enabled
 
-    def test_messagebus_enabled_requires_default_platform(self):
-        """Test that enabled messagebus requires default_platform."""
-        with pytest.raises(ValidationError, match="default_platform is required"):
-            MessageBusConfig(enabled=True)
-
-    @pytest.mark.parametrize(
-        "platform,config_factory,error_match",
-        [
-            ("telegram", lambda: None, "telegram config is missing"),
-            ("discord", lambda: None, "discord config is missing"),
-            ("invalid", lambda: None, "Invalid default_platform"),
-        ],
-    )
-    def test_messagebus_validates_platform_config(
-        self, platform, config_factory, error_match
-    ):
-        """Test that messagebus validates platform config requirements."""
-        kwargs = {"enabled": True, "default_platform": platform}
-        if config_factory():
-            kwargs[platform] = config_factory()
-        with pytest.raises(ValidationError, match=error_match):
-            MessageBusConfig(**kwargs)
-
-    @pytest.mark.parametrize(
-        "platform,config_factory",
-        [
-            ("telegram", lambda: TelegramConfig(bot_token="test_token")),
-            (
-                "discord",
-                lambda: DiscordConfig(bot_token="test_token", channel_id="12345"),
-            ),
-        ],
-    )
-    def test_messagebus_valid_platform_config(self, platform, config_factory):
-        """Test valid messagebus configuration for each platform."""
+    def test_messagebus_can_be_enabled_with_platform(self):
+        """Test that messagebus can be enabled with platform config."""
         config = MessageBusConfig(
-            enabled=True, default_platform=platform, **{platform: config_factory()}
+            enabled=True,
+            telegram=TelegramConfig(bot_token="test_token"),
         )
         assert config.enabled
-        assert config.default_platform == platform
+        assert config.telegram is not None
+        assert config.telegram.bot_token == "test_token"
 
     def test_messagebus_can_be_disabled(self):
         """Test that messagebus can be explicitly disabled."""
@@ -220,12 +175,10 @@ class TestMessageBusConfig:
             default_agent="pickle",
             messagebus=MessageBusConfig(
                 enabled=True,
-                default_platform="telegram",
                 telegram=TelegramConfig(bot_token="test_token"),
             ),
         )
         assert config.messagebus.enabled
-        assert config.messagebus.default_platform == "telegram"
         assert config.messagebus.telegram.bot_token == "test_token"
 
 
@@ -487,3 +440,43 @@ sources:
         assert len(config.routing["bindings"]) == 1
         assert config.routing["bindings"][0]["agent"] == "cookie"
         assert config.sources["telegram:123456"]["session_id"] == "uuid-abc"
+
+
+def test_telegram_config_no_sessions_field():
+    """TelegramConfig should not have sessions field."""
+    from picklebot.utils.config import TelegramConfig
+
+    config = TelegramConfig(bot_token="test")
+    assert not hasattr(config, "sessions")
+
+
+def test_telegram_config_no_default_chat_id():
+    """TelegramConfig should not have default_chat_id field."""
+    from picklebot.utils.config import TelegramConfig
+
+    config = TelegramConfig(bot_token="test")
+    assert not hasattr(config, "default_chat_id")
+
+
+def test_discord_config_no_sessions_field():
+    """DiscordConfig should not have sessions field."""
+    from picklebot.utils.config import DiscordConfig
+
+    config = DiscordConfig(bot_token="test")
+    assert not hasattr(config, "sessions")
+
+
+def test_discord_config_no_default_chat_id():
+    """DiscordConfig should not have default_chat_id field."""
+    from picklebot.utils.config import DiscordConfig
+
+    config = DiscordConfig(bot_token="test")
+    assert not hasattr(config, "default_chat_id")
+
+
+def test_messagebus_config_no_default_platform():
+    """MessageBusConfig should not have default_platform field."""
+    from picklebot.utils.config import MessageBusConfig
+
+    config = MessageBusConfig()
+    assert not hasattr(config, "default_platform")

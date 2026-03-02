@@ -39,33 +39,14 @@ class TestDiscordBusPost:
     """Tests for DiscordBus.post method."""
 
     @pytest.mark.anyio
-    @pytest.mark.parametrize(
-        "default_chat_id,should_raise",
-        [
-            ("999888", False),
-            (None, True),
-        ],
-    )
-    async def test_post_default_chat_id(self, default_chat_id, should_raise):
-        """post should send to default_chat_id or raise if not configured."""
-        config = DiscordConfig(bot_token="test-token", default_chat_id=default_chat_id)
+    async def test_post_raises_requires_target(self):
+        """post should raise indicating it requires a target parameter."""
+        config = DiscordConfig(bot_token="test-token")
         bus = DiscordBus(config)
+        bus.client = MagicMock()
 
-        if should_raise:
-            bus.client = MagicMock()
-            with pytest.raises(ValueError, match="No default_chat_id configured"):
-                await bus.post(content="Test")
-        else:
-            mock_client = MagicMock()
-            mock_channel = MagicMock()
-            mock_channel.send = AsyncMock()
-            mock_client.get_channel.return_value = mock_channel
-            bus.client = mock_client
-
-            await bus.post(content="Proactive message")
-
-            mock_client.get_channel.assert_called_once_with(999888)
-            mock_channel.send.assert_called_once_with("Proactive message")
+        with pytest.raises(ValueError, match="requires a target parameter"):
+            await bus.post(content="Test")
 
 
 def _create_mock_discord_client():

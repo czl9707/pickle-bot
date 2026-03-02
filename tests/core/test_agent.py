@@ -175,12 +175,10 @@ def _create_agent_with_messagebus(test_config) -> Agent:
     """Helper to create an agent with messagebus enabled."""
     test_config.messagebus = MessageBusConfig(
         enabled=True,
-        default_platform="telegram",
         telegram=TelegramConfig(
             enabled=True,
             bot_token="test-token",
             allowed_user_ids=["123"],
-            default_chat_id="123",
         ),
     )
 
@@ -242,7 +240,6 @@ class TestAgentNewSessionWithSource:
         context.config.job_max_history = 50
         context.config.messagebus = MagicMock()
         context.config.messagebus.enabled = True
-        context.config.messagebus.default_platform = "telegram"
         context.config.messagebus.telegram = MagicMock()
         context.config.messagebus.telegram.enabled = True
         context.config.websearch = None

@@ -23,20 +23,12 @@ def create_post_message_tool(context: "SharedContext") -> BaseTool | None:
     """
     config = context.config
 
-    # Return None if messagebus not enabled
+    # Return None if messagebus not enabled or no buses configured
     if not config.messagebus.enabled:
         return None
 
-    # Get default platform
-    default_platform = config.messagebus.default_platform
-    if default_platform is None:
-        return None
-
-    # Verify the bus exists
-    bus_map = {bus.platform_name: bus for bus in context.messagebus_buses}
-    default_bus = bus_map.get(default_platform)
-
-    if not default_bus:
+    # Check if we have any buses configured
+    if not context.messagebus_buses:
         return None
 
     @tool(
@@ -74,7 +66,7 @@ def create_post_message_tool(context: "SharedContext") -> BaseTool | None:
                 timestamp=time.time(),
             )
             await context.eventbus.publish(event)
-            return f"Message queued for delivery to {default_platform}"
+            return "Message queued for delivery"
         except Exception as e:
             return f"Failed to send message: {e}"
 

@@ -398,7 +398,6 @@ class TestConfigureMessageBusStep:
             mock_text.return_value.ask.side_effect = [
                 "123:ABC",  # bot token
                 "12345",  # allowed users
-                "12345",  # default chat
             ]
 
             state = {}
@@ -406,7 +405,6 @@ class TestConfigureMessageBusStep:
 
         assert result is True
         assert state["messagebus"]["enabled"] is True
-        assert state["messagebus"]["default_platform"] == "telegram"
         assert state["messagebus"]["telegram"]["bot_token"] == "123:ABC"
 
     def test_discord_configuration(self, tmp_path: Path):
@@ -424,7 +422,6 @@ class TestConfigureMessageBusStep:
                 "discord-token",  # bot token
                 "",  # channel id (skip)
                 "",  # allowed users (skip)
-                "",  # default chat (skip)
             ]
 
             state = {}
@@ -432,7 +429,6 @@ class TestConfigureMessageBusStep:
 
         assert result is True
         assert state["messagebus"]["enabled"] is True
-        assert state["messagebus"]["default_platform"] == "discord"
         assert state["messagebus"]["discord"]["bot_token"] == "discord-token"
 
 

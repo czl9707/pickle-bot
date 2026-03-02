@@ -43,7 +43,6 @@ class TestServer:
         """Server sets up MessageBusWorker when messagebus enabled."""
         test_config.messagebus = MessageBusConfig(
             enabled=True,
-            default_platform="telegram",
             telegram=TelegramConfig(enabled=True, bot_token="test"),
         )
 
@@ -70,7 +69,6 @@ class TestServer:
         """Server doesn't setup MessageBusWorker if no buses configured."""
         test_config.messagebus = MessageBusConfig(
             enabled=True,
-            default_platform="telegram",
             telegram=TelegramConfig(enabled=False, bot_token="test"),
         )
 

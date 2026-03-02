@@ -245,7 +245,6 @@ class ConfigureMessageBusStep(BaseStep):
 
         state["messagebus"] = {
             "enabled": True,
-            "default_platform": platforms[0],
         }
 
         if "telegram" in platforms:
@@ -265,11 +264,6 @@ class ConfigureMessageBusStep(BaseStep):
             default="",
         ).ask()
 
-        default_chat = questionary.text(
-            "Default chat ID to proactively post to (optional, press Enter to skip):",
-            default="",
-        ).ask()
-
         config: dict = {
             "enabled": True,
             "bot_token": bot_token,
@@ -280,9 +274,6 @@ class ConfigureMessageBusStep(BaseStep):
             config["allowed_user_ids"] = [
                 uid.strip() for uid in allowed_users.split(",") if uid.strip()
             ]
-
-        if default_chat:
-            config["default_chat_id"] = default_chat
 
         return config
 
@@ -300,11 +291,6 @@ class ConfigureMessageBusStep(BaseStep):
             default="",
         ).ask()
 
-        default_chat = questionary.text(
-            "Default channel ID for proactive posts (optional):",
-            default="",
-        ).ask()
-
         config: dict = {
             "enabled": True,
             "bot_token": bot_token,
@@ -318,9 +304,6 @@ class ConfigureMessageBusStep(BaseStep):
             config["allowed_user_ids"] = [
                 uid.strip() for uid in allowed_users.split(",") if uid.strip()
             ]
-
-        if default_chat:
-            config["default_chat_id"] = default_chat
 
         return config
 

@@ -127,7 +127,6 @@ def test_messagebus_from_config_disabled_platform(tmp_path):
         default_agent="test",
         messagebus=MessageBusConfig(
             enabled=True,
-            default_platform="telegram",
             telegram=TelegramConfig(enabled=False, bot_token="test_token"),
         ),
     )

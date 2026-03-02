@@ -52,38 +52,21 @@ class TestTelegramBusPost:
     @pytest.mark.anyio
     async def test_post_raises_when_not_started(self):
         """post should raise when not started."""
-        config = TelegramConfig(bot_token="test_token", default_chat_id="12345")
+        config = TelegramConfig(bot_token="test_token")
         bus = TelegramBus(config)
 
         with pytest.raises(RuntimeError, match="TelegramBus not started"):
             await bus.post(content="Hello, world!")
 
     @pytest.mark.anyio
-    @pytest.mark.parametrize(
-        "default_chat_id,should_raise",
-        [
-            ("999888", False),
-            (None, True),
-        ],
-    )
-    async def test_post_default_chat_id(self, default_chat_id, should_raise):
-        """post should send to default_chat_id or raise if not configured."""
-        config = TelegramConfig(bot_token="test-token", default_chat_id=default_chat_id)
+    async def test_post_raises_requires_target(self):
+        """post should raise indicating it requires a target parameter."""
+        config = TelegramConfig(bot_token="test-token")
         bus = TelegramBus(config)
         bus.application = MagicMock()
 
-        if should_raise:
-            with pytest.raises(ValueError, match="No default_chat_id configured"):
-                await bus.post(content="Test")
-        else:
-            mock_app = MagicMock()
-            mock_app.bot.send_message = AsyncMock()
-            bus.application = mock_app
-
-            await bus.post(content="Proactive message")
-
-            call_args = mock_app.bot.send_message.call_args
-            assert call_args.kwargs["chat_id"] == 999888
+        with pytest.raises(ValueError, match="requires a target parameter"):
+            await bus.post(content="Test")
 
 
 def _create_mock_telegram_app():

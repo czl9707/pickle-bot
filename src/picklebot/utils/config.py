@@ -39,8 +39,6 @@ class TelegramConfig(BaseModel):
     enabled: bool = True
     bot_token: str
     allowed_user_ids: list[str] = Field(default_factory=list)
-    default_chat_id: str | None = None  # Renamed from default_user_id
-    sessions: dict[str, str] = Field(default_factory=dict)  # user_id -> session_id
 
 
 class DiscordConfig(BaseModel):
@@ -50,8 +48,6 @@ class DiscordConfig(BaseModel):
     bot_token: str
     channel_id: str | None = None
     allowed_user_ids: list[str] = Field(default_factory=list)
-    default_chat_id: str | None = None  # Renamed from default_user_id
-    sessions: dict[str, str] = Field(default_factory=dict)  # user_id -> session_id
 
 
 class ApiConfig(BaseModel):
@@ -65,33 +61,8 @@ class MessageBusConfig(BaseModel):
     """Message bus configuration."""
 
     enabled: bool = False
-    default_platform: str | None = None
     telegram: TelegramConfig | None = None
     discord: DiscordConfig | None = None
-
-    @model_validator(mode="after")
-    def validate_default_platform(self) -> "MessageBusConfig":
-        """Validate default_platform is configured when enabled."""
-        if self.enabled:
-            # default_platform is required when enabled
-            if not self.default_platform:
-                raise ValueError(
-                    "default_platform is required when messagebus is enabled"
-                )
-
-            # Verify default_platform has valid config
-            if self.default_platform == "telegram" and not self.telegram:
-                raise ValueError(
-                    "default_platform is 'telegram' but telegram config is missing"
-                )
-            if self.default_platform == "discord" and not self.discord:
-                raise ValueError(
-                    "default_platform is 'discord' but discord config is missing"
-                )
-            if self.default_platform not in ["telegram", "discord"]:
-                raise ValueError(f"Invalid default_platform: {self.default_platform}")
-
-        return self
 
 
 class BraveWebSearchConfig(BaseModel):

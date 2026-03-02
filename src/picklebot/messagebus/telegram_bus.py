@@ -126,22 +126,16 @@ class TelegramBus(MessageBus[TelegramContext]):
             raise
 
     async def post(self, content: str, target: str | None = None) -> None:
-        """Post proactive message to default_chat_id."""
+        """Post proactive message to target or raise if not configured."""
         if not self.application:
             raise RuntimeError("TelegramBus not started")
 
         # For now, ignore target parameter (future: support "user:123" format)
-        if not self.config.default_chat_id:
-            raise ValueError("No default_chat_id configured")
-
-        try:
-            await self.application.bot.send_message(
-                chat_id=int(self.config.default_chat_id), text=content
-            )
-            logger.debug(f"Sent Telegram post to {self.config.default_chat_id}")
-        except Exception as e:
-            logger.error(f"Failed to send Telegram post: {e}")
-            raise
+        # post() requires a target to be specified
+        raise ValueError(
+            "post() requires a target parameter. "
+            "Proactive messages should use the DeliveryWorker with OutboundEvent."
+        )
 
     async def stop(self) -> None:
         """Stop Telegram bot and cleanup."""

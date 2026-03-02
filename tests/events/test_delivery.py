@@ -15,7 +15,6 @@ def mock_context(tmp_path):
     context.config.messagebus = MagicMock()
     context.config.messagebus.telegram = None
     context.config.messagebus.discord = None
-    context.config.messagebus.default_platform = None
     context.config.event_path = tmp_path / ".events"
     context.eventbus = EventBus(context)
     # Mock platform buses list

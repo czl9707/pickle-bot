@@ -9,9 +9,7 @@ from picklebot.utils.config import Config, MessageBusConfig, TelegramConfig
 from picklebot.core.events import OutboundEvent
 
 
-def _make_context_with_messagebus(
-    enabled: bool = True, default_platform: str = "telegram"
-):
+def _make_context_with_messagebus(enabled: bool = True):
     """Helper to create a mock context with messagebus config."""
     from picklebot.core.context import SharedContext
 
@@ -47,11 +45,9 @@ You are a test assistant.
     if enabled:
         config.messagebus = MessageBusConfig(
             enabled=True,
-            default_platform=default_platform,
             telegram=TelegramConfig(
                 enabled=True,
                 bot_token="test-token",
-                default_chat_id="123456",
             ),
         )
     else:
@@ -97,9 +93,7 @@ class TestPostMessageToolExecution:
     @pytest.mark.anyio
     async def test_uses_session_for_event(self):
         """Should use session info for session_id and source."""
-        context = _make_context_with_messagebus(
-            enabled=True, default_platform="telegram"
-        )
+        context = _make_context_with_messagebus(enabled=True)
 
         # Mock the eventbus.publish method
         original_publish = context.eventbus.publish
@@ -132,9 +126,7 @@ class TestPostMessageToolExecution:
     @pytest.mark.anyio
     async def test_returns_error_on_exception(self):
         """Should return error message if publishing fails."""
-        context = _make_context_with_messagebus(
-            enabled=True, default_platform="telegram"
-        )
+        context = _make_context_with_messagebus(enabled=True)
 
         # Mock the eventbus.publish to raise an exception
         original_publish = context.eventbus.publish
