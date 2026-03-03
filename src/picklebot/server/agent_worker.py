@@ -30,102 +30,6 @@ logger = logging.getLogger(__name__)
 # Type alias for events that can be processed by SessionExecutor
 ProcessableEvent = Union[InboundEvent, DispatchEvent]
 
-
-class SessionExecutor:
-    """Executes a single agent session from a typed event."""
-
-    def __init__(
-        self,
-        context: "SharedContext",
-        agent_def: "AgentDef",
-        event: ProcessableEvent,
-        semaphore: asyncio.Semaphore,
-    ):
-        self.context = context
-        self.agent_def = agent_def
-        self.event = event
-        self.semaphore = semaphore
-
-        # Extract fields from typed event
-        self.agent_id = event.agent_id
-        self.retry_count = event.retry_count
-
-    async def run(self) -> None:
-        """Wait for semaphore, execute session, release."""
-        async with self.semaphore:
-            await self._execute()
-
-    async def _execute(self) -> None:
-        """Run the actual agent session."""
-        session_id = self.event.session_id
-        try:
-            agent = Agent(self.agent_def, self.context)
-
-            # Extract source from event
-            source = self.event.source
-
-            if session_id:
-                try:
-                    session = agent.resume_session(session_id)
-                except ValueError:
-                    logger.warning(f"Session {session_id} not found, creating new")
-                    session = agent.new_session(source, session_id=session_id)
-            else:
-                session = agent.new_session(source)
-                session_id = session.session_id
-
-            response = await session.chat(self.event.content)
-            logger.info(f"Session completed: {session_id}")
-
-            # Publish result event based on input type
-            if isinstance(self.event, DispatchEvent):
-                result_event: Event = DispatchResultEvent(
-                    session_id=session_id,
-                    agent_id=self.agent_def.id,
-                    source=AgentEventSource(self.agent_def.id),
-                    content=response,
-                )
-            else:
-                result_event: Event = OutboundEvent(
-                    session_id=session_id,
-                    agent_id=self.agent_def.id,
-                    source=AgentEventSource(self.agent_def.id),
-                    content=response,
-                )
-            await self.context.eventbus.publish(result_event)
-
-        except Exception as e:
-            logger.error(f"Session failed: {e}")
-
-            if self.retry_count < MAX_RETRIES:
-                # Use dataclasses.replace() for retry logic
-                retry_event = replace(
-                    self.event,
-                    retry_count=self.retry_count + 1,
-                    content=".",  # Minimal message for retry
-                )
-                await self.context.eventbus.publish(retry_event)
-            else:
-                # Publish result event with error based on input type
-                if isinstance(self.event, DispatchEvent):
-                    result_event = DispatchResultEvent(
-                        session_id=session_id,
-                        agent_id=self.agent_def.id,
-                        source=AgentEventSource(self.agent_def.id),
-                        content="",
-                        error=str(e),
-                    )
-                else:
-                    result_event = OutboundEvent(
-                        session_id=session_id,
-                        agent_id=self.agent_def.id,
-                        source=AgentEventSource(self.agent_def.id),
-                        content="",
-                        error=str(e),
-                    )
-                await self.context.eventbus.publish(result_event)
-
-
 class AgentWorker(SubscriberWorker):
     """Dispatches events to session executors with per-agent concurrency control.
 
@@ -141,13 +45,13 @@ class AgentWorker(SubscriberWorker):
         self._semaphores: dict[str, asyncio.Semaphore] = {}
 
         # Auto-subscribe to events
-        self.context.eventbus.subscribe(InboundEvent, self._dispatch_event)
-        self.context.eventbus.subscribe(DispatchEvent, self._dispatch_event)
+        self.context.eventbus.subscribe(InboundEvent, self.dispatch_event)
+        self.context.eventbus.subscribe(DispatchEvent, self.dispatch_event)
         self.logger.info(
             "AgentWorker subscribed to InboundEvent and DispatchEvent events"
         )
 
-    async def _dispatch_event(self, event: ProcessableEvent) -> None:
+    async def dispatch_event(self, event: ProcessableEvent) -> None:
         """Create executor task for typed event."""
         agent_id = event.agent_id
 
@@ -156,29 +60,90 @@ class AgentWorker(SubscriberWorker):
         except DefNotFoundError as e:
             logger.error(f"Agent not found: {agent_id}: {e}")
 
-            # Publish result event with error based on input type
-            if isinstance(event, DispatchEvent):
-                result_event: Event = DispatchResultEvent(
-                    session_id=event.session_id,
-                    agent_id=agent_id,
-                    source=AgentEventSource(agent_id),
-                    content="",
-                    error=str(e),
-                )
-            else:
-                result_event: Event = OutboundEvent(
-                    session_id=event.session_id,
-                    agent_id=agent_id,
-                    source=AgentEventSource(agent_id),
-                    content="",
-                    error=str(e),
-                )
+            result_event = self.create_reponse_event(
+                event,
+                agent_id,
+                content="",
+                error=str(e),
+            )
             await self.context.eventbus.publish(result_event)
             return
 
+        
+        asyncio.create_task(self.exec_session(event, agent_def))
+
+    async def exec_session(self, event: ProcessableEvent, agent_def: "AgentDef") -> None:
         sem = self._get_or_create_semaphore(agent_def)
-        asyncio.create_task(SessionExecutor(self.context, agent_def, event, sem).run())
-        self._maybe_cleanup_semaphores()
+        session_id = event.session_id
+
+        async with sem:
+            try:
+                agent = Agent(agent_def, self.context)
+                if session_id:
+                    try:
+                        session = agent.resume_session(session_id)
+                    except ValueError:
+                        logger.warning(f"Session {session_id} not found, creating new")
+                        session = agent.new_session(event.source, session_id=session_id)
+                else:
+                    session = agent.new_session(event.source)
+                    session_id = session.session_id
+
+                response = await session.chat(event.content)
+                logger.info(f"Session completed: {session_id}")
+
+                result_event = self.create_reponse_event(
+                    event,
+                    agent_def.id,
+                    response,
+                )
+                await self.context.eventbus.publish(result_event)
+
+            except Exception as e:
+                logger.error(f"Session failed: {e}")
+
+                if event.retry_count < MAX_RETRIES:
+                    # Use dataclasses.replace() for retry logic
+                    retry_event = replace(
+                        event,
+                        retry_count=event.retry_count + 1,
+                        content=".",  # Minimal message for retry
+                    )
+                    await self.context.eventbus.publish(retry_event)
+                else:
+                    result_event = self.create_reponse_event(
+                        event,
+                        agent_def.id,
+                        content="",
+                        error=str(e),
+                    )
+                    await self.context.eventbus.publish(result_event)
+
+        self._maybe_cleanup_semaphores(agent_def)
+
+    def create_reponse_event(self, 
+        event: ProcessableEvent,
+        agent_id: str,
+        content: str,
+        error: str | None = None,
+    ) -> Event:
+        if isinstance(event, DispatchEvent):
+            return DispatchResultEvent(
+                session_id=event.session_id,
+                agent_id=agent_id,
+                source=AgentEventSource(agent_id),
+                content=content,
+                error=str(error) if error else None,
+            )
+        else:
+            return OutboundEvent(
+                session_id=event.session_id,
+                agent_id=agent_id,
+                source=AgentEventSource(agent_id),
+                content=content,
+                error=str(error) if error else None,
+            )
+
 
     def _get_or_create_semaphore(self, agent_def: "AgentDef") -> asyncio.Semaphore:
         """Get existing or create new semaphore for agent."""
@@ -191,13 +156,10 @@ class AgentWorker(SubscriberWorker):
             )
         return self._semaphores[agent_def.id]
 
-    def _maybe_cleanup_semaphores(self) -> None:
-        """Remove semaphores for deleted agents."""
-        if len(self._semaphores) <= self.CLEANUP_THRESHOLD:
+    def _maybe_cleanup_semaphores(self, agent_def: "AgentDef") -> None:
+        """Remove semaphores for certain agents."""
+        if agent_def.id not in self._semaphores:
             return
-
-        existing = {a.id for a in self.context.agent_loader.discover_agents()}
-        stale = set(self._semaphores.keys()) - existing
-        for agent_id in stale:
-            del self._semaphores[agent_id]
-            logger.debug(f"Cleaned up semaphore for deleted agent: {agent_id}")
+        
+        if not self._semaphores[agent_def.id]._waiters:
+            del self._semaphores[agent_def.id]

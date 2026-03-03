@@ -169,7 +169,7 @@ def serialize_event(event: Event) -> dict[str, Any]:
 
 def deserialize_event(data: dict[str, Any]) -> Event:
     """Deserialize dict to appropriate event type."""
-    event_type: str = data.get("type")
+    event_type: str = data.get("type", "")
 
     event_class = _EVENT_CLASSES.get(event_type)
     if event_class is None:

@@ -71,7 +71,7 @@ async def test_agent_worker_processes_event(test_context, tmp_path):
     router = AgentWorker(test_context)
 
     event = make_inbound_event(content="Say hello", agent_id="test-agent")
-    await router._dispatch_event(event)
+    await router.dispatch_event(event)
 
     await asyncio.sleep(0.5)
 
@@ -94,7 +94,7 @@ async def test_agent_router_publishes_error_for_nonexistent_agent(test_context):
 
     try:
         event = make_dispatch_event(agent_id="nonexistent", session_id="test-job-id")
-        await router._dispatch_event(event)
+        await router.dispatch_event(event)
 
         # Wait for async error result to be published
         await asyncio.sleep(0.1)
@@ -248,13 +248,13 @@ async def test_agent_router_creates_semaphore_per_agent(test_context, tmp_path):
     event_a = make_inbound_event(content="Test A", agent_id="agent-a")
     event_b = make_inbound_event(content="Test B", agent_id="agent-b")
 
-    await router._dispatch_event(event_a)
+    await router.dispatch_event(event_a)
 
     # Should have semaphore for agent-a
     assert "agent-a" in router._semaphores
     assert router._semaphores["agent-a"]._value == 2  # type: ignore
 
-    await router._dispatch_event(event_b)
+    await router.dispatch_event(event_b)
 
     # Should have semaphores for both agents
     assert "agent-b" in router._semaphores
@@ -282,8 +282,8 @@ async def test_agent_router_concurrent_agents_dont_block(test_context, tmp_path)
     event_a = make_inbound_event(content="Test A", agent_id="agent-a")
     event_b = make_inbound_event(content="Test B", agent_id="agent-b")
 
-    await router._dispatch_event(event_a)
-    await router._dispatch_event(event_b)
+    await router.dispatch_event(event_a)
+    await router.dispatch_event(event_b)
 
     # Both should be able to run concurrently (different agents)
     await asyncio.sleep(0.5)
@@ -308,7 +308,7 @@ async def test_semaphore_cleanup_removes_stale_semaphores(test_context, tmp_path
     # Dispatch events for all agents to create semaphores
     for i in range(6):
         event = make_inbound_event(content="Test", agent_id=f"agent-{i}")
-        await router._dispatch_event(event)
+        await router.dispatch_event(event)
 
     await asyncio.sleep(0.3)  # Let tasks start
 
@@ -320,7 +320,7 @@ async def test_semaphore_cleanup_removes_stale_semaphores(test_context, tmp_path
 
     # Trigger cleanup by dispatching another event
     event = make_inbound_event(content="Test", agent_id="agent-0")
-    await router._dispatch_event(event)
+    await router.dispatch_event(event)
 
     # Call cleanup explicitly (in run() this happens after sleep)
     router._maybe_cleanup_semaphores()
@@ -504,7 +504,7 @@ async def test_agent_dispatcher_handles_inbound_event(test_context):
         dispatched_events.append(evt)
         # Don't actually execute, just capture
 
-    router._dispatch_event = capture_dispatch  # type: ignore
+    router.dispatch_event = capture_dispatch  # type: ignore
 
     event = make_inbound_event(
         content="Hello world",
@@ -512,7 +512,7 @@ async def test_agent_dispatcher_handles_inbound_event(test_context):
         agent_id="test-agent",
     )
 
-    await router._dispatch_event(event)
+    await router.dispatch_event(event)
 
     assert len(dispatched_events) == 1
     dispatched = dispatched_events[0]
@@ -532,7 +532,7 @@ async def test_agent_dispatcher_handles_dispatch_event(test_context):
     async def capture_dispatch(evt: DispatchEvent) -> None:
         dispatched_events.append(evt)
 
-    router._dispatch_event = capture_dispatch  # type: ignore
+    router.dispatch_event = capture_dispatch  # type: ignore
 
     event = DispatchEvent(
         session_id="job-session",
@@ -543,7 +543,7 @@ async def test_agent_dispatcher_handles_dispatch_event(test_context):
         parent_session_id="parent-123",
     )
 
-    await router._dispatch_event(event)
+    await router.dispatch_event(event)
 
     assert len(dispatched_events) == 1
     dispatched = dispatched_events[0]
