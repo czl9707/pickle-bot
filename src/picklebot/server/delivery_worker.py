@@ -5,7 +5,7 @@ import random
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 
-from picklebot.core.events import OutboundEvent
+from picklebot.core.events import EventSource, OutboundEvent
 from picklebot.core.history import HistorySession
 from .worker import SubscriberWorker
 
@@ -128,10 +128,25 @@ class DeliveryWorker(SubscriberWorker):
             # Get platform name from source
             platform = source.platform_name
             if not platform:
-                self.logger.warning(
-                    f"Source {session_info.source} is not a platform source, skipping"
-                )
-                return
+                # Try default delivery source for agent/cron events
+                default_source_str = self.context.config.default_delivery_source
+                if default_source_str:
+                    try:
+                        source = EventSource.from_string(default_source_str)
+                        platform = source.platform_name
+                        if not platform:
+                            self.logger.error(
+                                f"default_delivery_source '{default_source_str}' is not a platform source"
+                            )
+                            return
+                    except ValueError as e:
+                        self.logger.error(f"Invalid default_delivery_source: {e}")
+                        return
+                else:
+                    self.logger.warning(
+                        f"No platform for session {event.session_id} and no default_delivery_source configured"
+                    )
+                    return
 
             limit = PLATFORM_LIMITS.get(platform, float("inf"))
             if limit != float("inf"):

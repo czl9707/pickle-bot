@@ -405,6 +405,98 @@ class TestMessageBusWorkerSlashCommands:
         mock_context.eventbus.publish.assert_not_called()
 
 
+class TestDefaultDeliverySource:
+    """Tests for default_delivery_source auto-population."""
+
+    @pytest.fixture
+    def mock_context_with_config(self, mock_context):
+        """Mock context with real config for set_runtime."""
+        from picklebot.utils.config import Config, LLMConfig
+
+        mock_context.config = Config(
+            workspace=mock_context.config.event_path.parent,
+            llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
+            default_agent="test",
+        )
+        mock_context.config.default_delivery_source = None
+        return mock_context
+
+    @pytest.mark.anyio
+    async def test_first_platform_message_sets_default(self, mock_context_with_config):
+        """First non-CLI platform message should set default_delivery_source."""
+        mock_context = mock_context_with_config
+        mock_bus = FakeTelegramBus()
+        mock_context.messagebus_buses = [mock_bus]
+        mock_context.routing_table.resolve = Mock(return_value="test")
+        mock_context.config.sources = {}
+
+        with patch("picklebot.server.messagebus_worker.Agent") as MockAgent:
+            mock_session = Mock(session_id="test-session")
+            MockAgent.return_value.new_session.return_value = mock_session
+
+            worker = MessageBusWorker(mock_context)
+            worker._get_or_create_session_id = lambda s, a: "test-session"
+            callback = worker._create_callback("telegram")
+
+            await callback("hello", TelegramEventSource(user_id="123", chat_id="456"))
+
+        assert (
+            mock_context.config.default_delivery_source == "platform-telegram:123:456"
+        )
+
+    @pytest.mark.anyio
+    async def test_cli_message_does_not_set_default(self, mock_context_with_config):
+        """CLI messages should not update default_delivery_source."""
+        mock_context = mock_context_with_config
+        mock_bus = FakeCliBus()
+        mock_context.messagebus_buses = [mock_bus]
+        mock_context.routing_table.resolve = Mock(return_value="test")
+        mock_context.config.sources = {}
+        mock_context.config.default_delivery_source = None
+
+        with patch("picklebot.server.messagebus_worker.Agent") as MockAgent:
+            mock_session = Mock(session_id="test-session")
+            MockAgent.return_value.new_session.return_value = mock_session
+
+            worker = MessageBusWorker(mock_context)
+            worker._get_or_create_session_id = lambda s, a: "test-session"
+            callback = worker._create_callback("cli")
+
+            await callback("hello", CliEventSource())
+
+        # CLI should not set default
+        assert mock_context.config.default_delivery_source is None
+
+    @pytest.mark.anyio
+    async def test_subsequent_message_does_not_overwrite_default(
+        self, mock_context_with_config
+    ):
+        """Subsequent platform messages should not overwrite existing default."""
+        mock_context = mock_context_with_config
+        mock_context.config.default_delivery_source = "platform-telegram:existing:999"
+
+        mock_bus = FakeTelegramBus()
+        mock_context.messagebus_buses = [mock_bus]
+        mock_context.routing_table.resolve = Mock(return_value="test")
+        mock_context.config.sources = {}
+
+        with patch("picklebot.server.messagebus_worker.Agent") as MockAgent:
+            mock_session = Mock(session_id="test-session")
+            MockAgent.return_value.new_session.return_value = mock_session
+
+            worker = MessageBusWorker(mock_context)
+            worker._get_or_create_session_id = lambda s, a: "test-session"
+            callback = worker._create_callback("telegram")
+
+            await callback("hello", TelegramEventSource(user_id="123", chat_id="456"))
+
+        # Should NOT have been overwritten
+        assert (
+            mock_context.config.default_delivery_source
+            == "platform-telegram:existing:999"
+        )
+
+
 @pytest.mark.anyio
 async def test_messagebus_worker_uses_routing_table(test_context, tmp_path):
     """MessageBusWorker uses routing table to resolve agents."""

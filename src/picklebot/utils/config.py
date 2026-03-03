@@ -114,6 +114,7 @@ class Config(BaseModel):
     max_history_file_size: int = Field(default=500, gt=0)
     routing: dict = Field(default_factory=lambda: {"bindings": []})
     sources: dict[str, dict] = Field(default_factory=dict)
+    default_delivery_source: str | None = None
 
     @model_validator(mode="after")
     def resolve_paths(self) -> "Config":

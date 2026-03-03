@@ -188,3 +188,175 @@ def test_platform_limits():
     assert PLATFORM_LIMITS["telegram"] == 4096
     assert PLATFORM_LIMITS["discord"] == 2000
     assert PLATFORM_LIMITS["cli"] == float("inf")
+
+
+class TestDefaultDeliverySource:
+    """Tests for default_delivery_source fallback in delivery."""
+
+    @pytest.mark.asyncio
+    async def test_uses_default_when_no_platform(self, mock_context):
+        """Should deliver to default_delivery_source when session has no platform."""
+        from picklebot.core.history import HistorySession
+
+        # Session with non-platform source
+        mock_session = HistorySession(
+            id="session-123",
+            agent_id="pickle",
+            source="agent:pickle",
+            created_at="2026-03-01T10:00:00",
+            updated_at="2026-03-01T10:00:00",
+        )
+        mock_context.history_store.list_sessions.return_value = [mock_session]
+
+        # Set default delivery source
+        mock_context.config.default_delivery_source = "platform-telegram:123:456"
+
+        # Mock telegram bus
+        mock_bus = Mock()
+        mock_bus.platform_name = "telegram"
+        mock_bus.reply = AsyncMock()
+        mock_context.messagebus_buses = [mock_bus]
+
+        worker = DeliveryWorker(mock_context)
+        event = OutboundEvent(
+            session_id="session-123",
+            agent_id="pickle",
+            source="agent:pickle",
+            content="Hello",
+        )
+
+        with patch.object(mock_context.eventbus, "ack") as mock_ack:
+            await worker.handle_event(event)
+
+        mock_bus.reply.assert_called_once()
+        mock_ack.assert_called_once_with(event)
+
+    @pytest.mark.asyncio
+    async def test_skips_when_no_default_configured(self, mock_context):
+        """Should skip with warning when no default_delivery_source configured."""
+        from picklebot.core.history import HistorySession
+
+        # Session with non-platform source
+        mock_session = HistorySession(
+            id="session-123",
+            agent_id="pickle",
+            source="agent:pickle",
+            created_at="2026-03-01T10:00:00",
+            updated_at="2026-03-01T10:00:00",
+        )
+        mock_context.history_store.list_sessions.return_value = [mock_session]
+        mock_context.config.default_delivery_source = None
+
+        worker = DeliveryWorker(mock_context)
+        event = OutboundEvent(
+            session_id="session-123",
+            agent_id="pickle",
+            source="agent:pickle",
+            content="Hello",
+        )
+
+        with patch.object(mock_context.eventbus, "ack") as mock_ack:
+            await worker.handle_event(event)
+
+        mock_ack.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_platform_source_unchanged(self, mock_context):
+        """Platform sources should still deliver directly (existing behavior)."""
+        from picklebot.core.history import HistorySession
+
+        # Session with platform source
+        mock_session = HistorySession(
+            id="session-123",
+            agent_id="pickle",
+            source="platform-telegram:999:888",
+            created_at="2026-03-01T10:00:00",
+            updated_at="2026-03-01T10:00:00",
+        )
+        mock_context.history_store.list_sessions.return_value = [mock_session]
+
+        # Set a different default (should be ignored)
+        mock_context.config.default_delivery_source = "platform-discord:111:222"
+
+        # Mock telegram bus only
+        mock_bus = Mock()
+        mock_bus.platform_name = "telegram"
+        mock_bus.reply = AsyncMock()
+        mock_context.messagebus_buses = [mock_bus]
+
+        worker = DeliveryWorker(mock_context)
+        event = OutboundEvent(
+            session_id="session-123",
+            agent_id="pickle",
+            source="agent:pickle",
+            content="Hello",
+        )
+
+        with patch.object(mock_context.eventbus, "ack") as mock_ack:
+            await worker.handle_event(event)
+
+        # Should deliver to telegram (from session source), not discord (default)
+        mock_bus.reply.assert_called_once()
+        mock_ack.assert_called_once_with(event)
+
+    @pytest.mark.asyncio
+    async def test_invalid_default_logs_error(self, mock_context):
+        """Should log error and skip if default_delivery_source is invalid."""
+        from picklebot.core.history import HistorySession
+
+        # Session with non-platform source
+        mock_session = HistorySession(
+            id="session-123",
+            agent_id="pickle",
+            source="agent:pickle",
+            created_at="2026-03-01T10:00:00",
+            updated_at="2026-03-01T10:00:00",
+        )
+        mock_context.history_store.list_sessions.return_value = [mock_session]
+
+        # Invalid default source string
+        mock_context.config.default_delivery_source = "invalid:source:format"
+
+        worker = DeliveryWorker(mock_context)
+        event = OutboundEvent(
+            session_id="session-123",
+            agent_id="pickle",
+            source="agent:pickle",
+            content="Hello",
+        )
+
+        with patch.object(mock_context.eventbus, "ack") as mock_ack:
+            await worker.handle_event(event)
+
+        # Should skip without acking
+        mock_ack.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_non_platform_default_logs_error(self, mock_context):
+        """Should log error when default_delivery_source is a non-platform source."""
+        from picklebot.core.history import HistorySession
+
+        mock_session = HistorySession(
+            id="session-123",
+            agent_id="pickle",
+            source="agent:pickle",
+            created_at="2026-03-01T10:00:00",
+            updated_at="2026-03-01T10:00:00",
+        )
+        mock_context.history_store.list_sessions.return_value = [mock_session]
+        # Valid but non-platform source
+        mock_context.config.default_delivery_source = "agent:pickle"
+
+        worker = DeliveryWorker(mock_context)
+        event = OutboundEvent(
+            session_id="session-123",
+            agent_id="pickle",
+            source="agent:pickle",
+            content="Hello",
+        )
+
+        with patch.object(mock_context.eventbus, "ack") as mock_ack:
+            await worker.handle_event(event)
+
+        # Should skip without acking
+        mock_ack.assert_not_called()
