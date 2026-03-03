@@ -106,7 +106,6 @@ class TestSessionHistoryLimits:
         )
         assert config.chat_max_history == 50
         assert config.job_max_history == 500
-        assert config.max_history_file_size == 500
 
     def test_config_custom_history_limits(self, llm_config):
         """Config should allow custom history limits."""
@@ -116,17 +115,14 @@ class TestSessionHistoryLimits:
             default_agent="test",
             chat_max_history=100,
             job_max_history=1000,
-            max_history_file_size=2000,
         )
         assert config.chat_max_history == 100
         assert config.job_max_history == 1000
-        assert config.max_history_file_size == 2000
 
     @pytest.mark.parametrize(
         "field,value",
         [
             ("chat_max_history", 0),
-            ("max_history_file_size", 0),
         ],
     )
     def test_positive_field_validation(self, llm_config, field, value):
