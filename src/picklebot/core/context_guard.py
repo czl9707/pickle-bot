@@ -56,3 +56,32 @@ class ContextGuard:
             else:
                 lines.append(f"{role.upper()}: {content}")
         return "\n".join(lines)
+
+    def _build_compacted_messages(
+        self,
+        summary: str,
+        original_messages: list[Message],
+    ) -> list[Message]:
+        """Build new message list with summary + recent messages.
+
+        Args:
+            summary: Generated summary text
+            original_messages: Original message list
+
+        Returns:
+            Compacted message list
+        """
+        keep_count = max(4, int(len(original_messages) * 0.2))
+        compress_count = max(2, int(len(original_messages) * 0.5))
+        compress_count = min(compress_count, len(original_messages) - keep_count)
+
+        return [
+            {
+                "role": "user",
+                "content": f"[Previous conversation summary]\n{summary}",
+            },
+            {
+                "role": "assistant",
+                "content": "Understood, I have the context.",
+            },
+        ] + original_messages[compress_count:]

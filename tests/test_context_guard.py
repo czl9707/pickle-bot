@@ -79,3 +79,28 @@ class TestMessageSerialization:
         assert "[used tools:" in result
         assert "web_search" in result
         assert "read_file" in result
+
+
+class TestCompactedMessagesBuilder:
+    def test_build_compacted_messages(self):
+        """Build compacted message list with summary + recent messages."""
+        from picklebot.core.context_guard import ContextGuard
+
+        guard = ContextGuard(shared_context=None, token_threshold=1000)
+
+        # 10 messages
+        messages = [{"role": "user", "content": f"Message {i}"} for i in range(10)]
+
+        summary = "This is a summary of the conversation."
+        result = guard._build_compacted_messages(summary, messages)
+
+        # Should have: summary user + summary assistant + kept recent messages
+        assert result[0]["role"] == "user"
+        assert "[Previous conversation summary]" in result[0]["content"]
+        assert summary in result[0]["content"]
+
+        assert result[1]["role"] == "assistant"
+        assert result[1]["content"] == "Understood, I have the context."
+
+        # Recent messages should be preserved
+        assert len(result) > 2
