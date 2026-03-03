@@ -86,6 +86,7 @@ def create_test_cron(
     workspace: Path,
     cron_id: str = "test-cron",
     name: str = "Test Cron",
+    description: str = "A test cron job",
     agent: str = "pickle",
     schedule: str = "0 * * * *",
     prompt: str = "Check for updates.",
@@ -97,6 +98,7 @@ def create_test_cron(
         workspace: Path to workspace directory
         cron_id: Cron identifier (folder name)
         name: Cron display name
+        description: Cron description
         agent: Agent to run
         schedule: Cron schedule expression
         prompt: Cron prompt
@@ -113,7 +115,7 @@ def create_test_cron(
 
     cron_md = cron_dir / "CRON.md"
     cron_md.write_text(
-        f'---\nname: {name}\nagent: {agent}\nschedule: "{schedule}"\none_off: {one_off}\n---\n{prompt}\n'
+        f'---\nname: {name}\ndescription: {description}\nagent: {agent}\nschedule: "{schedule}"\none_off: {one_off}\n---\n{prompt}\n'
     )
 
     return cron_dir

@@ -57,6 +57,7 @@ class TestCreateCron:
         """POST /crons/{id} creates a new cron."""
         cron_data = CronCreate(
             name="New Cron",
+            description="A new cron job",
             agent="pickle",
             schedule="*/30 * * * *",
             prompt="Run this every 30 minutes.",
@@ -83,6 +84,7 @@ class TestCreateCron:
         """POST /crons/{id} returns 409 if cron already exists."""
         cron_data = CronCreate(
             name="Duplicate Cron",
+            description="A duplicate cron",
             agent="pickle",
             schedule="0 * * * *",
             prompt="This should fail.",
@@ -102,6 +104,7 @@ class TestUpdateCron:
         """PUT /crons/{id} updates an existing cron."""
         cron_data = CronCreate(
             name="Updated Cron",
+            description="An updated cron",
             agent="cookie",
             schedule="*/15 * * * *",
             prompt="Updated prompt.",
@@ -124,6 +127,7 @@ class TestUpdateCron:
         """PUT /crons/{id} returns 404 for non-existent cron."""
         cron_data = CronCreate(
             name="Nonexistent Cron",
+            description="A nonexistent cron",
             agent="pickle",
             schedule="0 * * * *",
             prompt="This should fail.",

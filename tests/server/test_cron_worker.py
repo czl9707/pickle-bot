@@ -16,6 +16,7 @@ def test_find_due_jobs_returns_matching():
         CronDef(
             id="test-job",
             name="Test",
+            description="Test job description",
             agent="pickle",
             schedule="*/5 * * * *",  # Every 5 minutes
             prompt="Test prompt",
@@ -35,6 +36,7 @@ def test_find_due_jobs_empty_when_no_match():
         CronDef(
             id="test-job",
             name="Test",
+            description="Test job description",
             agent="pickle",
             schedule="0 0 1 1 *",  # Jan 1 only
             prompt="Test prompt",
@@ -68,6 +70,7 @@ async def test_cron_worker_dispatches_due_job(test_context, test_agent_def):
         mock_cron = CronDef(
             id="test-cron",
             name="Test Cron",
+            description="Test cron description",
             agent="test-agent",
             schedule="*/5 * * * *",  # Every 5 minutes
             prompt="Test prompt from cron",
@@ -122,6 +125,7 @@ async def test_one_off_cron_deletion(
     mock_cron = CronDef(
         id="test-cron",
         name="Test Cron",
+        description="Test cron description",
         agent="test-agent",
         schedule="*/5 * * * *",
         prompt="Test task",
