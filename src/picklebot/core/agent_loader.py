@@ -21,7 +21,8 @@ class AgentDef(BaseModel):
     id: str
     name: str
     description: str = ""  # Brief description for dispatch tool
-    system_prompt: str
+    agent_md: str  # Renamed from system_prompt
+    soul_md: str = ""  # New: personality traits
     llm: LLMConfig
     allow_skills: bool = False
     max_concurrency: int = Field(default=1, ge=1)
@@ -92,18 +93,36 @@ class AgentLoader:
         llm_overrides = frontmatter.get("llm")
         merged_llm = self._merge_llm_config(llm_overrides)
 
+        # Load SOUL.md if exists
+        soul_md = self._load_soul_md(def_id)
+
         try:
             return AgentDef(
                 id=def_id,
                 name=frontmatter["name"],  # type: ignore[misc]
                 description=frontmatter.get("description", ""),
-                system_prompt=body.strip(),
+                agent_md=body.strip(),
+                soul_md=soul_md,
                 llm=merged_llm,
                 allow_skills=frontmatter.get("allow_skills", False),
                 max_concurrency=frontmatter.get("max_concurrency", 1),
             )
         except ValidationError as e:
             raise InvalidDefError("agent", def_id, str(e))
+
+    def _load_soul_md(self, agent_id: str) -> str:
+        """Load SOUL.md file for an agent if it exists.
+
+        Args:
+            agent_id: Agent identifier
+
+        Returns:
+            Content of SOUL.md or empty string if not found
+        """
+        soul_path = self.config.agents_path / agent_id / "SOUL.md"
+        if soul_path.exists():
+            return soul_path.read_text().strip()
+        return ""
 
     def _merge_llm_config(self, agent_llm: dict[str, Any] | None) -> LLMConfig:
         """

@@ -63,7 +63,7 @@ async def test_agent_worker_processes_event(test_context, tmp_path):
     create_test_agent(
         tmp_path,
         agent_id="test-agent",
-        system_prompt="You are a test assistant. Respond briefly.",
+        agent_md="You are a test assistant. Respond briefly.",
     )
 
     router = AgentWorker(test_context)
@@ -181,7 +181,7 @@ async def test_exec_session_runs_session(test_context, tmp_path):
     create_test_agent(
         tmp_path,
         agent_id="test-agent",
-        system_prompt="You are a test assistant. Respond briefly.",
+        agent_md="You are a test assistant. Respond briefly.",
     )
 
     agent_def = test_context.agent_loader.load("test-agent")
@@ -232,7 +232,7 @@ async def test_agent_router_creates_semaphore_per_agent(test_context, tmp_path):
             tmp_path,
             agent_id=agent_name,
             name=agent_name,
-            system_prompt=f"You are {agent_name}.",
+            agent_md=f"You are {agent_name}.",
             max_concurrency=2,
         )
 
@@ -268,7 +268,7 @@ async def test_agent_router_concurrent_agents_dont_block(test_context, tmp_path)
             tmp_path,
             agent_id=agent_name,
             name=agent_name,
-            system_prompt=f"You are {agent_name}.",
+            agent_md=f"You are {agent_name}.",
             max_concurrency=1,
         )
 
@@ -292,7 +292,7 @@ async def test_semaphore_cleanup_removes_unused_semaphores(test_context, tmp_pat
         tmp_path,
         agent_id="test-agent",
         name="Test Agent",
-        system_prompt="You are a test agent.",
+        agent_md="You are a test agent.",
     )
 
     router = AgentWorker(test_context)

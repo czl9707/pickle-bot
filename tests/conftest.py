@@ -38,7 +38,7 @@ def test_agent_def(llm_config: LLMConfig) -> AgentDef:
         id="test-agent",
         name="Test Agent",
         description="A test agent",
-        system_prompt="You are a test assistant.",
+        agent_md="You are a test assistant.",  # Changed from system_prompt
         llm=llm_config,
     )
 

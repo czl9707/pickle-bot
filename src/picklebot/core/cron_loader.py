@@ -27,6 +27,7 @@ class CronDef(BaseModel):
 
     id: str
     name: str
+    description: str
     agent: str
     schedule: str
     prompt: str
@@ -90,6 +91,7 @@ class CronLoader:
             return CronDef(
                 id=def_id,
                 name=frontmatter["name"],  # type: ignore[misc]
+                description=frontmatter["description"],  # type: ignore[misc]
                 agent=frontmatter["agent"],  # type: ignore[misc]
                 schedule=frontmatter["schedule"],  # type: ignore[misc]
                 prompt=body.strip(),

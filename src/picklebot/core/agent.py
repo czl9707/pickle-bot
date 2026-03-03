@@ -259,9 +259,8 @@ class AgentSession:
         Returns:
             List of messages compatible with litellm
         """
-        messages: list[Message] = [
-            {"role": "system", "content": self.agent.agent_def.system_prompt}
-        ]
+        system_prompt = self.shared_context.prompt_builder.build(self)
+        messages: list[Message] = [{"role": "system", "content": system_prompt}]
         messages.extend(self.get_history())
 
         return messages

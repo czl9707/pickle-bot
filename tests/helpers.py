@@ -8,7 +8,7 @@ def create_test_agent(
     agent_id: str = "test-agent",
     name: str = "Test Agent",
     description: str = "A test agent",
-    system_prompt: str = "You are a test assistant.",
+    agent_md: str = "You are a test assistant.",  # Renamed from system_prompt
     **kwargs,
 ) -> Path:
     """Create a minimal test agent in workspace.
@@ -18,7 +18,7 @@ def create_test_agent(
         agent_id: Agent identifier (folder name)
         name: Agent display name
         description: Agent description
-        system_prompt: Agent system prompt
+        agent_md: Agent markdown content (from AGENT.md body)
         **kwargs: Additional frontmatter fields (e.g., max_concurrency)
 
     Returns:
@@ -43,8 +43,8 @@ def create_test_agent(
 
     frontmatter = "\n".join(frontmatter_lines)
 
-    agent_md = agent_dir / "AGENT.md"
-    agent_md.write_text(f"---\n{frontmatter}\n---\n{system_prompt}\n")
+    agent_md_file = agent_dir / "AGENT.md"
+    agent_md_file.write_text(f"---\n{frontmatter}\n---\n{agent_md}\n")
 
     return agent_dir
 
@@ -86,6 +86,7 @@ def create_test_cron(
     workspace: Path,
     cron_id: str = "test-cron",
     name: str = "Test Cron",
+    description: str = "A test cron job",
     agent: str = "pickle",
     schedule: str = "0 * * * *",
     prompt: str = "Check for updates.",
@@ -97,6 +98,7 @@ def create_test_cron(
         workspace: Path to workspace directory
         cron_id: Cron identifier (folder name)
         name: Cron display name
+        description: Cron description
         agent: Agent to run
         schedule: Cron schedule expression
         prompt: Cron prompt
@@ -113,7 +115,7 @@ def create_test_cron(
 
     cron_md = cron_dir / "CRON.md"
     cron_md.write_text(
-        f'---\nname: {name}\nagent: {agent}\nschedule: "{schedule}"\none_off: {one_off}\n---\n{prompt}\n'
+        f'---\nname: {name}\ndescription: {description}\nagent: {agent}\nschedule: "{schedule}"\none_off: {one_off}\n---\n{prompt}\n'
     )
 
     return cron_dir

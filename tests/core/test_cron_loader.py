@@ -1,6 +1,23 @@
 """Tests for CronLoader and related components."""
 
-from picklebot.core.cron_loader import CronLoader
+import pytest
+from pydantic import ValidationError
+
+from picklebot.core.cron_loader import CronDef, CronLoader
+
+
+def test_cron_def_requires_description(tmp_path):
+    """CronDef should require description field."""
+    with pytest.raises(ValidationError) as exc_info:
+        CronDef(
+            id="test",
+            name="Test Cron",
+            agent="pickle",
+            schedule="0 * * * *",
+            prompt="Test prompt",
+        )
+
+    assert "description" in str(exc_info.value)
 
 
 class TestCronLoader:
@@ -16,6 +33,7 @@ class TestCronLoader:
         (cron_dir / "CRON.md").write_text(
             "---\n"
             "name: Inbox Check\n"
+            "description: Check inbox periodically\n"
             "agent: pickle\n"
             "schedule: '*/15 * * * *'\n"
             "---\n"
@@ -27,6 +45,7 @@ class TestCronLoader:
 
         assert cron_def.id == "inbox-check"
         assert cron_def.name == "Inbox Check"
+        assert cron_def.description == "Check inbox periodically"
         assert cron_def.agent == "pickle"
         assert cron_def.schedule == "*/15 * * * *"
         assert cron_def.prompt == "Check my inbox and summarize."
@@ -43,6 +62,7 @@ class TestCronLoader:
             (cron_dir / "CRON.md").write_text(
                 f"---\n"
                 f"name: {name}\n"
+                f"description: Job {name} description\n"
                 f"agent: pickle\n"
                 f"schedule: '{schedule}'\n"
                 f"---\n"
@@ -75,6 +95,7 @@ class TestCronLoader:
         (cron_dir / "CRON.md").write_text(
             "---\n"
             "name: Test Cron\n"
+            "description: Test template substitution\n"
             "agent: pickle\n"
             "schedule: '0 * * * *'\n"
             "---\n"
@@ -97,6 +118,7 @@ class TestCronLoader:
         (cron_dir / "CRON.md").write_text(
             "---\n"
             "name: One Time\n"
+            "description: One-time reminder\n"
             "agent: pickle\n"
             "schedule: '0 10 18 2 *'\n"
             "one_off: true\n"
@@ -120,6 +142,7 @@ class TestCronLoader:
         (cron_dir / "CRON.md").write_text(
             "---\n"
             "name: One Off Job\n"
+            "description: A one-off job\n"
             "agent: pickle\n"
             "schedule: '*/5 * * * *'\n"
             "one_off: true\n"
@@ -133,6 +156,7 @@ class TestCronLoader:
         (cron_dir2 / "CRON.md").write_text(
             "---\n"
             "name: Recurring Job\n"
+            "description: A recurring job\n"
             "agent: pickle\n"
             "schedule: '0 * * * *'\n"
             "---\n"

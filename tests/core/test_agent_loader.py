@@ -23,7 +23,7 @@ class TestAgentLoaderParsing:
 
         assert agent_def.id == "pickle"
         assert agent_def.name == "Pickle"
-        assert agent_def.system_prompt == "You are a helpful assistant."
+        assert agent_def.agent_md == "You are a helpful assistant."
         assert agent_def.llm.provider == "openai"
 
     def test_parse_agent_with_llm_overrides(self, test_config):
@@ -209,6 +209,22 @@ You are {name}.
 
 
 class TestAgentDefFields:
+    def test_agent_def_has_agent_md_and_soul_md(self):
+        """AgentDef should have agent_md and soul_md fields."""
+        from picklebot.core.agent_loader import AgentDef
+        from picklebot.utils.config import LLMConfig
+
+        agent_def = AgentDef(
+            id="test",
+            name="Test",
+            agent_md="You are a test agent.",
+            soul_md="Be friendly.",
+            llm=LLMConfig(provider="openai", model="gpt-4", api_key="test"),
+        )
+
+        assert agent_def.agent_md == "You are a test agent."
+        assert agent_def.soul_md == "Be friendly."
+
     def test_agent_def_has_max_concurrency_with_default(self):
         """AgentDef has max_concurrency field with default value 1."""
         from picklebot.core.agent_loader import AgentDef
@@ -218,7 +234,7 @@ class TestAgentDefFields:
         agent_def = AgentDef(
             id="test",
             name="Test",
-            system_prompt="Test prompt",
+            agent_md="Test prompt",
             llm=llm,
         )
 
@@ -236,7 +252,7 @@ class TestAgentDefFields:
             AgentDef(
                 id="test",
                 name="Test",
-                system_prompt="Test prompt",
+                agent_md="Test prompt",
                 llm=llm,
                 max_concurrency=0,
             )
@@ -246,7 +262,7 @@ class TestAgentDefFields:
             AgentDef(
                 id="test",
                 name="Test",
-                system_prompt="Test prompt",
+                agent_md="Test prompt",
                 llm=llm,
                 max_concurrency=-1,
             )
@@ -310,7 +326,7 @@ class TestAgentLoaderTemplateSubstitution:
         agent_def = loader.load("test-agent")
 
         expected = f"Memories at: {test_config.memories_path}"
-        assert agent_def.system_prompt == expected
+        assert agent_def.agent_md == expected
 
     def test_substitutes_multiple_variables(self, test_config):
         """AgentLoader substitutes multiple template variables."""
@@ -328,7 +344,7 @@ class TestAgentLoaderTemplateSubstitution:
         expected = (
             f"Workspace: {test_config.workspace}, Skills: {test_config.skills_path}"
         )
-        assert agent_def.system_prompt == expected
+        assert agent_def.agent_md == expected
 
     def test_no_template_variables_unchanged(self, test_config):
         """Agent without templates loads normally."""
@@ -341,4 +357,4 @@ class TestAgentLoaderTemplateSubstitution:
         loader = AgentLoader(test_config)
         agent_def = loader.load("test-agent")
 
-        assert agent_def.system_prompt == "No templates here."
+        assert agent_def.agent_md == "No templates here."

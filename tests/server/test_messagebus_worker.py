@@ -623,7 +623,7 @@ class TestMessageBusWorkerRouting:
             id="cookie",
             name="Cookie Agent",
             description="Test agent",
-            system_prompt="You are a test agent.",
+            agent_md="You are a test agent.",
             llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
         )
         context.agent_loader = Mock()

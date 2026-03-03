@@ -27,7 +27,7 @@ def _write_agent_file(agent_id: str, data: AgentCreate, agents_path) -> None:
     if data.model:
         frontmatter["model"] = data.model
 
-    write_definition(agent_id, frontmatter, data.system_prompt, agents_path, "AGENT.md")
+    write_definition(agent_id, frontmatter, data.agent_md, agents_path, "AGENT.md")
 
 
 @router.get("", response_model=list[AgentDef])

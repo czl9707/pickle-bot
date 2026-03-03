@@ -42,7 +42,7 @@ class TestGetAgent:
         assert agent["id"] == "test-agent"
         assert agent["name"] == "Test Agent"
         assert agent["description"] == "A test agent"
-        assert "You are a test assistant" in agent["system_prompt"]
+        assert "You are a test assistant" in agent["agent_md"]
 
     def test_get_agent_not_found(self, client):
         """GET /agents/{id} returns 404 for non-existent agent."""
@@ -57,7 +57,7 @@ class TestCreateAgent:
         agent_data = AgentCreate(
             name="New Agent",
             description="A new agent",
-            system_prompt="You are a new agent.",
+            agent_md="You are a new agent.",
         )
 
         response = client.post(
@@ -81,7 +81,7 @@ class TestUpdateAgent:
         agent_data = AgentCreate(
             name="Updated Agent",
             description="Updated description",
-            system_prompt="You are updated.",
+            agent_md="You are updated.",
         )
 
         response = client.put(

@@ -43,7 +43,7 @@ class AgentCreate(BaseModel):
 
     name: str
     description: str = ""
-    system_prompt: str
+    agent_md: str
     provider: str | None = None
     model: str | None = None
     temperature: float = 0.7

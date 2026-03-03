@@ -4,6 +4,7 @@ from picklebot.core.agent_loader import AgentLoader
 from picklebot.core.commands.registry import CommandRegistry
 from picklebot.core.cron_loader import CronLoader
 from picklebot.core.history import HistoryStore
+from picklebot.core.prompt_builder import PromptBuilder
 from picklebot.core.routing import RoutingTable
 from picklebot.core.skill_loader import SkillLoader
 from picklebot.core.eventbus import EventBus
@@ -23,6 +24,7 @@ class SharedContext:
     messagebus_buses: list[MessageBus[Any]]
     eventbus: EventBus
     routing_table: RoutingTable
+    prompt_builder: PromptBuilder
 
     def __init__(
         self, config: Config, buses: list[MessageBus[Any]] | None = None
@@ -42,3 +44,4 @@ class SharedContext:
 
         self.eventbus = EventBus(self)
         self.routing_table = RoutingTable(self)
+        self.prompt_builder = PromptBuilder(config.workspace, self.cron_loader)

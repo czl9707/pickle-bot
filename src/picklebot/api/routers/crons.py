@@ -18,6 +18,7 @@ def _write_cron_file(cron_id: str, data: CronCreate, crons_path) -> None:  # typ
     # Type ignore: CronCreate is dynamically created
     frontmatter = {
         "name": data.name,  # type: ignore[attr-defined]
+        "description": data.description,  # type: ignore[attr-defined]
         "agent": data.agent,  # type: ignore[attr-defined]
         "schedule": data.schedule,  # type: ignore[attr-defined]
         "one_off": data.one_off,  # type: ignore[attr-defined]

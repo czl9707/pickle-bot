@@ -44,7 +44,7 @@ class TestAgentWebTools:
         agent_def = AgentDef(
             id="test-agent",
             name="Test Agent",
-            system_prompt="You are a test assistant.",
+            agent_md="You are a test assistant.",
             llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
         )
         context = SharedContext(config=web_test_config)

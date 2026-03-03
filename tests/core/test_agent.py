@@ -114,7 +114,7 @@ def _create_agent_with_skills(test_config, allow_skills: bool) -> Agent:
     agent_def = AgentDef(
         id="test-agent",
         name="Test Agent",
-        system_prompt="You are a test assistant.",
+        agent_md="You are a test assistant.",
         llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
         allow_skills=allow_skills,
     )
@@ -190,7 +190,7 @@ def _create_agent_with_messagebus(test_config) -> Agent:
     agent_def = AgentDef(
         id="test-agent",
         name="Test Agent",
-        system_prompt="You are a test assistant.",
+        agent_md="You are a test assistant.",
         llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
     )
     context = SharedContext(config=test_config)
@@ -252,7 +252,7 @@ class TestAgentNewSessionWithSource:
         agent_def = MagicMock()
         agent_def.id = "test-agent"
         agent_def.llm = LLMConfig(provider="openai", model="gpt-4", api_key="test-key")
-        agent_def.system_prompt = "You are a test agent."
+        agent_def.agent_md = "You are a test agent."
         agent_def.allow_skills = False
         agent_def.max_concurrency = 1
         return agent_def
@@ -327,3 +327,19 @@ class TestAgentNewSessionWithSource:
         stored = next((s for s in sessions if s.id == session.session_id), None)
         assert stored is not None
         assert stored.source == str(source)
+
+
+def test_session_builds_prompt_with_layers(test_agent):
+    """AgentSession._build_messages should use PromptBuilder."""
+    source = TelegramEventSource(user_id="123", chat_id="456")
+    session = test_agent.new_session(source=source)
+
+    messages = session._build_messages()
+    system_prompt = messages[0]["content"]
+
+    # Should include agent_md
+    assert "You are a test assistant." in system_prompt
+    # Should include channel hint
+    assert "telegram" in system_prompt.lower()
+    # Should include runtime
+    assert "Agent:" in system_prompt
