@@ -25,7 +25,8 @@ Examples:
 1. Ask what task should run and when
 2. Determine the schedule
 3. Ask which agent should run the task
-4. Create the directory and CRON.md file
+4. Ask for a brief description of what the cron does
+5. Create the directory and CRON.md file
 
 ### List
 
@@ -58,6 +59,7 @@ Cron jobs run in the background with no direct output to the user. The agent exe
 ```markdown
 ---
 name: Cron Name
+description: Brief description of what this cron does
 agent: pickle
 schedule: "0 9 * * *"
 ---
@@ -69,6 +71,7 @@ Task description for the agent to execute.
 ```markdown
 ---
 name: Daily Summary
+description: Sends a daily summary of activity
 agent: pickle
 schedule: "0 9 * * *"
 ---
