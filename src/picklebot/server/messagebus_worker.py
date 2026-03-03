@@ -68,13 +68,12 @@ class MessageBusWorker(Worker):
                     timestamp=time.time(),
                 )
                 await self.context.eventbus.publish(event)
-                self.logger.debug(f"Published INBOUND event from {source_str}")
+                self.logger.debug(f"Published INBOUND event from {source}")
 
             except Exception as e:
                 self.logger.error(f"Error processing message from {platform}: {e}")
 
         return callback
-
 
     def _get_or_create_session_id(self, source_str: str, agent_id: str) -> str:
         """Get existing session_id from source cache, or create new session."""

@@ -71,7 +71,7 @@ class FakeCliBus(FakeBus):
         self.started = True
         self._callback = callback
         # Use real CliEventSource
-        await callback("hello", CliEventSource(user_id="123"))
+        await callback("hello", CliEventSource())
 
 
 class BlockingBus(FakeBus):
@@ -137,7 +137,7 @@ You are a test assistant.
         assert isinstance(event, InboundEvent)
         assert event.content == "hello"
         assert event.session_id == "test-session-123"
-        assert str(event.source) == "platform-cli:123"
+        assert str(event.source) == "platform-cli:cli-user"
     finally:
         eventbus_task.cancel()
         try:

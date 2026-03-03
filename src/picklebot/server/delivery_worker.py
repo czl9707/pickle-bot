@@ -5,7 +5,7 @@ import random
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 
-from picklebot.core.events import EventSource, OutboundEvent
+from picklebot.core.events import OutboundEvent
 from picklebot.core.history import HistorySession
 from .worker import SubscriberWorker
 

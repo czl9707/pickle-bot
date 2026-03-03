@@ -165,7 +165,7 @@ class TestHistoryStoreInit:
 class TestCreateSession:
     def test_creates_session(self, history_store):
         """create_session should return session metadata."""
-        source = CliEventSource(user_id="test")
+        source = CliEventSource()
         session = history_store.create_session(
             "test-agent", "session-123", source=source
         )
@@ -177,7 +177,7 @@ class TestCreateSession:
 
     def test_creates_index_entry(self, history_store):
         """create_session should append to index.jsonl."""
-        source = CliEventSource(user_id="test")
+        source = CliEventSource()
         history_store.create_session("test-agent", "session-123", source=source)
 
         with open(history_store.index_path) as f:
@@ -189,7 +189,7 @@ class TestCreateSession:
 
     def test_creates_empty_session_file(self, history_store):
         """create_session should create chunk file with .1.jsonl extension."""
-        source = CliEventSource(user_id="test")
+        source = CliEventSource()
         history_store.create_session("test-agent", "session-123", source=source)
 
         # Should create session-session-123.1.jsonl (chunk format)
@@ -201,7 +201,7 @@ class TestCreateSession:
 
     def test_multiple_sessions(self, history_store):
         """Multiple sessions should be appended to index."""
-        source = CliEventSource(user_id="test")
+        source = CliEventSource()
         history_store.create_session("agent-1", "session-1", source=source)
         history_store.create_session("agent-2", "session-2", source=source)
 
@@ -215,7 +215,7 @@ class TestCreateSession:
 class TestSaveMessage:
     def test_appends_message_to_session_file(self, history_store):
         """save_message should append line to session file."""
-        source = CliEventSource(user_id="test")
+        source = CliEventSource()
         history_store.create_session("agent", "session-1", source=source)
 
         msg = HistoryMessage(role="user", content="Hello")
@@ -233,7 +233,7 @@ class TestSaveMessage:
 
     def test_updates_message_count_in_index(self, history_store):
         """save_message should update message_count in index."""
-        source = CliEventSource(user_id="test")
+        source = CliEventSource()
         history_store.create_session("agent", "session-1", source=source)
 
         msg = HistoryMessage(role="user", content="Hello")
@@ -244,7 +244,7 @@ class TestSaveMessage:
 
     def test_auto_generates_title_from_first_user_message(self, history_store):
         """First user message should auto-generate session title."""
-        source = CliEventSource(user_id="test")
+        source = CliEventSource()
         history_store.create_session("agent", "session-1", source=source)
 
         msg = HistoryMessage(
@@ -260,7 +260,7 @@ class TestSaveMessage:
 
     def test_handles_tool_calls(self, history_store):
         """save_message should store tool_calls."""
-        source = CliEventSource(user_id="test")
+        source = CliEventSource()
         history_store.create_session("agent", "session-1", source=source)
 
         msg = HistoryMessage(
@@ -278,7 +278,7 @@ class TestSaveMessage:
 class TestGetMessages:
     def test_returns_empty_list_for_new_session(self, history_store):
         """get_messages should return empty list for new session."""
-        source = CliEventSource(user_id="test")
+        source = CliEventSource()
         history_store.create_session("agent", "session-1", source=source)
 
         messages = history_store.get_messages("session-1")
@@ -286,7 +286,7 @@ class TestGetMessages:
 
     def test_returns_all_messages(self, history_store):
         """get_messages should return all messages in order."""
-        source = CliEventSource(user_id="test")
+        source = CliEventSource()
         history_store.create_session("agent", "session-1", source=source)
 
         history_store.save_message(
@@ -305,7 +305,7 @@ class TestGetMessages:
 class TestUpdateSessionTitle:
     def test_updates_title_in_index(self, history_store):
         """update_session_title should update title in index."""
-        source = CliEventSource(user_id="test")
+        source = CliEventSource()
         history_store.create_session("agent", "session-1", source=source)
 
         history_store.update_session_title("session-1", "New Title")
@@ -322,7 +322,7 @@ class TestListSessions:
 
     def test_returns_sessions_ordered_by_updated_at(self, history_store):
         """list_sessions should return most recently updated first."""
-        source = CliEventSource(user_id="test")
+        source = CliEventSource()
         history_store.create_session("agent", "session-1", source=source)
         history_store.create_session("agent", "session-2", source=source)
 
@@ -397,7 +397,7 @@ class TestHistoryStoreChunkHelpers:
 class TestSaveMessageChunking:
     def test_creates_new_chunk_when_full(self, history_store):
         """save_message should create new chunk when current is full."""
-        source = CliEventSource(user_id="test")
+        source = CliEventSource()
         history_store.create_session("agent", "session-1", source=source)
 
         # Fill first chunk (3 messages = max_history_file_size)
@@ -428,7 +428,7 @@ class TestSaveMessageChunking:
 
     def test_updates_chunk_count_in_index(self, history_store):
         """save_message should update chunk_count when creating new chunk."""
-        source = CliEventSource(user_id="test")
+        source = CliEventSource()
         history_store.create_session("agent", "session-1", source=source)
 
         # Fill chunk 1 (max_history_file_size=3)
@@ -452,7 +452,7 @@ class TestSaveMessageChunking:
 
     def test_appends_to_current_chunk_when_not_full(self, history_store):
         """save_message should append to current chunk when not full."""
-        source = CliEventSource(user_id="test")
+        source = CliEventSource()
         history_store.create_session("agent", "session-1", source=source)
 
         history_store.save_message(
@@ -470,7 +470,7 @@ class TestSaveMessageChunking:
 class TestGetMessagesChunking:
     def test_loads_from_multiple_chunks(self, history_store):
         """get_messages should load from multiple chunks, newest first."""
-        source = CliEventSource(user_id="test")
+        source = CliEventSource()
         history_store.create_session("agent", "session-1", source=source)
 
         # Create 5 messages across 2 chunks (max_history_file_size=3 per chunk)
@@ -488,7 +488,7 @@ class TestGetMessagesChunking:
 
     def test_loads_all_when_less_than_max(self, history_store):
         """get_messages should return all when less than max_history."""
-        source = CliEventSource(user_id="test")
+        source = CliEventSource()
         history_store.create_session("agent", "session-1", source=source)
 
         history_store.save_message(
@@ -505,7 +505,7 @@ class TestGetMessagesChunking:
 
     def test_spans_chunks_for_max_history(self, history_store):
         """get_messages should span chunks to reach max_history."""
-        source = CliEventSource(user_id="test")
+        source = CliEventSource()
         history_store.create_session("agent", "session-1", source=source)
 
         # 5 messages across 2 chunks (3 in chunk 1, 2 in chunk 2)

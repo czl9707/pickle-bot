@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 ProcessableEvent = Union[InboundEvent, DispatchEvent]
 
+
 class AgentWorker(SubscriberWorker):
     """Dispatches events to session executors with per-agent concurrency control.
 
@@ -68,10 +69,11 @@ class AgentWorker(SubscriberWorker):
             await self.context.eventbus.publish(result_event)
             return
 
-        
         asyncio.create_task(self.exec_session(event, agent_def))
 
-    async def exec_session(self, event: ProcessableEvent, agent_def: "AgentDef") -> None:
+    async def exec_session(
+        self, event: ProcessableEvent, agent_def: "AgentDef"
+    ) -> None:
         sem = self._get_or_create_semaphore(agent_def)
         session_id = event.session_id
 
@@ -120,7 +122,8 @@ class AgentWorker(SubscriberWorker):
 
         self._maybe_cleanup_semaphores(agent_def)
 
-    def create_reponse_event(self, 
+    def create_reponse_event(
+        self,
         event: ProcessableEvent,
         agent_id: str,
         content: str,
@@ -143,7 +146,6 @@ class AgentWorker(SubscriberWorker):
                 error=str(error) if error else None,
             )
 
-
     def _get_or_create_semaphore(self, agent_def: "AgentDef") -> asyncio.Semaphore:
         """Get existing or create new semaphore for agent."""
         if agent_def.id not in self._semaphores:
@@ -159,6 +161,6 @@ class AgentWorker(SubscriberWorker):
         """Remove semaphores for certain agents."""
         if agent_def.id not in self._semaphores:
             return
-        
+
         if not self._semaphores[agent_def.id]._waiters:
             del self._semaphores[agent_def.id]

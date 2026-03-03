@@ -2,7 +2,7 @@
 
 import pytest
 
-from picklebot.core.agent import Agent, AgentSession, get_source_settings
+from picklebot.core.agent import Agent, get_source_settings
 from picklebot.core.agent_loader import AgentDef
 from picklebot.core.context import SharedContext
 from picklebot.core.events import AgentEventSource, CronEventSource
@@ -52,7 +52,7 @@ class TestGetSourceSettings:
 
     def test_cli_source_returns_chat_settings(self):
         """CLI sources should return chat settings."""
-        source = CliEventSource(user_id="default")
+        source = CliEventSource()
         max_history, post_message = get_source_settings(source)
         assert max_history == 100
         assert post_message is False
@@ -87,7 +87,10 @@ def test_agent_new_session_with_custom_session_id(test_agent):
 @pytest.mark.parametrize(
     "source,expected_max_history",
     [
-        (TelegramEventSource(user_id="user_123", chat_id="chat_456"), 100),  # chat source -> 100
+        (
+            TelegramEventSource(user_id="user_123", chat_id="chat_456"),
+            100,
+        ),  # chat source -> 100
         (CronEventSource(cron_id="daily_job"), 50),  # cron source -> 50
     ],
 )
@@ -197,7 +200,10 @@ def _create_agent_with_messagebus(test_config) -> Agent:
 @pytest.mark.parametrize(
     "source,expected",
     [
-        (TelegramEventSource(user_id="user_123", chat_id="chat_456"), False),  # chat source -> no post_message
+        (
+            TelegramEventSource(user_id="user_123", chat_id="chat_456"),
+            False,
+        ),  # chat source -> no post_message
         (CronEventSource(cron_id="daily_job"), True),  # cron source -> post_message
     ],
 )
@@ -261,7 +267,7 @@ class TestAgentNewSessionWithSource:
 
     def test_new_session_context_from_source(self, mock_context, mock_agent_def):
         """new_session should accept CliEventSource object."""
-        source = CliEventSource(user_id="test-user")
+        source = CliEventSource()
 
         agent = Agent(mock_agent_def, mock_context)
         session = agent.new_session(source=source)

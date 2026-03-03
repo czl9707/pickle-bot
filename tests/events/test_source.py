@@ -136,17 +136,17 @@ class TestCliEventSource:
         """CLI source should serialize and deserialize correctly."""
         from picklebot.messagebus.cli_bus import CliEventSource
 
-        original = CliEventSource(user_id="default")
+        original = CliEventSource()
         serialized = str(original)
         deserialized = CliEventSource.from_string(serialized)
 
-        assert serialized == "platform-cli:default"
-        assert deserialized.user_id == "default"
+        assert serialized == "platform-cli:cli-user"
+        assert isinstance(deserialized, CliEventSource)
 
     def test_type_properties(self):
         """CLI source should have correct type properties."""
         from picklebot.messagebus.cli_bus import CliEventSource
 
-        source = CliEventSource(user_id="default")
+        source = CliEventSource()
         assert source.is_platform is True
         assert source.platform_name == "cli"

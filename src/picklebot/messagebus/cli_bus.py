@@ -18,15 +18,13 @@ class CliEventSource(EventSource):
     """Source for CLI-originated events."""
 
     _namespace = "platform-cli"
-    user_id: str = "cli-user"
 
     def __str__(self) -> str:
-        return f"platform-cli:{self.user_id}"
+        return "platform-cli:cli-user"
 
     @classmethod
     def from_string(cls, s: str) -> "CliEventSource":
-        _, user_id = s.split(":", 1)
-        return cls(user_id=user_id)
+        return cls()
 
     @property
     def platform_name(self) -> str:
@@ -80,7 +78,7 @@ class CliBus(MessageBus[CliEventSource]):
 
                     # Create source and call the message callback
                     source = CliEventSource()
-                    logger.debug(f"Received CLI message from user {source.user_id}")
+                    logger.debug("Received CLI message")
 
                     try:
                         await on_message(user_input, source)
@@ -103,7 +101,7 @@ class CliBus(MessageBus[CliEventSource]):
         """Reply to incoming message by printing to stdout."""
         # CLI just prints to stdout
         self.console.print(content)
-        logger.debug(f"Sent CLI reply to {source.user_id}")
+        logger.debug("Sent CLI reply")
 
     async def post(self, content: str, target: str | None = None) -> None:
         """Post proactive message to stdout. Target parameter is ignored."""

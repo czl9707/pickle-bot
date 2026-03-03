@@ -11,20 +11,15 @@ from picklebot.messagebus.cli_bus import CliBus, CliEventSource
 class TestCliEventSource:
     """Tests for CliEventSource."""
 
-    def test_cli_event_source_has_user_id(self):
-        """CliEventSource should have user_id field with default."""
-        source = CliEventSource()
-        assert source.user_id == "cli-user"
-
-    def test_cli_event_source_custom_user_id(self):
-        """CliEventSource should accept custom user_id."""
-        source = CliEventSource(user_id="custom-user")
-        assert source.user_id == "custom-user"
-
     def test_cli_event_source_str_representation(self):
         """CliEventSource should have correct string representation."""
-        source = CliEventSource(user_id="test-user")
-        assert str(source) == "platform-cli:test-user"
+        source = CliEventSource()
+        assert str(source) == "platform-cli:cli-user"
+
+    def test_cli_event_source_from_string(self):
+        """CliEventSource should deserialize from string."""
+        source = CliEventSource.from_string("platform-cli:cli-user")
+        assert isinstance(source, CliEventSource)
 
 
 class TestCliBusProperties:
@@ -112,7 +107,6 @@ class TestCliBusRun:
         message, source = call_args[0]
         assert message == "Hello"
         assert isinstance(source, CliEventSource)
-        assert source.user_id == "cli-user"
 
     @pytest.mark.asyncio
     async def test_run_handles_quit_command(self):

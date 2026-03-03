@@ -106,7 +106,7 @@ class TestInboundEvent:
         assert event.retry_count == 0
 
     def test_inbound_event_defaults(self):
-        source = CliEventSource(user_id="cli-user")
+        source = CliEventSource()
         event = InboundEvent(
             session_id="sess-1",
             agent_id="pickle",
