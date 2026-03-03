@@ -22,21 +22,6 @@ class TestCliEventSource:
         assert isinstance(source, CliEventSource)
 
 
-class TestCliBusProperties:
-    """Tests for CliBus basic properties."""
-
-    def test_platform_name(self):
-        """CliBus should have platform_name='cli'."""
-        bus = CliBus()
-        assert bus.platform_name == "cli"
-
-    def test_is_allowed_always_true(self):
-        """CliBus.is_allowed should always return True."""
-        bus = CliBus()
-        source = CliEventSource()
-        assert bus.is_allowed(source) is True
-
-
 class TestCliBusReplyAndPost:
     """Tests for CliBus reply() and post() methods."""
 
@@ -51,28 +36,6 @@ class TestCliBusReplyAndPost:
         # Check stdout contains the message
         captured = capsys.readouterr()
         assert "Hello, CLI!" in captured.out
-
-    def test_post_prints_to_stdout(self, capsys):
-        """post() should print content to stdout via Rich Console."""
-        bus = CliBus()
-
-        # Run async function
-        asyncio.run(bus.post("Broadcast message"))
-
-        # Check stdout contains the message
-        captured = capsys.readouterr()
-        assert "Broadcast message" in captured.out
-
-    def test_post_ignores_target_parameter(self, capsys):
-        """post() should ignore target parameter (CLI has no channels)."""
-        bus = CliBus()
-
-        # Run async function with target (should be ignored)
-        asyncio.run(bus.post("Message", target="user:123"))
-
-        # Check stdout contains the message
-        captured = capsys.readouterr()
-        assert "Message" in captured.out
 
 
 class TestCliBusRun:

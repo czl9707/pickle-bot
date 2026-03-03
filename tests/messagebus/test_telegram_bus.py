@@ -45,30 +45,6 @@ class TestTelegramBusReply:
         assert call_args.kwargs["chat_id"] == 456789
         assert call_args.kwargs["text"] == "Test reply"
 
-
-class TestTelegramBusPost:
-    """Tests for TelegramBus.post method."""
-
-    @pytest.mark.anyio
-    async def test_post_raises_when_not_started(self):
-        """post should raise when not started."""
-        config = TelegramConfig(bot_token="test_token")
-        bus = TelegramBus(config)
-
-        with pytest.raises(RuntimeError, match="TelegramBus not started"):
-            await bus.post(content="Hello, world!")
-
-    @pytest.mark.anyio
-    async def test_post_raises_requires_target(self):
-        """post should raise indicating it requires a target parameter."""
-        config = TelegramConfig(bot_token="test-token")
-        bus = TelegramBus(config)
-        bus.application = MagicMock()
-
-        with pytest.raises(ValueError, match="requires a target parameter"):
-            await bus.post(content="Test")
-
-
 def _create_mock_telegram_app():
     """Create a mock Telegram Application for testing."""
     mock_app = MagicMock()

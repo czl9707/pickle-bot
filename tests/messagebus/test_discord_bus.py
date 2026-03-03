@@ -35,20 +35,6 @@ class TestDiscordBusReply:
         mock_channel.send.assert_called_once_with("Test reply")
 
 
-class TestDiscordBusPost:
-    """Tests for DiscordBus.post method."""
-
-    @pytest.mark.anyio
-    async def test_post_raises_requires_target(self):
-        """post should raise indicating it requires a target parameter."""
-        config = DiscordConfig(bot_token="test-token")
-        bus = DiscordBus(config)
-        bus.client = MagicMock()
-
-        with pytest.raises(ValueError, match="requires a target parameter"):
-            await bus.post(content="Test")
-
-
 def _create_mock_discord_client():
     """Create a mock Discord Client for testing."""
     mock_client = MagicMock()

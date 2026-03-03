@@ -139,18 +139,6 @@ class TelegramBus(MessageBus[TelegramEventSource]):
             logger.error(f"Failed to send Telegram reply: {e}")
             raise
 
-    async def post(self, content: str, target: str | None = None) -> None:
-        """Post proactive message to target or raise if not configured."""
-        if not self.application:
-            raise RuntimeError("TelegramBus not started")
-
-        # For now, ignore target parameter (future: support "user:123" format)
-        # post() requires a target to be specified
-        raise ValueError(
-            "post() requires a target parameter. "
-            "Proactive messages should use the DeliveryWorker with OutboundEvent."
-        )
-
     async def stop(self) -> None:
         """Stop Telegram bot and cleanup."""
         # Idempotent: skip if not running

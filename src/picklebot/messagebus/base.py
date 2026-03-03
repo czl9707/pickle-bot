@@ -62,17 +62,6 @@ class MessageBus(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    async def post(self, content: str, target: str | None = None) -> None:
-        """
-        Post proactive message to default destination or specific target.
-
-        Args:
-            content: Message content to send
-            target: Optional target (e.g., "user:123", "channel:456")
-        """
-        pass
-
-    @abstractmethod
     async def stop(self) -> None:
         """Stop listening and cleanup resources."""
         pass

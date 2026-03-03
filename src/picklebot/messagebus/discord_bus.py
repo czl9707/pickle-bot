@@ -136,18 +136,6 @@ class DiscordBus(MessageBus[DiscordEventSource]):
             logger.error(f"Failed to send Discord reply: {e}")
             raise
 
-    async def post(self, content: str, target: str | None = None) -> None:
-        """Post proactive message to target or raise if not configured."""
-        if not self.client:
-            raise RuntimeError("DiscordBus not started")
-
-        # For now, ignore target parameter (future: support "user:123" or "channel:456")
-        # post() requires a target to be specified
-        raise ValueError(
-            "post() requires a target parameter. "
-            "Proactive messages should use the DeliveryWorker with OutboundEvent."
-        )
-
     async def stop(self) -> None:
         """Stop Discord bot and cleanup."""
         # Idempotent: skip if not running

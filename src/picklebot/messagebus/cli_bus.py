@@ -103,12 +103,6 @@ class CliBus(MessageBus[CliEventSource]):
         self.console.print(content)
         logger.debug("Sent CLI reply")
 
-    async def post(self, content: str, target: str | None = None) -> None:
-        """Post proactive message to stdout. Target parameter is ignored."""
-        # CLI has no concept of channels/targets, so we ignore target parameter
-        self.console.print(content)
-        logger.debug("Sent CLI post")
-
     async def stop(self) -> None:
         """Stop CLI bus and cleanup."""
         if not self._running:
