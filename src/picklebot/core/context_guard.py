@@ -30,3 +30,29 @@ class ContextGuard:
         if not messages:
             return 0
         return token_counter(model=model, messages=messages)
+
+    def _serialize_messages_for_summary(self, messages: list[Message]) -> str:
+        """Serialize messages to plain text for summarization.
+
+        Args:
+            messages: List of messages to serialize
+
+        Returns:
+            Plain text representation
+        """
+        lines = []
+        for msg in messages:
+            role = msg.get("role", "unknown")
+            content = msg.get("content", "")
+            # Handle tool calls in assistant messages
+            if role == "assistant" and msg.get("tool_calls"):
+                tool_names = [
+                    tc.get("function", {}).get("name", "unknown")
+                    for tc in msg["tool_calls"]
+                ]
+                lines.append(
+                    f"ASSISTANT: [used tools: {', '.join(tool_names)}] {content}"
+                )
+            else:
+                lines.append(f"{role.upper()}: {content}")
+        return "\n".join(lines)
