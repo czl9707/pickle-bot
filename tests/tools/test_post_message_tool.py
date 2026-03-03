@@ -114,7 +114,7 @@ class TestPostMessageToolExecution:
         assert isinstance(event, OutboundEvent)
         assert event.session_id == "test-session-123"
         assert event.agent_id == "test-agent"
-        assert event.source == "agent:test-agent"
+        assert str(event.source) == "agent:test-agent"
         assert event.content == "Hello from agent!"
 
         # Verify result message

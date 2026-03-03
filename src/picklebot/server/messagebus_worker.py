@@ -20,21 +20,22 @@ class MessageBusWorker(Worker):
         self.buses = context.messagebus_buses
         self.bus_map = {bus.platform_name: bus for bus in self.buses}
 
-    def _get_or_create_session_id(self, source: str, agent_id: str) -> str:
+    def _get_or_create_session_id(self, source_str: str, agent_id: str) -> str:
         """Get existing session_id from source cache, or create new session."""
         # Check source cache
-        source_info = self.context.config.sources.get(source)
+        source_info = self.context.config.sources.get(source_str)
         if source_info:
             return source_info["session_id"]
 
-        # Create new session
+        # Create new session - parse source string to typed EventSource
         agent_def = self.context.agent_loader.load(agent_id)
         agent = Agent(agent_def, self.context)
+        source = EventSource.from_string(source_str)
         session = agent.new_session(source)
 
         # Update source cache
         self.context.config.set_runtime(
-            f"sources.{source}", {"session_id": session.session_id}
+            f"sources.{source_str}", {"session_id": session.session_id}
         )
         return session.session_id
 

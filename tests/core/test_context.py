@@ -6,7 +6,8 @@ import pytest
 
 from picklebot.core.context import SharedContext
 from picklebot.core.eventbus import EventBus
-from picklebot.core.events import InboundEvent, OutboundEvent, Source
+from picklebot.core.events import InboundEvent, OutboundEvent, AgentEventSource
+from picklebot.messagebus.telegram_bus import TelegramEventSource
 from picklebot.core.routing import RoutingTable
 from picklebot.messagebus.cli_bus import CliBus
 from picklebot.utils.config import Config, LLMConfig
@@ -90,13 +91,13 @@ class TestSharedContextEventBus:
             session_id="test",
             agent_id="test",
             content="inbound",
-            source=Source.platform("telegram", "user1"),
+            source=TelegramEventSource(user_id="user1", chat_id="chat1"),
         )
         outbound = OutboundEvent(
             session_id="test",
             agent_id="test",
             content="outbound",
-            source=Source.agent("test"),
+            source=AgentEventSource(agent_id="test"),
         )
 
         # Notify subscribers
