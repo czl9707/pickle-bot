@@ -480,3 +480,31 @@ def test_messagebus_config_no_default_platform():
 
     config = MessageBusConfig()
     assert not hasattr(config, "default_platform")
+
+
+class TestDefaultDeliverySource:
+    """Tests for default_delivery_source config field."""
+
+    def test_config_has_default_delivery_source(self, test_config):
+        """Config should have optional default_delivery_source field."""
+        assert hasattr(test_config, "default_delivery_source")
+        assert test_config.default_delivery_source is None
+
+    def test_config_default_delivery_source_roundtrip(self, tmp_path):
+        """default_delivery_source should persist via set_runtime and reload."""
+        # Create initial config file
+        config_file = tmp_path / "config.user.yaml"
+        config_file.write_text(
+            "llm:\n  provider: openai\n  model: gpt-4\n  api_key: test\n"
+            "default_agent: pickle\n"
+        )
+
+        config = Config.load(tmp_path)
+        assert config.default_delivery_source is None
+
+        # Set via set_runtime
+        config.set_runtime("default_delivery_source", "telegram:user:123:chat:456")
+
+        # Reload and verify
+        config.reload()
+        assert config.default_delivery_source == "telegram:user:123:chat:456"
