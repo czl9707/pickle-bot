@@ -27,7 +27,6 @@ MAX_RETRIES = 3
 
 logger = logging.getLogger(__name__)
 
-# Type alias for events that can be processed by SessionExecutor
 ProcessableEvent = Union[InboundEvent, DispatchEvent]
 
 class AgentWorker(SubscriberWorker):

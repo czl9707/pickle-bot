@@ -20,25 +20,6 @@ class MessageBusWorker(Worker):
         self.buses = context.messagebus_buses
         self.bus_map = {bus.platform_name: bus for bus in self.buses}
 
-    def _get_or_create_session_id(self, source_str: str, agent_id: str) -> str:
-        """Get existing session_id from source cache, or create new session."""
-        # Check source cache
-        source_info = self.context.config.sources.get(source_str)
-        if source_info:
-            return source_info["session_id"]
-
-        # Create new session - parse source string to typed EventSource
-        agent_def = self.context.agent_loader.load(agent_id)
-        agent = Agent(agent_def, self.context)
-        source = EventSource.from_string(source_str)
-        session = agent.new_session(source)
-
-        # Update source cache
-        self.context.config.set_runtime(
-            f"sources.{source_str}", {"session_id": session.session_id}
-        )
-        return session.session_id
-
     async def run(self) -> None:
         """Start all buses and process incoming messages."""
         self.logger.info(f"MessageBusWorker started with {len(self.buses)} bus(es)")
@@ -73,14 +54,10 @@ class MessageBusWorker(Worker):
                         message, self.context
                     )
                     if result:
-                        await bus.reply(result, source)
-                    return
+                        return await bus.reply(result, source)
 
-                # Use str(source) for routing/session lookup
-                source_str = str(source)
-                agent_id = self.context.routing_table.resolve(source_str)
-
-                session_id = self._get_or_create_session_id(source_str, agent_id)
+                agent_id = self.context.routing_table.resolve(str(source))
+                session_id = self._get_or_create_session_id(str(source), agent_id)
 
                 # Publish INBOUND event with typed source
                 event = InboundEvent(
@@ -97,3 +74,23 @@ class MessageBusWorker(Worker):
                 self.logger.error(f"Error processing message from {platform}: {e}")
 
         return callback
+
+
+    def _get_or_create_session_id(self, source_str: str, agent_id: str) -> str:
+        """Get existing session_id from source cache, or create new session."""
+        # Check source cache
+        source_info = self.context.config.sources.get(source_str)
+        if source_info:
+            return source_info["session_id"]
+
+        # Create new session - parse source string to typed EventSource
+        agent_def = self.context.agent_loader.load(agent_id)
+        agent = Agent(agent_def, self.context)
+        source = EventSource.from_string(source_str)
+        session = agent.new_session(source)
+
+        # Update source cache
+        self.context.config.set_runtime(
+            f"sources.{source_str}", {"session_id": session.session_id}
+        )
+        return session.session_id

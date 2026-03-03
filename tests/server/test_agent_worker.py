@@ -1,7 +1,6 @@
-"""Tests for AgentWorker and SessionExecutor."""
+"""Tests for AgentWorker."""
 
 import asyncio
-import shutil
 import time
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -14,7 +13,6 @@ from picklebot.messagebus.telegram_bus import TelegramEventSource
 from picklebot.server.agent_worker import (
     MAX_RETRIES,
     AgentWorker,
-    SessionExecutor,
 )
 from picklebot.core.events import (
     InboundEvent,
@@ -115,12 +113,11 @@ async def test_agent_router_publishes_error_for_nonexistent_agent(test_context):
 
 
 @pytest.mark.anyio
-async def test_session_executor_requeues_on_transient_error(test_context, tmp_path):
-    """SessionExecutor requeues via INBOUND event on transient errors."""
+async def test_exec_session_requeues_on_transient_error(test_context, tmp_path):
+    """AgentWorker.exec_session requeues via INBOUND event on transient errors."""
     create_test_agent(tmp_path, agent_id="test-agent")
 
     agent_def = test_context.agent_loader.load("test-agent")
-    semaphore = asyncio.Semaphore(1)
 
     event = make_inbound_event(content="Test", agent_id="test-agent")
 
@@ -136,12 +133,12 @@ async def test_session_executor_requeues_on_transient_error(test_context, tmp_pa
     eventbus_task = test_context.eventbus.start()
 
     try:
-        executor = SessionExecutor(test_context, agent_def, event, semaphore)
+        router = AgentWorker(test_context)
 
         # Mock the Agent to raise an error
         with patch("picklebot.server.agent_worker.Agent") as MockAgent:
             MockAgent.side_effect = RuntimeError("Transient error")
-            await executor.run()
+            await router.exec_session(event, agent_def)
 
         # Wait for EventBus to process the queued event
         await asyncio.sleep(0.1)
@@ -160,28 +157,27 @@ async def test_session_executor_requeues_on_transient_error(test_context, tmp_pa
 
 
 @pytest.mark.anyio
-async def test_session_executor_recovers_missing_session(test_context, tmp_path):
-    """SessionExecutor creates new session with same ID if session not found."""
+async def test_exec_session_recovers_missing_session(test_context, tmp_path):
+    """AgentWorker.exec_session creates new session with same ID if session not found."""
     create_test_agent(tmp_path, agent_id="test-agent")
 
     agent_def = test_context.agent_loader.load("test-agent")
-    semaphore = asyncio.Semaphore(1)
 
     nonexistent_session_id = "nonexistent-session-uuid"
     event = make_inbound_event(
         content="Test", session_id=nonexistent_session_id, agent_id="test-agent"
     )
 
-    executor = SessionExecutor(test_context, agent_def, event, semaphore)
-    await executor.run()
+    router = AgentWorker(test_context)
+    await router.exec_session(event, agent_def)
 
     session_ids = [s.id for s in test_context.history_store.list_sessions()]
     assert nonexistent_session_id in session_ids
 
 
 @pytest.mark.anyio
-async def test_session_executor_runs_session(test_context, tmp_path):
-    """SessionExecutor runs a session successfully."""
+async def test_exec_session_runs_session(test_context, tmp_path):
+    """AgentWorker.exec_session runs a session successfully."""
     create_test_agent(
         tmp_path,
         agent_id="test-agent",
@@ -189,30 +185,30 @@ async def test_session_executor_runs_session(test_context, tmp_path):
     )
 
     agent_def = test_context.agent_loader.load("test-agent")
-    semaphore = asyncio.Semaphore(1)
 
     event = make_inbound_event(content="Say hello", agent_id="test-agent")
 
-    executor = SessionExecutor(test_context, agent_def, event, semaphore)
-    await executor.run()
+    router = AgentWorker(test_context)
+    await router.exec_session(event, agent_def)
 
 
 @pytest.mark.anyio
-async def test_session_executor_respects_semaphore(test_context, tmp_path):
-    """SessionExecutor waits on semaphore before executing."""
+async def test_exec_session_respects_semaphore(test_context, tmp_path):
+    """AgentWorker.exec_session waits on semaphore before executing."""
     create_test_agent(tmp_path, agent_id="test-agent", name="Test Agent")
 
     agent_def = test_context.agent_loader.load("test-agent")
-    semaphore = asyncio.Semaphore(1)
 
     event = make_inbound_event(content="Test", agent_id="test-agent")
 
+    router = AgentWorker(test_context)
+    sem = router._get_or_create_semaphore(agent_def)
+
     # Acquire the semaphore first
-    await semaphore.acquire()
+    await sem.acquire()
 
     # Start executor - it should wait
-    executor = SessionExecutor(test_context, agent_def, event, semaphore)
-    task = asyncio.create_task(executor.run())
+    task = asyncio.create_task(router.exec_session(event, agent_def))
 
     # Give it a moment to start waiting
     await asyncio.sleep(0.1)
@@ -221,7 +217,7 @@ async def test_session_executor_respects_semaphore(test_context, tmp_path):
     assert not task.done()
 
     # Release semaphore
-    semaphore.release()
+    sem.release()
 
     # Now task should complete
     await task
@@ -248,20 +244,19 @@ async def test_agent_router_creates_semaphore_per_agent(test_context, tmp_path):
     event_a = make_inbound_event(content="Test A", agent_id="agent-a")
     event_b = make_inbound_event(content="Test B", agent_id="agent-b")
 
-    await router.dispatch_event(event_a)
+    # Get semaphores directly to verify they're created correctly
+    agent_def_a = test_context.agent_loader.load("agent-a")
+    agent_def_b = test_context.agent_loader.load("agent-b")
 
-    # Should have semaphore for agent-a
+    sem_a = router._get_or_create_semaphore(agent_def_a)
+    assert sem_a._value == 2  # type: ignore
+
+    sem_b = router._get_or_create_semaphore(agent_def_b)
+    assert sem_b._value == 2  # type: ignore
+
+    # Both semaphores should exist
     assert "agent-a" in router._semaphores
-    assert router._semaphores["agent-a"]._value == 2  # type: ignore
-
-    await router.dispatch_event(event_b)
-
-    # Should have semaphores for both agents
     assert "agent-b" in router._semaphores
-    assert router._semaphores["agent-b"]._value == 2  # type: ignore
-
-    # Give tasks a moment to complete
-    await asyncio.sleep(0.5)
 
 
 @pytest.mark.anyio
@@ -290,44 +285,30 @@ async def test_agent_router_concurrent_agents_dont_block(test_context, tmp_path)
 
 
 @pytest.mark.anyio
-async def test_semaphore_cleanup_removes_stale_semaphores(test_context, tmp_path):
-    """AgentWorker removes semaphores for deleted agents when threshold exceeded."""
-    agents_dir = tmp_path / "agents"
-
-    # Create 6 agents (exceeds CLEANUP_THRESHOLD of 5)
-    for i in range(6):
-        create_test_agent(
-            tmp_path,
-            agent_id=f"agent-{i}",
-            name=f"Agent {i}",
-            system_prompt=f"You are agent {i}.",
-        )
+async def test_semaphore_cleanup_removes_unused_semaphores(test_context, tmp_path):
+    """AgentWorker removes semaphores when they have no waiters."""
+    # Create a test agent
+    create_test_agent(
+        tmp_path,
+        agent_id="test-agent",
+        name="Test Agent",
+        system_prompt="You are a test agent.",
+    )
 
     router = AgentWorker(test_context)
 
-    # Dispatch events for all agents to create semaphores
-    for i in range(6):
-        event = make_inbound_event(content="Test", agent_id=f"agent-{i}")
-        await router.dispatch_event(event)
+    # Create semaphore directly
+    agent_def = test_context.agent_loader.load("test-agent")
+    router._get_or_create_semaphore(agent_def)
 
-    await asyncio.sleep(0.3)  # Let tasks start
+    # Semaphore should exist
+    assert "test-agent" in router._semaphores
 
-    # All 6 semaphores should exist
-    assert len(router._semaphores) == 6
+    # Call cleanup - should remove semaphore since no waiters
+    router._maybe_cleanup_semaphores(agent_def)
 
-    # Delete agent-5
-    shutil.rmtree(agents_dir / "agent-5")
-
-    # Trigger cleanup by dispatching another event
-    event = make_inbound_event(content="Test", agent_id="agent-0")
-    await router.dispatch_event(event)
-
-    # Call cleanup explicitly (in run() this happens after sleep)
-    router._maybe_cleanup_semaphores()
-
-    # agent-5 semaphore should be cleaned up
-    assert "agent-5" not in router._semaphores
-    assert len(router._semaphores) == 5
+    # Semaphore should be cleaned up
+    assert "test-agent" not in router._semaphores
 
 
 # ============================================================================
@@ -336,12 +317,11 @@ async def test_semaphore_cleanup_removes_stale_semaphores(test_context, tmp_path
 
 
 @pytest.mark.anyio
-async def test_session_executor_publishes_result_on_success(test_context, tmp_path):
-    """SessionExecutor should publish RESULT event when session succeeds."""
+async def test_exec_session_publishes_result_on_success(test_context, tmp_path):
+    """AgentWorker.exec_session should publish RESULT event when session succeeds."""
     create_test_agent(tmp_path, agent_id="test-agent")
 
     agent_def = test_context.agent_loader.load("test-agent")
-    semaphore = asyncio.Semaphore(1)
 
     event = make_dispatch_event(
         content="hello",
@@ -361,6 +341,8 @@ async def test_session_executor_publishes_result_on_success(test_context, tmp_pa
     eventbus_task = test_context.eventbus.start()
 
     try:
+        router = AgentWorker(test_context)
+
         with patch("picklebot.server.agent_worker.Agent") as MockAgent:
             mock_session = AsyncMock()
             mock_session.chat = AsyncMock(return_value="response text")
@@ -371,8 +353,7 @@ async def test_session_executor_publishes_result_on_success(test_context, tmp_pa
             mock_agent.resume_session.return_value = mock_session
             MockAgent.return_value = mock_agent
 
-            executor = SessionExecutor(test_context, agent_def, event, semaphore)
-            await executor.run()
+            await router.exec_session(event, agent_def)
 
         # Wait for EventBus to process the queued event
         await asyncio.sleep(0.1)
@@ -391,12 +372,11 @@ async def test_session_executor_publishes_result_on_success(test_context, tmp_pa
 
 
 @pytest.mark.anyio
-async def test_session_executor_requeues_on_first_failure(test_context, tmp_path):
-    """SessionExecutor should requeue via event with incremented retry_count on failure."""
+async def test_exec_session_requeues_on_first_failure(test_context, tmp_path):
+    """AgentWorker.exec_session should requeue via event with incremented retry_count on failure."""
     create_test_agent(tmp_path, agent_id="test-agent")
 
     agent_def = test_context.agent_loader.load("test-agent")
-    semaphore = asyncio.Semaphore(1)
 
     event = make_inbound_event(content="hello", agent_id="test-agent", retry_count=0)
 
@@ -412,11 +392,12 @@ async def test_session_executor_requeues_on_first_failure(test_context, tmp_path
     eventbus_task = test_context.eventbus.start()
 
     try:
+        router = AgentWorker(test_context)
+
         with patch("picklebot.server.agent_worker.Agent") as MockAgent:
             MockAgent.side_effect = Exception("boom")
 
-            executor = SessionExecutor(test_context, agent_def, event, semaphore)
-            await executor.run()
+            await router.exec_session(event, agent_def)
 
         # Wait for EventBus to process the queued event
         await asyncio.sleep(0.1)
@@ -436,14 +417,13 @@ async def test_session_executor_requeues_on_first_failure(test_context, tmp_path
 
 
 @pytest.mark.anyio
-async def test_session_executor_publishes_result_with_error_after_max_retries(
+async def test_exec_session_publishes_result_with_error_after_max_retries(
     test_context, tmp_path
 ):
-    """SessionExecutor should publish RESULT event with error after MAX_RETRIES failures."""
+    """AgentWorker.exec_session should publish RESULT event with error after MAX_RETRIES failures."""
     create_test_agent(tmp_path, agent_id="test-agent")
 
     agent_def = test_context.agent_loader.load("test-agent")
-    semaphore = asyncio.Semaphore(1)
 
     event = make_dispatch_event(
         content="hello",
@@ -464,11 +444,12 @@ async def test_session_executor_publishes_result_with_error_after_max_retries(
     eventbus_task = test_context.eventbus.start()
 
     try:
+        router = AgentWorker(test_context)
+
         with patch("picklebot.server.agent_worker.Agent") as MockAgent:
             MockAgent.side_effect = Exception("final boom")
 
-            executor = SessionExecutor(test_context, agent_def, event, semaphore)
-            await executor.run()
+            await router.exec_session(event, agent_def)
 
         # Wait for EventBus to process the queued event
         await asyncio.sleep(0.1)
