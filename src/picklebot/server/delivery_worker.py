@@ -1,5 +1,6 @@
 """Worker that delivers outbound messages to platforms."""
 
+import asyncio
 import logging
 import random
 from functools import lru_cache
@@ -103,6 +104,30 @@ class DeliveryWorker(SubscriberWorker):
         self.context.eventbus.subscribe(OutboundEvent, self.handle_event)
         self.logger.info("DeliveryWorker subscribed to OUTBOUND events")
 
+    async def _deliver_with_retry(
+        self, chunks: list[str], source: "EventSource", bus: "MessageBus[Any]"
+    ) -> bool:
+        """Deliver all chunks with retry logic. Returns True on success."""
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                for chunk in chunks:
+                    await bus.reply(chunk, source)
+                return True
+            except Exception as e:
+                if attempt < MAX_RETRIES:
+                    backoff_ms = compute_backoff_ms(attempt)
+                    self.logger.warning(
+                        f"Delivery failed (attempt {attempt}/{MAX_RETRIES}), "
+                        f"retrying in {backoff_ms}ms: {e}"
+                    )
+                    await asyncio.sleep(backoff_ms / 1000)
+                else:
+                    self.logger.error(
+                        f"Delivery failed after {MAX_RETRIES} attempts: {e}"
+                    )
+                    return False
+        return False
+
     @lru_cache(maxsize=10)
     def _get_session_source(self, session_id: str) -> HistorySession | None:
         """Get session info from HistoryStore (cached)."""
@@ -110,6 +135,40 @@ class DeliveryWorker(SubscriberWorker):
             if session.id == session_id:
                 return session
         return None
+
+    def _get_delivery_source(
+        self, session_info: HistorySession
+    ) -> "EventSource | None":
+        """Get the delivery source for a session.
+
+        Returns the session's source if it has a platform, otherwise
+        falls back to default_delivery_source config.
+        """
+        source = session_info.get_source()
+
+        # If source already has a platform, use it
+        if source.platform_name:
+            return source
+
+        # Try default delivery source for agent/cron events
+        default_source_str = self.context.config.default_delivery_source
+        if default_source_str:
+            try:
+                source = EventSource.from_string(default_source_str)
+                if not source.platform_name:
+                    self.logger.error(
+                        f"default_delivery_source '{default_source_str}' is not a platform source"
+                    )
+                    return None
+                return source
+            except ValueError as e:
+                self.logger.error(f"Invalid default_delivery_source: {e}")
+                return None
+        else:
+            self.logger.warning(
+                f"No platform for session {session_info.id} and no default_delivery_source configured"
+            )
+            return None
 
     async def handle_event(self, event: OutboundEvent) -> None:
         """Handle an outbound message event."""
@@ -122,48 +181,26 @@ class DeliveryWorker(SubscriberWorker):
                 )
                 return
 
-            # Get typed EventSource from stored string
-            source = session_info.get_source()
+            source = self._get_delivery_source(session_info)
+            if not source or not source.platform_name:
+                # No valid delivery source - don't ack, let event be retried
+                return
 
-            # Get platform name from source
-            platform = source.platform_name
-            if not platform:
-                # Try default delivery source for agent/cron events
-                default_source_str = self.context.config.default_delivery_source
-                if default_source_str:
-                    try:
-                        source = EventSource.from_string(default_source_str)
-                        platform = source.platform_name
-                        if not platform:
-                            self.logger.error(
-                                f"default_delivery_source '{default_source_str}' is not a platform source"
-                            )
-                            return
-                    except ValueError as e:
-                        self.logger.error(f"Invalid default_delivery_source: {e}")
-                        return
-                else:
-                    self.logger.warning(
-                        f"No platform for session {event.session_id} and no default_delivery_source configured"
-                    )
-                    return
-
-            limit = PLATFORM_LIMITS.get(platform, float("inf"))
-            if limit != float("inf"):
-                limit = int(limit)
+            limit = PLATFORM_LIMITS.get(source.platform_name, float("inf"))
             chunks = chunk_message(
                 event.content,
                 int(limit) if limit != float("inf") else len(event.content),
             )
 
-            bus = self._get_bus(platform)
+            bus = self._get_bus(source.platform_name)
             if bus:
-                for chunk in chunks:
-                    await bus.reply(chunk, source)
+                success = await self._deliver_with_retry(chunks, source, bus)
+                if not success:
+                    self.logger.error(f"Dropped message for session {event.session_id}")
 
             self.context.eventbus.ack(event)
             self.logger.info(
-                f"Delivered message to {platform} for session {event.session_id}"
+                f"Delivered message to {source.platform_name} for session {event.session_id}"
             )
 
         except Exception as e:

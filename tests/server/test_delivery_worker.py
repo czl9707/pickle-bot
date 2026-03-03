@@ -4,6 +4,7 @@ from picklebot.server.delivery_worker import (
     DeliveryWorker,
     chunk_message,
     PLATFORM_LIMITS,
+    MAX_RETRIES,
 )
 from picklebot.core.events import OutboundEvent
 
@@ -360,3 +361,94 @@ class TestDefaultDeliverySource:
 
         # Should skip without acking
         mock_ack.assert_not_called()
+
+
+class TestDeliverWithRetry:
+    """Tests for _deliver_with_retry method."""
+
+    @pytest.mark.asyncio
+    async def test_deliver_with_retry_success_first_try(self, mock_context):
+        """Should return True when delivery succeeds on first attempt."""
+        from picklebot.messagebus.telegram_bus import TelegramEventSource
+
+        worker = DeliveryWorker(mock_context)
+        mock_bus = Mock()
+        mock_bus.reply = AsyncMock()
+
+        source = TelegramEventSource(chat_id="123", user_id="456")
+        chunks = ["Hello"]
+
+        result = await worker._deliver_with_retry(chunks, source, mock_bus)
+
+        assert result is True
+        mock_bus.reply.assert_called_once_with("Hello", source)
+
+    @pytest.mark.asyncio
+    async def test_deliver_with_retry_retries_on_failure(self, mock_context):
+        """Should retry with backoff when delivery fails."""
+        from picklebot.messagebus.telegram_bus import TelegramEventSource
+
+        worker = DeliveryWorker(mock_context)
+        mock_bus = Mock()
+        # Fail once, then succeed
+        mock_bus.reply = AsyncMock(side_effect=[Exception("Network error"), None])
+
+        source = TelegramEventSource(chat_id="123", user_id="456")
+        chunks = ["Hello"]
+
+        # Patch asyncio.sleep to avoid actual delay
+        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            result = await worker._deliver_with_retry(chunks, source, mock_bus)
+
+        assert result is True
+        assert mock_bus.reply.call_count == 2
+        mock_sleep.assert_called_once()  # One sleep between retries
+
+    @pytest.mark.asyncio
+    async def test_deliver_with_retry_returns_false_after_max_retries(
+        self, mock_context
+    ):
+        """Should return False after MAX_RETRIES failures."""
+        from picklebot.messagebus.telegram_bus import TelegramEventSource
+
+        worker = DeliveryWorker(mock_context)
+        mock_bus = Mock()
+        mock_bus.reply = AsyncMock(side_effect=Exception("Permanent failure"))
+
+        source = TelegramEventSource(chat_id="123", user_id="456")
+        chunks = ["Hello"]
+
+        with patch("asyncio.sleep", new_callable=AsyncMock):
+            result = await worker._deliver_with_retry(chunks, source, mock_bus)
+
+        assert result is False
+        assert mock_bus.reply.call_count == MAX_RETRIES
+
+    @pytest.mark.asyncio
+    async def test_deliver_with_retry_retries_all_chunks_on_failure(self, mock_context):
+        """Should retry all chunks from scratch when any chunk fails."""
+        from picklebot.messagebus.telegram_bus import TelegramEventSource
+
+        worker = DeliveryWorker(mock_context)
+        mock_bus = Mock()
+        # First chunk succeeds, second fails, then both succeed
+        call_count = 0
+
+        async def side_effect(*args):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 2:  # Second chunk on first attempt fails
+                raise Exception("Chunk failed")
+
+        mock_bus.reply = AsyncMock(side_effect=side_effect)
+
+        source = TelegramEventSource(chat_id="123", user_id="456")
+        chunks = ["Chunk 1", "Chunk 2"]
+
+        with patch("asyncio.sleep", new_callable=AsyncMock):
+            result = await worker._deliver_with_retry(chunks, source, mock_bus)
+
+        assert result is True
+        # First attempt: 2 calls (chunk 1 ok, chunk 2 fails)
+        # Retry: 2 calls (both ok)
+        assert mock_bus.reply.call_count == 4
