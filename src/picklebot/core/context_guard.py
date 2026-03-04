@@ -87,7 +87,7 @@ class ContextGuard:
             },
         ] + original_messages[compress_count:]
 
-    def check_and_compact(
+    async def check_and_compact(
         self,
         session: "AgentSession",
         messages: list[Message],
@@ -107,9 +107,9 @@ class ContextGuard:
             return messages
 
         # Over threshold - compact and roll
-        return self._compact_and_roll(session, messages)
+        return await self._compact_and_roll(session, messages)
 
-    def _compact_and_roll(
+    async def _compact_and_roll(
         self,
         session: "AgentSession",
         messages: list[Message],
@@ -124,7 +124,7 @@ class ContextGuard:
             Compacted message list
         """
         # Generate summary of older messages
-        summary = self._generate_summary(session, messages)
+        summary = await self._generate_summary(session, messages)
 
         # Roll to new session
         self._roll_session(session, summary)

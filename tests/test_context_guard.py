@@ -110,7 +110,8 @@ class TestCompactedMessagesBuilder:
 
 
 class TestCheckAndCompact:
-    def test_check_and_compact_under_threshold(self):
+    @pytest.mark.asyncio
+    async def test_check_and_compact_under_threshold(self):
         """Returns messages unchanged when under threshold."""
         guard = ContextGuard(shared_context=None, token_threshold=10000)
 
@@ -120,12 +121,13 @@ class TestCheckAndCompact:
 
         messages = [{"role": "user", "content": "Hello"}]
 
-        result = guard.check_and_compact(session, messages)
+        result = await guard.check_and_compact(session, messages)
 
         # Should return same messages (under threshold)
         assert result == messages
 
-    def test_check_and_compact_over_threshold_triggers_compaction(self):
+    @pytest.mark.asyncio
+    async def test_check_and_compact_over_threshold_triggers_compaction(self):
         """Triggers compaction when over threshold."""
         # Mock context
         mock_context = MagicMock()
@@ -146,8 +148,10 @@ class TestCheckAndCompact:
             {"role": "user", "content": f"Message {i} " * 100} for i in range(20)
         ]
 
-        with patch.object(guard, "_generate_summary", return_value="Summary"):
-            result = guard.check_and_compact(session, messages)
+        with patch.object(
+            guard, "_generate_summary", new_callable=AsyncMock, return_value="Summary"
+        ):
+            result = await guard.check_and_compact(session, messages)
 
         # Should return compacted messages
         assert len(result) < len(messages)
