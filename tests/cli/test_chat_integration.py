@@ -8,11 +8,9 @@ from picklebot.messagebus.cli_bus import CliEventSource
 import time
 
 
-def test_chat_loop_processes_user_input_and_displays_response():
+def test_chat_loop_processes_user_input_and_displays_response(test_config: Config):
     """Test that chat loop handles input and displays agent response."""
-    config = Config.load()
-
-    chat_loop = ChatLoop(config)
+    chat_loop = ChatLoop(test_config)
 
     # Verify response_queue exists
     assert hasattr(chat_loop, 'response_queue'), "ChatLoop should have a response_queue attribute"
