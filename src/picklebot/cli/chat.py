@@ -69,6 +69,22 @@ class ChatLoop:
 
         return user_input
 
+    def display_agent_response(self, content: str) -> None:
+        """Display agent response with styled prefix.
+
+        Args:
+            content: Agent response content
+        """
+        # Create green prefix
+        prefix = Text("Agent: ", style="green")
+
+        # Print prefix and content
+        self.console.print(prefix, end="")
+        self.console.print(content)
+
+        # Add separator line
+        self.console.print()
+
     async def run(self) -> None:
         """Run the interactive chat loop."""
         # Display welcome message

@@ -145,3 +145,24 @@ def test_get_user_input_returns_trimmed_input(test_config: Config):
 
     # Restore stdin
     sys.stdin = sys.__stdin__
+
+
+def test_display_agent_response_prints_styled_output(test_config: Config):
+    """Test that display_agent_response prints with green prefix."""
+    from io import StringIO
+
+    chat_loop = ChatLoop(test_config)
+
+    # Capture stdout
+    captured_output = StringIO()
+    import sys
+
+    sys.stdout = captured_output
+
+    chat_loop.display_agent_response("Hello! How can I help you?")
+
+    output = captured_output.getvalue()
+    sys.stdout = sys.__stdout__
+
+    # Check that output contains the response
+    assert "Hello! How can I help you?" in output
