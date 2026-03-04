@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from picklebot.core.context_guard import ContextGuard
 from picklebot.core.history import HistoryMessage
 from picklebot.core.events import EventSource
 from picklebot.provider.llm import LLMProvider
@@ -78,6 +79,12 @@ class Agent:
 
         return registry
 
+    def _get_token_threshold(self) -> int:
+        """Get token threshold based on model's context window."""
+        # Default to 80% of 200k context
+        # TODO: Make this configurable per model
+        return 160000
+
     def new_session(
         self,
         source: "EventSource",
@@ -100,6 +107,12 @@ class Agent:
         include_post_message = source.is_cron
         tools = self._build_tools(include_post_message)
 
+        # Create context guard for this session
+        context_guard = ContextGuard(
+            shared_context=self.context,
+            token_threshold=self._get_token_threshold(),
+        )
+
         session = AgentSession(
             session_id=session_id,
             agent_id=self.agent_def.id,
@@ -107,6 +120,7 @@ class Agent:
             agent=self,
             tools=tools,
             source=source,
+            context_guard=context_guard,
         )
 
         self.context.history_store.create_session(self.agent_def.id, session_id, source)
@@ -145,6 +159,12 @@ class Agent:
         # Build tools for resumed session
         tools = self._build_tools(include_post_message)
 
+        # Create context guard
+        context_guard = ContextGuard(
+            shared_context=self.context,
+            token_threshold=self._get_token_threshold(),
+        )
+
         return AgentSession(
             session_id=session_info.id,
             agent_id=session_info.agent_id,
@@ -153,6 +173,7 @@ class Agent:
             tools=tools,
             source=source,
             messages=messages,
+            context_guard=context_guard,
         )
 
 
@@ -166,6 +187,7 @@ class AgentSession:
     agent: Agent  # Reference to parent agent for LLM access
     tools: ToolRegistry  # Session's own tool registry
     source: "EventSource"  # Event source (e.g., "telegram:user_123", "cron:daily")
+    context_guard: ContextGuard  # Context window manager
 
     messages: list[Message] = field(default_factory=list)
     started_at: datetime = field(default_factory=datetime.now)
@@ -204,6 +226,10 @@ class AgentSession:
 
         while True:
             messages = self._build_messages()
+
+            # Check context and compact if needed
+            messages = await self.context_guard.check_and_compact(self, messages)
+
             content, tool_calls = await self.agent.llm.chat(messages, tool_schemas)
 
             tool_call_dicts: list[ChatCompletionMessageToolCallParam] = [
