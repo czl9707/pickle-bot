@@ -7,7 +7,7 @@ import pytest
 from picklebot.core.history import HistoryStore, HistoryMessage, HistorySession
 from picklebot.core.events import CronEventSource
 from picklebot.messagebus.telegram_bus import TelegramEventSource
-from picklebot.messagebus.cli_bus import CliEventSource
+from picklebot.core.events import CliEventSource
 
 
 class TestFromMessage:

@@ -10,7 +10,7 @@ from picklebot.core.context import SharedContext
 from picklebot.core.events import EventSource, InboundEvent
 from picklebot.messagebus.telegram_bus import TelegramEventSource
 from picklebot.messagebus.discord_bus import DiscordEventSource
-from picklebot.messagebus.cli_bus import CliEventSource
+from picklebot.core.events import CliEventSource
 
 
 class FakeBus:

@@ -6,8 +6,7 @@ import time
 import pytest
 
 from picklebot.cli.chat import ChatLoop
-from picklebot.core.events import InboundEvent, OutboundEvent
-from picklebot.messagebus.cli_bus import CliEventSource
+from picklebot.core.events import InboundEvent, OutboundEvent, CliEventSource
 from picklebot.utils.config import Config
 
 

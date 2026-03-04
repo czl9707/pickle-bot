@@ -7,10 +7,9 @@ import pytest
 from picklebot.core.context import SharedContext
 from picklebot.core.eventbus import EventBus
 from picklebot.core.events import InboundEvent, OutboundEvent, AgentEventSource
-from picklebot.messagebus.telegram_bus import TelegramEventSource
+from picklebot.messagebus.telegram_bus import TelegramEventSource, TelegramBus
 from picklebot.core.routing import RoutingTable
-from picklebot.messagebus.cli_bus import CliBus
-from picklebot.utils.config import Config, LLMConfig
+from picklebot.utils.config import Config, LLMConfig, TelegramConfig
 
 
 # Fixtures for tests that create their own config
@@ -116,19 +115,19 @@ class TestSharedContextCustomBuses:
 
     def test_accepts_buses_parameter(self, mock_config):
         """SharedContext should accept optional buses parameter."""
-        cli_bus = CliBus()
-        context = SharedContext(config=mock_config, buses=[cli_bus])
+        telegram_bus = TelegramBus(config=TelegramConfig(bot_token="test-token"))
+        context = SharedContext(config=mock_config, buses=[telegram_bus])
 
-        assert context.messagebus_buses == [cli_bus]
+        assert context.messagebus_buses == [telegram_bus]
 
     def test_uses_provided_buses_when_given(self, mock_config):
         """When buses are provided, they should be used directly."""
-        cli_bus = CliBus()
-        context = SharedContext(config=mock_config, buses=[cli_bus])
+        telegram_bus = TelegramBus(config=TelegramConfig(bot_token="test-token"))
+        context = SharedContext(config=mock_config, buses=[telegram_bus])
 
         # Should contain exactly the bus we passed
         assert len(context.messagebus_buses) == 1
-        assert context.messagebus_buses[0] is cli_bus
+        assert context.messagebus_buses[0] is telegram_bus
 
     def test_backward_compatible_loads_from_config_when_buses_none(self, mock_config):
         """When buses=None (default), should load from config like before."""
@@ -167,8 +166,8 @@ class TestSharedContextCustomBuses:
 
     def test_multiple_buses_accepted(self, mock_config):
         """Multiple buses can be passed."""
-        bus1 = CliBus()
-        bus2 = CliBus()
+        bus1 = TelegramBus(config=TelegramConfig(bot_token="test-token-1"))
+        bus2 = TelegramBus(config=TelegramConfig(bot_token="test-token-2"))
 
         context = SharedContext(config=mock_config, buses=[bus1, bus2])
 

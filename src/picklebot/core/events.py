@@ -85,6 +85,24 @@ class CronEventSource(EventSource):
 
 
 @dataclass
+class CliEventSource(EventSource):
+    """Source for CLI-originated events."""
+
+    _namespace = "platform-cli"
+
+    def __str__(self) -> str:
+        return "platform-cli:cli-user"
+
+    @classmethod
+    def from_string(cls, s: str) -> "CliEventSource":
+        return cls()
+
+    @property
+    def platform_name(self) -> str:
+        return "cli"
+
+
+@dataclass
 class Event:
     """Base class for all typed events.
 

@@ -16,7 +16,7 @@ from picklebot.core.events import (
     deserialize_event,
 )
 from picklebot.messagebus.telegram_bus import TelegramEventSource
-from picklebot.messagebus.cli_bus import CliEventSource
+from picklebot.core.events import CliEventSource
 
 
 class TestEventBaseClass:

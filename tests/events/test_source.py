@@ -134,7 +134,7 @@ class TestCliEventSource:
 
     def test_string_roundtrip(self):
         """CLI source should serialize and deserialize correctly."""
-        from picklebot.messagebus.cli_bus import CliEventSource
+        from picklebot.core.events import CliEventSource
 
         original = CliEventSource()
         serialized = str(original)
@@ -145,7 +145,7 @@ class TestCliEventSource:
 
     def test_type_properties(self):
         """CLI source should have correct type properties."""
-        from picklebot.messagebus.cli_bus import CliEventSource
+        from picklebot.core.events import CliEventSource
 
         source = CliEventSource()
         assert source.is_platform is True

@@ -5,9 +5,8 @@ import pytest
 from picklebot.core.agent import Agent
 from picklebot.core.agent_loader import AgentDef
 from picklebot.core.context import SharedContext
-from picklebot.core.events import CronEventSource
+from picklebot.core.events import CronEventSource, CliEventSource
 from picklebot.messagebus.telegram_bus import TelegramEventSource
-from picklebot.messagebus.cli_bus import CliEventSource
 from picklebot.utils.config import LLMConfig, MessageBusConfig, TelegramConfig
 
 

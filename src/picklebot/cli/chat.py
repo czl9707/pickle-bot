@@ -13,9 +13,8 @@ from rich.panel import Panel  # noqa: E402
 from rich.prompt import Prompt  # noqa: E402
 from rich.text import Text  # noqa: E402
 
-from picklebot.core.events import OutboundEvent  # noqa: E402
+from picklebot.core.events import OutboundEvent, CliEventSource  # noqa: E402
 from picklebot.core.context import SharedContext  # noqa: E402
-from picklebot.messagebus.cli_bus import CliEventSource  # noqa: E402
 from picklebot.server import (  # noqa: E402
     AgentWorker,
     Worker,
