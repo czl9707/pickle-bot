@@ -115,7 +115,6 @@ class Agent:
 
         session = AgentSession(
             session_id=session_id,
-            agent_id=self.agent_def.id,
             shared_context=self.context,
             agent=self,
             tools=tools,
@@ -167,7 +166,6 @@ class Agent:
 
         return AgentSession(
             session_id=session_info.id,
-            agent_id=session_info.agent_id,
             shared_context=self.context,
             agent=self,
             tools=tools,
@@ -182,7 +180,6 @@ class AgentSession:
     """Runtime state for a single conversation."""
 
     session_id: str
-    agent_id: str
     shared_context: "SharedContext"  # Shared app context (DI container)
     agent: Agent  # Reference to parent agent for LLM access
     tools: ToolRegistry  # Session's own tool registry
