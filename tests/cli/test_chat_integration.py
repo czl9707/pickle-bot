@@ -84,6 +84,20 @@ def test_chat_loop_processes_user_input_and_displays_response(test_config: Confi
     asyncio.run(run_test())
 
 
+def test_chat_loop_has_no_messagebus_worker(test_config: Config):
+    """Test that ChatLoop doesn't use MessageBusWorker."""
+    chat_loop = ChatLoop(test_config)
+
+    # Check workers list
+    worker_types = [type(worker).__name__ for worker in chat_loop.workers]
+
+    # Should have EventBus, AgentWorker, but NOT MessageBusWorker or DeliveryWorker
+    assert "EventBus" in worker_types
+    assert "AgentWorker" in worker_types
+    assert "MessageBusWorker" not in worker_types
+    assert "DeliveryWorker" not in worker_types
+
+
 def test_warnings_are_suppressed():
     """Test that Python warnings are suppressed during chat."""
     import warnings

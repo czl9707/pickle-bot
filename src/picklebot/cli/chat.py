@@ -12,12 +12,10 @@ from rich.console import Console  # noqa: E402
 from rich.panel import Panel  # noqa: E402
 from rich.text import Text  # noqa: E402
 
+from picklebot.core.events import OutboundEvent  # noqa: E402
 from picklebot.core.context import SharedContext  # noqa: E402
-from picklebot.messagebus.cli_bus import CliBus  # noqa: E402
 from picklebot.server import (  # noqa: E402
     AgentWorker,
-    DeliveryWorker,
-    MessageBusWorker,
     Worker,
 )
 from picklebot.utils.config import Config  # noqa: E402
@@ -33,17 +31,17 @@ class ChatLoop:
         self.config = config
         self.console = Console()
 
-        # Create CliBus and SharedContext with buses parameter
-        self.bus = CliBus()
-        self.context = SharedContext(config=config, buses=[self.bus])
+        # Create SharedContext without buses
+        self.context = SharedContext(config=config, buses=[])
 
-        # Create ALL workers - same pattern as Server
+        # Create minimal workers for CLI chat
         self.workers: list[Worker] = [
             self.context.eventbus,
             AgentWorker(self.context),
-            DeliveryWorker(self.context),
-            MessageBusWorker(self.context),
         ]
+
+        # Response queue for collecting agent responses
+        self.response_queue: asyncio.Queue[OutboundEvent] = asyncio.Queue()
 
     async def run(self) -> None:
         """Run the interactive chat loop."""
