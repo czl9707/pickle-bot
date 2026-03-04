@@ -74,7 +74,7 @@ def temp_crons_dir(tmp_path: Path) -> Path:
 @pytest.fixture
 def history_store(tmp_path: Path) -> HistoryStore:
     """HistoryStore instance for testing."""
-    return HistoryStore(tmp_path / "history", max_history_file_size=3)
+    return HistoryStore(tmp_path / "history")
 
 
 @pytest.fixture

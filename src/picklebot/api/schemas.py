@@ -57,4 +57,3 @@ class ConfigUpdate(BaseModel):
     default_agent: str | None = None
     chat_max_history: int | None = None
     job_max_history: int | None = None
-    max_history_file_size: int | None = None

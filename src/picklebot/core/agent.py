@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from picklebot.core.context_guard import ContextGuard
 from picklebot.core.history import HistoryMessage
 from picklebot.core.events import EventSource
 from picklebot.provider.llm import LLMProvider
@@ -24,20 +25,6 @@ if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
     from picklebot.core.agent_loader import AgentDef
     from picklebot.provider.llm import LLMToolCall
-
-
-def get_source_settings(source: EventSource) -> tuple[int, bool]:
-    """Return (max_history, post_message) settings for a given source.
-
-    Args:
-        source: EventSource object (e.g., CronEventSource or TelegramEventSource)
-
-    Returns:
-        Tuple of (max_history, post_message_enabled)
-    """
-    if source.is_cron:
-        return (50, True)
-    return (100, False)
 
 
 class Agent:
@@ -92,6 +79,12 @@ class Agent:
 
         return registry
 
+    def _get_token_threshold(self) -> int:
+        """Get token threshold based on model's context window."""
+        # Default to 80% of 200k context
+        # TODO: Make this configurable per model
+        return 160000
+
     def new_session(
         self,
         source: "EventSource",
@@ -109,11 +102,16 @@ class Agent:
         """
         session_id = session_id or str(uuid.uuid4())
 
-        # Derive settings from source
-        max_history, include_post_message = get_source_settings(source)
-
         # Build tools for this session
+        # Note: include_post_message logic moved to be source-based
+        include_post_message = source.is_cron
         tools = self._build_tools(include_post_message)
+
+        # Create context guard for this session
+        context_guard = ContextGuard(
+            shared_context=self.context,
+            token_threshold=self._get_token_threshold(),
+        )
 
         session = AgentSession(
             session_id=session_id,
@@ -122,7 +120,7 @@ class Agent:
             agent=self,
             tools=tools,
             source=source,
-            max_history=max_history,
+            context_guard=context_guard,
         )
 
         self.context.history_store.create_session(self.agent_def.id, session_id, source)
@@ -150,17 +148,22 @@ class Agent:
 
         # Get typed EventSource from stored string
         source = session_info.get_source()
-        max_history, include_post_message = get_source_settings(source)
+        include_post_message = source.is_cron
 
-        history_messages = self.context.history_store.get_messages(
-            session_id, max_history=max_history
-        )
+        # Get all messages (no max_history limit)
+        history_messages = self.context.history_store.get_messages(session_id)
 
         # Convert HistoryMessage to litellm Message format
         messages: list[Message] = [msg.to_message() for msg in history_messages]
 
-        # Build tools for resumed session (no post_message by default)
-        tools = self._build_tools(include_post_message=False)
+        # Build tools for resumed session
+        tools = self._build_tools(include_post_message)
+
+        # Create context guard
+        context_guard = ContextGuard(
+            shared_context=self.context,
+            token_threshold=self._get_token_threshold(),
+        )
 
         return AgentSession(
             session_id=session_info.id,
@@ -170,7 +173,7 @@ class Agent:
             tools=tools,
             source=source,
             messages=messages,
-            max_history=max_history,
+            context_guard=context_guard,
         )
 
 
@@ -184,7 +187,7 @@ class AgentSession:
     agent: Agent  # Reference to parent agent for LLM access
     tools: ToolRegistry  # Session's own tool registry
     source: "EventSource"  # Event source (e.g., "telegram:user_123", "cron:daily")
-    max_history: int  # Max messages to include in LLM context
+    context_guard: ContextGuard  # Context window manager
 
     messages: list[Message] = field(default_factory=list)
     started_at: datetime = field(default_factory=datetime.now)
@@ -194,14 +197,12 @@ class AgentSession:
         self.messages.append(message)
         self._persist_message(message)
 
-    def get_history(self, max_messages: int | None = None) -> list[Message]:
-        """Get recent messages for LLM context.
+    def get_history(self) -> list[Message]:
+        """Get all messages for LLM context.
 
-        Args:
-            max_messages: Override for max messages (uses self.max_history if None)
+        Note: Token limiting is handled by ContextGuard, not here.
         """
-        limit = max_messages if max_messages is not None else self.max_history
-        return self.messages[-limit:]
+        return self.messages
 
     def _persist_message(self, message: Message) -> None:
         """Save to HistoryStore."""
@@ -225,6 +226,10 @@ class AgentSession:
 
         while True:
             messages = self._build_messages()
+
+            # Check context and compact if needed
+            messages = await self.context_guard.check_and_compact(self, messages)
+
             content, tool_calls = await self.agent.llm.chat(messages, tool_schemas)
 
             tool_call_dicts: list[ChatCompletionMessageToolCallParam] = [

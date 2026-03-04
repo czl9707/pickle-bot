@@ -2,60 +2,13 @@
 
 import pytest
 
-from picklebot.core.agent import Agent, get_source_settings
+from picklebot.core.agent import Agent
 from picklebot.core.agent_loader import AgentDef
 from picklebot.core.context import SharedContext
-from picklebot.core.events import AgentEventSource, CronEventSource
+from picklebot.core.events import CronEventSource
 from picklebot.messagebus.telegram_bus import TelegramEventSource
-from picklebot.messagebus.discord_bus import DiscordEventSource
 from picklebot.messagebus.cli_bus import CliEventSource
 from picklebot.utils.config import LLMConfig, MessageBusConfig, TelegramConfig
-
-
-class TestGetSourceSettings:
-    """Tests for source-based settings derivation."""
-
-    def test_cron_source_returns_job_settings(self):
-        """Cron sources should return job settings."""
-        source = CronEventSource(cron_id="daily_summary")
-        max_history, post_message = get_source_settings(source)
-        assert max_history == 50
-        assert post_message is True
-
-    def test_cron_source_with_complex_id(self):
-        """Cron sources with complex IDs should return job settings."""
-        source = CronEventSource(cron_id="my-cron-job-123")
-        max_history, post_message = get_source_settings(source)
-        assert max_history == 50
-        assert post_message is True
-
-    def test_telegram_source_returns_chat_settings(self):
-        """Telegram sources should return chat settings."""
-        source = TelegramEventSource(user_id="user_123", chat_id="chat_456")
-        max_history, post_message = get_source_settings(source)
-        assert max_history == 100
-        assert post_message is False
-
-    def test_discord_source_returns_chat_settings(self):
-        """Discord sources should return chat settings."""
-        source = DiscordEventSource(user_id="member_456", channel_id="channel_789")
-        max_history, post_message = get_source_settings(source)
-        assert max_history == 100
-        assert post_message is False
-
-    def test_agent_source_returns_chat_settings(self):
-        """Agent (subagent) sources should return chat settings."""
-        source = AgentEventSource(agent_id="cookie")
-        max_history, post_message = get_source_settings(source)
-        assert max_history == 100
-        assert post_message is False
-
-    def test_cli_source_returns_chat_settings(self):
-        """CLI sources should return chat settings."""
-        source = CliEventSource()
-        max_history, post_message = get_source_settings(source)
-        assert max_history == 100
-        assert post_message is False
 
 
 def test_agent_creation_with_new_structure(test_agent, test_agent_def, test_context):
@@ -65,14 +18,14 @@ def test_agent_creation_with_new_structure(test_agent, test_agent_def, test_cont
 
 
 def test_agent_new_session(test_agent, test_agent_def):
-    """Agent should create new session with self reference and correct source defaults."""
+    """Agent should create new session with self reference and correct source."""
     source = TelegramEventSource(user_id="user_123", chat_id="chat_456")
     session = test_agent.new_session(source=source)
 
     assert session.session_id is not None
     assert session.agent_id == test_agent_def.id
     assert session.agent is test_agent
-    assert session.max_history == 100  # chat default from get_source_settings
+    assert session.source == source
 
 
 def test_agent_new_session_with_custom_session_id(test_agent):
@@ -82,22 +35,6 @@ def test_agent_new_session_with_custom_session_id(test_agent):
     session = test_agent.new_session(source=source, session_id=custom_id)
 
     assert session.session_id == custom_id
-
-
-@pytest.mark.parametrize(
-    "source,expected_max_history",
-    [
-        (
-            TelegramEventSource(user_id="user_123", chat_id="chat_456"),
-            100,
-        ),  # chat source -> 100
-        (CronEventSource(cron_id="daily_job"), 50),  # cron source -> 50
-    ],
-)
-def test_session_max_history(test_agent, source, expected_max_history):
-    """Agent.new_session should use correct max_history based on source."""
-    session = test_agent.new_session(source)
-    assert session.max_history == expected_max_history
 
 
 def _create_agent_with_skills(test_config, allow_skills: bool) -> Agent:
@@ -273,26 +210,6 @@ class TestAgentNewSessionWithSource:
         session = agent.new_session(source=source)
 
         assert session.source == source
-
-    def test_new_session_derives_max_history_from_source_cron(
-        self, mock_context, mock_agent_def
-    ):
-        """new_session should derive max_history from source for cron."""
-        agent = Agent(mock_agent_def, mock_context)
-        source = CronEventSource(cron_id="daily_job")
-        session = agent.new_session(source=source)
-
-        assert session.max_history == 50
-
-    def test_new_session_derives_max_history_from_source_chat(
-        self, mock_context, mock_agent_def
-    ):
-        """new_session should derive max_history from source for chat."""
-        agent = Agent(mock_agent_def, mock_context)
-        source = TelegramEventSource(user_id="user_123", chat_id="chat_456")
-        session = agent.new_session(source=source)
-
-        assert session.max_history == 100
 
     def test_new_session_includes_post_message_for_cron(
         self, mock_context, mock_agent_def

@@ -53,17 +53,20 @@ def get_session(session_id: str, ctx: SharedContext = Depends(get_context)) -> d
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_session(session_id: str, ctx: SharedContext = Depends(get_context)) -> None:
     """Delete a session."""
-    # Get all chunk files for this session
-    chunks = ctx.history_store._list_chunks(session_id)
+    # Get the session file
+    session_file = ctx.history_store._session_path(session_id)
 
-    if not chunks:
+    # Check if session exists in index
+    sessions = ctx.history_store._read_index()
+    session = next((s for s in sessions if s.id == session_id), None)
+
+    if not session:
         raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
 
-    # Remove all chunk files
-    for chunk_file in chunks:
-        chunk_file.unlink()
+    # Remove session file if it exists
+    if session_file.exists():
+        session_file.unlink()
 
     # Remove from index
-    sessions = ctx.history_store._read_index()
     sessions = [s for s in sessions if s.id != session_id]
     ctx.history_store._write_index(sessions)

@@ -2,9 +2,9 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Literal, TYPE_CHECKING, Union
+from typing import Any, Literal, TYPE_CHECKING
 
-from pydantic import BaseModel, Field, field_validator, field_serializer
+from pydantic import BaseModel, Field, field_validator
 
 from picklebot.core.events import EventSource
 from litellm.types.completion import ChatCompletionMessageParam as Message
@@ -25,7 +25,6 @@ class HistorySession(BaseModel):
     id: str
     agent_id: str
     source: str  # Serialized EventSource (e.g., "platform-telegram:123:456")
-    chunk_count: int = 1  # Number of chunk files
     title: str | None = None
     message_count: int = 0
     created_at: str
@@ -125,50 +124,24 @@ class HistoryStore:
     ~/.pickle-bot/history/
     ├── index.jsonl              # Session metadata (append-only)
     └── sessions/
-        └── session-{id}.jsonl   # Messages (append-only)
+        └── {session_id}.jsonl   # Messages (append-only, one file per session)
     """
 
     @staticmethod
     def from_config(config: "Config") -> "HistoryStore":
-        return HistoryStore(
-            config.history_path, max_history_file_size=config.max_history_file_size
-        )
+        return HistoryStore(config.history_path)
 
-    def __init__(self, base_path: Path, max_history_file_size: int = 500):
+    def __init__(self, base_path: Path):
         self.base_path = Path(base_path)
         self.sessions_path = self.base_path / "sessions"
         self.index_path = self.base_path / "index.jsonl"
-        self.max_history_file_size = max_history_file_size
 
         self.base_path.mkdir(parents=True, exist_ok=True)
         self.sessions_path.mkdir(parents=True, exist_ok=True)
 
-    def _chunk_path(self, session_id: str, index: int) -> Path:
-        """Get the file path for a session chunk."""
-        return self.sessions_path / f"session-{session_id}.{index}.jsonl"
-
-    def _list_chunks(self, session_id: str) -> list[Path]:
-        """List all chunk files for a session, sorted newest first."""
-        pattern = f"session-{session_id}.*.jsonl"
-        chunks = list(self.sessions_path.glob(pattern))
-        # Sort by index (descending - newest first)
-        chunks.sort(key=lambda p: int(p.name.split(".")[-2]), reverse=True)
-        return chunks
-
-    def _get_current_chunk_index(self, session_id: str) -> int:
-        """Get the current (highest) chunk index, or 1 if no chunks exist."""
-        chunks = self._list_chunks(session_id)
-        if not chunks:
-            return 1
-        # Extract index from filename: session-id.N.jsonl
-        return int(chunks[0].name.split(".")[-2])
-
-    def _count_messages_in_chunk(self, chunk_path: Path) -> int:
-        """Count the number of messages in a chunk file."""
-        if not chunk_path.exists():
-            return 0
-        with open(chunk_path) as f:
-            return sum(1 for line in f if line.strip())
+    def _session_path(self, session_id: str) -> Path:
+        """Get the file path for a session."""
+        return self.sessions_path / f"{session_id}.jsonl"
 
     def _read_index(self) -> list[HistorySession]:
         """Read all session entries from index.jsonl."""
@@ -222,7 +195,6 @@ class HistoryStore:
             id=session_id,
             agent_id=agent_id,
             source=source,
-            chunk_count=1,
             title=None,
             message_count=0,
             created_at=now,
@@ -233,14 +205,13 @@ class HistoryStore:
         with open(self.index_path, "a") as f:
             f.write(session.model_dump_json() + "\n")
 
-        # Create first chunk file
-        self._chunk_path(session_id, 1).touch()
+        # Create session file
+        self._session_path(session_id).touch()
 
         return session.model_dump()
 
     def save_message(self, session_id: str, message: HistoryMessage) -> None:
         """Save a message to history."""
-        # Get session to update
         sessions = self._read_index()
         idx = self._find_session_index(sessions, session_id)
         if idx < 0:
@@ -248,19 +219,9 @@ class HistoryStore:
 
         session = sessions[idx]
 
-        # Get current chunk and check if full
-        current_idx = self._get_current_chunk_index(session_id)
-        current_chunk = self._chunk_path(session_id, current_idx)
-        current_count = self._count_messages_in_chunk(current_chunk)
-
-        # If current chunk is full, create new one
-        if current_count >= self.max_history_file_size:
-            current_idx += 1
-            current_chunk = self._chunk_path(session_id, current_idx)
-            session.chunk_count = current_idx
-
-        # Append message to chunk
-        with open(current_chunk, "a") as f:
+        # Append message to session file
+        session_file = self._session_path(session_id)
+        with open(session_file, "a") as f:
             f.write(message.model_dump_json() + "\n")
 
         # Update index
@@ -274,7 +235,6 @@ class HistoryStore:
                 title += "..."
             session.title = title
 
-        # Sort by updated_at (most recent first)
         sessions.sort(key=lambda s: s.updated_at, reverse=True)
         self._write_index(sessions)
 
@@ -296,35 +256,36 @@ class HistoryStore:
         return sessions
 
     def get_messages(
-        self, session_id: str, max_history: int = 50
+        self, session_id: str, max_history: int | None = None
     ) -> list[HistoryMessage]:
-        """Get messages for a session, up to max_history."""
-        # Load from chunks, newest first
-        chunks = self._list_chunks(session_id)
+        """Get all messages for a session.
+
+        Token limiting is handled by ContextGuard, not here.
+        The max_history parameter is kept for backward compatibility but is deprecated.
+
+        Args:
+            session_id: The session ID to get messages for
+            max_history: Deprecated - maximum messages to return (kept for backward compatibility)
+
+        Returns:
+            List of HistoryMessage objects in chronological order
+        """
+        session_file = self._session_path(session_id)
+        if not session_file.exists():
+            return []
+
         messages: list[HistoryMessage] = []
+        with open(session_file) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        messages.append(HistoryMessage.model_validate_json(line))
+                    except Exception:
+                        continue
 
-        for chunk in chunks:
-            if not chunk.exists():
-                continue
+        # Backward compatibility: limit if max_history is explicitly provided
+        if max_history is not None and len(messages) > max_history:
+            return messages[-max_history:]
 
-            chunk_messages: list[HistoryMessage] = []
-            with open(chunk) as f:
-                for line in f:
-                    line = line.strip()
-                    if line:
-                        try:
-                            chunk_messages.append(
-                                HistoryMessage.model_validate_json(line)
-                            )
-                        except Exception:
-                            continue
-
-            # Prepend older messages
-            messages = chunk_messages + messages
-
-            # Stop if we have enough
-            if len(messages) >= max_history:
-                break
-
-        # Return newest max_history messages
-        return messages[-max_history:]
+        return messages

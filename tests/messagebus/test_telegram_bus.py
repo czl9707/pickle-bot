@@ -45,6 +45,7 @@ class TestTelegramBusReply:
         assert call_args.kwargs["chat_id"] == 456789
         assert call_args.kwargs["text"] == "Test reply"
 
+
 def _create_mock_telegram_app():
     """Create a mock Telegram Application for testing."""
     mock_app = MagicMock()

@@ -241,8 +241,8 @@ async def test_agent_router_creates_semaphore_per_agent(test_context, tmp_path):
     # Initially no semaphores
     assert len(router._semaphores) == 0
 
-    event_a = make_inbound_event(content="Test A", agent_id="agent-a")
-    event_b = make_inbound_event(content="Test B", agent_id="agent-b")
+    _event_a = make_inbound_event(content="Test A", agent_id="agent-a")
+    _event_b = make_inbound_event(content="Test B", agent_id="agent-b")
 
     # Get semaphores directly to verify they're created correctly
     agent_def_a = test_context.agent_loader.load("agent-a")
