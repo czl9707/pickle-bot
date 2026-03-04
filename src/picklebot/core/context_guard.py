@@ -7,6 +7,7 @@ from litellm import token_counter
 from litellm.types.completion import ChatCompletionMessageParam as Message
 
 if TYPE_CHECKING:
+    from picklebot.core.agent import AgentSession
     from picklebot.core.context import SharedContext
 
 
@@ -85,3 +86,89 @@ class ContextGuard:
                 "content": "Understood, I have the context.",
             },
         ] + original_messages[compress_count:]
+
+    def check_and_compact(
+        self,
+        session: "AgentSession",
+        messages: list[Message],
+    ) -> list[Message]:
+        """Check token count, compact and roll session if needed.
+
+        Args:
+            session: Current agent session
+            messages: Current message list
+
+        Returns:
+            Messages to use (either original or compacted)
+        """
+        token_count = self.count_tokens(messages, session.agent.llm.model)
+
+        if token_count < self.token_threshold:
+            return messages
+
+        # Over threshold - compact and roll
+        return self._compact_and_roll(session, messages)
+
+    def _compact_and_roll(
+        self,
+        session: "AgentSession",
+        messages: list[Message],
+    ) -> list[Message]:
+        """Compact history, roll to new session, return new messages.
+
+        Args:
+            session: Current agent session
+            messages: Current message list
+
+        Returns:
+            Compacted message list
+        """
+        # Generate summary of older messages
+        summary = self._generate_summary(session, messages)
+
+        # Roll to new session
+        self._roll_session(session, summary)
+
+        # Return compacted messages
+        return self._build_compacted_messages(summary, messages)
+
+    def _roll_session(self, session: "AgentSession", summary: str) -> str:
+        """Create new session, update source mapping, return new ID.
+
+        Args:
+            session: Current agent session
+            summary: Generated summary (unused here but available)
+
+        Returns:
+            New session ID
+        """
+        # Create new session
+        new_session = session.agent.new_session(session.source)
+
+        # Update source -> session mapping
+        self.shared_context.config.set_runtime(
+            f"sources.{session.source}",
+            {"session_id": new_session.session_id},
+        )
+
+        return new_session.session_id
+
+    def _generate_summary(
+        self,
+        session: "AgentSession",
+        messages: list[Message],
+    ) -> str:
+        """Generate a summary of the conversation.
+
+        Args:
+            session: Current agent session
+            messages: Messages to summarize
+
+        Returns:
+            Generated summary text
+
+        Note:
+            This is a placeholder implementation. The actual LLM-based
+            summarization will be implemented in a future task.
+        """
+        return "[Summary generation not yet implemented]"

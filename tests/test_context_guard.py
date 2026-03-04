@@ -1,6 +1,8 @@
 # tests/test_context_guard.py
 """Tests for ContextGuard."""
 
+from unittest.mock import MagicMock, patch
+
 from picklebot.core.context_guard import ContextGuard
 
 
@@ -104,3 +106,49 @@ class TestCompactedMessagesBuilder:
 
         # Recent messages should be preserved
         assert len(result) > 2
+
+
+class TestCheckAndCompact:
+    def test_check_and_compact_under_threshold(self):
+        """Returns messages unchanged when under threshold."""
+        guard = ContextGuard(shared_context=None, token_threshold=10000)
+
+        # Mock session
+        session = MagicMock()
+        session.agent.llm.model = "gpt-4"
+
+        messages = [{"role": "user", "content": "Hello"}]
+
+        result = guard.check_and_compact(session, messages)
+
+        # Should return same messages (under threshold)
+        assert result == messages
+
+    def test_check_and_compact_over_threshold_triggers_compaction(self):
+        """Triggers compaction when over threshold."""
+        # Mock context
+        mock_context = MagicMock()
+        mock_context.config.set_runtime = MagicMock()
+
+        guard = ContextGuard(
+            shared_context=mock_context, token_threshold=10
+        )  # Very low threshold
+
+        # Mock session
+        session = MagicMock()
+        session.agent.llm.model = "gpt-4"
+        session.agent.new_session.return_value = MagicMock(session_id="new-session-id")
+        session.source = "test:user"
+
+        # Many messages to exceed threshold
+        messages = [
+            {"role": "user", "content": f"Message {i} " * 100} for i in range(20)
+        ]
+
+        with patch.object(guard, "_generate_summary", return_value="Summary"):
+            result = guard.check_and_compact(session, messages)
+
+        # Should return compacted messages
+        assert len(result) < len(messages)
+        assert result[0]["role"] == "user"
+        assert "[Previous conversation summary]" in result[0]["content"]
