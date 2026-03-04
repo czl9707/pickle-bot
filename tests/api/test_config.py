@@ -110,8 +110,8 @@ class TestUpdateConfig:
         assert user_config["default_agent"] == "new-agent"
         assert user_config["other_field"] == "should_be_preserved"
 
-    def test_update_config_preserves_existing_user_config(self, client):
-        """PATCH /config preserves existing config.user.yaml fields."""
+    def test_update_config_same_value_preserves_existing_user_config(self, client):
+        """PATCH /config preserves existing config.user.yaml fields when updating to same value."""
         client, workspace = client
 
         # Create existing user config

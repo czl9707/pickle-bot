@@ -388,6 +388,165 @@ src/picklebot/
     └── def_loader.py      # Definition parsing
 ```
 
+## Workspace Structure
+
+The workspace uses a layered prompt architecture where system prompts are assembled from multiple markdown files at runtime.
+
+### Layered Prompt Assembly
+
+Prompts are built in layers (see `core/prompt_builder.py`):
+
+1. **Identity** - AGENT.md body (agent-specific instructions)
+2. **Soul** - SOUL.md (personality, optional)
+3. **Bootstrap** - BOOTSTRAP.md + AGENTS.md + cron list
+4. **Runtime** - Agent ID + timestamp
+5. **Channel** - Platform name hint
+
+### Workspace Directory Layout
+
+```
+default_workspace/
+├── config.user.yaml          # User configuration (created by onboarding)
+├── config.runtime.yaml       # Runtime state (optional, auto-managed)
+├── BOOTSTRAP.md              # Workspace context (paths, structure, file purposes)
+├── AGENTS.md                 # Agent registry with dispatch guidelines
+├── agents/                   # Agent definitions
+│   ├── pickle/
+│   │   ├── AGENT.md          # Agent config and instructions
+│   │   └── SOUL.md           # Agent personality
+│   └── cookie/
+│       ├── AGENT.md
+│       └── SOUL.md
+├── skills/                   # Reusable skills
+│   └── {name}/
+│       └── SKILL.md
+├── crons/                    # Scheduled tasks
+└── memories/                 # Persistent memory storage
+    ├── topics/               # Timeless facts
+    ├── projects/             # Project-specific context
+    └── daily-notes/          # Day-specific events (YYYY-MM-DD.md)
+```
+
+### Layered Files
+
+#### AGENT.md (Required)
+Agent-specific configuration and instructions:
+- Frontmatter: name, description, llm settings, allow_skills flag
+- Body: Capabilities, behavioral guidelines, operational instructions
+- Example location: `agents/pickle/AGENT.md`
+
+```yaml
+---
+name: Pickle
+description: A friendly cat assistant for daily tasks
+allow_skills: true
+llm:
+  temperature: 0.7
+  max_tokens: 4096
+---
+
+You are Pickle, a friendly cat assistant...
+
+## Capabilities
+- Answer questions and explain concepts
+- Help with coding, debugging, and technical tasks
+...
+```
+
+#### SOUL.md (Optional)
+Agent personality layer:
+- Character traits and tone
+- Concatenated with AGENT.md at runtime as "Personality" section
+- No workspace or dispatch references (those go in BOOTSTRAP/AGENTS.md)
+- Example location: `agents/pickle/SOUL.md`
+
+```markdown
+# Personality
+
+You are Pickle, a friendly cat assistant. Be warm and genuinely helpful with subtle cat mannerisms...
+```
+
+#### BOOTSTRAP.md (Workspace-Level)
+Shared workspace context:
+- Template variables: `{{workspace}}`, `{{skills_path}}`, etc.
+- Directory structure documentation
+- File purpose explanations
+- Workspace-specific conventions
+- Example location: `default_workspace/BOOTSTRAP.md`
+
+```markdown
+# Workspace Guide
+
+## Paths
+- Workspace: `{{workspace}}`
+- Skills: `{{skills_path}}`
+...
+```
+
+#### AGENTS.md (Workspace-Level)
+Agent registry and dispatch guidelines:
+- Lists all available agents with descriptions
+- Explains when and how to use `subagent_dispatch`
+- Provides dispatch patterns and examples
+- Example location: `default_workspace/AGENTS.md`
+
+```markdown
+# Available Agents
+
+| Agent | Description |
+|-------|-------------|
+| pickle | Default agent for general conversations |
+| cookie | Memory manager for store/retrieve operations |
+
+## Dispatching Tasks
+Use `subagent_dispatch` to delegate tasks to specialized agents...
+```
+
+### Prompt Assembly Flow
+
+```python
+class PromptBuilder:
+    def build(self, session: AgentSession) -> str:
+        layers = []
+
+        # Layer 1: Identity from AGENT.md
+        layers.append(session.agent.agent_def.agent_md)
+
+        # Layer 2: Soul from SOUL.md (optional)
+        if session.agent.agent_def.soul_md:
+            layers.append(f"## Personality\n\n{session.agent.agent_def.soul_md}")
+
+        # Layer 3: Bootstrap context
+        # Combines BOOTSTRAP.md + AGENTS.md + cron list
+        layers.append(self._load_bootstrap_context())
+
+        # Layer 4: Runtime context
+        layers.append(f"## Runtime\n\nAgent: {agent_id}\nTime: {timestamp}")
+
+        # Layer 5: Channel hint
+        layers.append(f"You are responding via {platform_name}.")
+
+        return "\n\n".join(layers)
+```
+
+### Design Benefits
+
+**Separation of Concerns:**
+- Agent behavior in AGENT.md
+- Agent personality in SOUL.md
+- Workspace context in BOOTSTRAP.md
+- Agent registry in AGENTS.md
+
+**Maintainability:**
+- Personality can be tweaked without touching instructions
+- Workspace structure documented in one place
+- Agent registry centralized for easy updates
+
+**Reusability:**
+- Same workspace bootstrap for all agents
+- Personality optional (not all agents need it)
+- Template variables for path flexibility
+
 ## Design Decisions
 
 ### Why Event-Driven Architecture?

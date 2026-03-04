@@ -69,15 +69,17 @@ class PromptBuilder:
         bootstrap_path = self.context.config.workspace / "BOOTSTRAP.md"
         if bootstrap_path.exists():
             bootstrap_md = substitute_template(
-                bootstrap_path.read_text().strip(), 
-                get_template_variables(self.context.config))
+                bootstrap_path.read_text().strip(),
+                get_template_variables(self.context.config),
+            )
             parts.append(bootstrap_md)
 
         agents_path = self.context.config.workspace / "AGENTS.md"
         if agents_path.exists():
             agents_md = substitute_template(
-                agents_path.read_text().strip(), 
-                get_template_variables(self.context.config))
+                agents_path.read_text().strip(),
+                get_template_variables(self.context.config),
+            )
             parts.append(agents_md)
 
         # Dynamic cron list

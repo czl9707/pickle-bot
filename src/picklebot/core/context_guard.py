@@ -4,7 +4,10 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
 from litellm import token_counter
-from litellm.types.completion import ChatCompletionMessageParam as Message, ChatCompletionAssistantMessageParam
+from litellm.types.completion import (
+    ChatCompletionMessageParam as Message,
+    ChatCompletionAssistantMessageParam,
+)
 
 if TYPE_CHECKING:
     from picklebot.core.agent import AgentSession
@@ -49,7 +52,9 @@ class ContextGuard:
             if role == "assistant" and msg.get("tool_calls"):
                 tool_names = [
                     tc.get("function", {}).get("name", "unknown")
-                    for tc in (cast(ChatCompletionAssistantMessageParam ,msg)).get("tool_calls", [])
+                    for tc in (cast(ChatCompletionAssistantMessageParam, msg)).get(
+                        "tool_calls", []
+                    )
                 ]
                 lines.append(
                     f"ASSISTANT: [used tools: {', '.join(tool_names)}] {content}"
@@ -91,7 +96,6 @@ class ContextGuard:
         )
         messages.extend(original_messages[compress_count:])
         return messages
-
 
     async def check_and_compact(
         self,
