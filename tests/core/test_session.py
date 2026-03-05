@@ -8,7 +8,7 @@ def test_session_add_message(test_agent):
     source = TelegramEventSource(user_id="user_123", chat_id="chat_456")
     session = test_agent.new_session(source=source)
 
-    session.add_message({"role": "user", "content": "Hello"})
+    session.state.add_message({"role": "user", "content": "Hello"})
 
     assert len(session.state.messages) == 1
     assert session.state.messages[0]["role"] == "user"
@@ -26,9 +26,9 @@ def test_session_get_history_returns_all_messages(test_agent):
 
     # Add 5 messages
     for i in range(5):
-        session.add_message({"role": "user", "content": f"Message {i}"})
+        session.state.add_message({"role": "user", "content": f"Message {i}"})
 
-    history = session.get_history()
+    history = session.state.messages
 
     # get_history returns all messages - token limiting is handled by ContextGuard
     assert len(history) == 5

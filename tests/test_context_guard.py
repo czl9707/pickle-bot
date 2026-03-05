@@ -23,7 +23,7 @@ class TestTokenCounting:
         from picklebot.core.context_guard import ContextGuard
 
         guard = ContextGuard(shared_context=None, token_threshold=1000)
-        count = guard.count_tokens([], "gpt-4")
+        count = guard._count_tokens([], "gpt-4")
         assert count == 0
 
     def test_count_tokens_with_messages(self):
@@ -32,7 +32,7 @@ class TestTokenCounting:
 
         guard = ContextGuard(shared_context=None, token_threshold=1000)
         messages = [{"role": "user", "content": "Hello, world!"}]
-        count = guard.count_tokens(messages, "gpt-4")
+        count = guard._count_tokens(messages, "gpt-4")
         assert count > 0
 
 
@@ -87,31 +87,6 @@ class TestMessageSerialization:
         assert "read_file" in result
 
 
-class TestCompactedMessagesBuilder:
-    def test_build_compacted_messages(self):
-        """Build compacted message list with summary + recent messages."""
-        from picklebot.core.context_guard import ContextGuard
-
-        guard = ContextGuard(shared_context=None, token_threshold=1000)
-
-        # 10 messages
-        messages = [{"role": "user", "content": f"Message {i}"} for i in range(10)]
-
-        summary = "This is a summary of the conversation."
-        result = guard._build_compacted_messages(summary, messages)
-
-        # Should have: summary user + summary assistant + kept recent messages
-        assert result[0]["role"] == "user"
-        assert "[Previous conversation summary]" in result[0]["content"]
-        assert summary in result[0]["content"]
-
-        assert result[1]["role"] == "assistant"
-        assert result[1]["content"] == "Understood, I have the context."
-
-        # Recent messages should be preserved
-        assert len(result) > 2
-
-
 class TestCheckAndCompactWithSessionState:
     """Tests for the new SessionState-based check_and_compact signature."""
 
@@ -157,8 +132,8 @@ class TestCheckAndCompactWithSessionState:
         return state
 
     @pytest.mark.asyncio
-    async def test_check_and_compact_returns_tuple(self, session_state):
-        """check_and_compact returns a tuple of (messages, new_state_or_none)."""
+    async def test_check_and_compact_returns_state(self, session_state):
+        """check_and_compact returns SessionState (same or new)."""
         guard = ContextGuard(shared_context=None, token_threshold=10000)
 
         # Add a small message
@@ -166,37 +141,30 @@ class TestCheckAndCompactWithSessionState:
 
         result = await guard.check_and_compact(session_state)
 
-        # Should return a tuple
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-
-        messages, new_state = result
-        assert isinstance(messages, list)
-        # Under threshold, new_state should be None
-        assert new_state is None
+        # Should return SessionState
+        assert isinstance(result, SessionState)
+        # Under threshold, should return same state
+        assert result is session_state
 
     @pytest.mark.asyncio
     async def test_check_and_compact_under_threshold_no_roll(
         self, session_state, mock_context
     ):
-        """Returns (messages, None) when under threshold - no session roll."""
+        """Returns same state when under threshold - no session roll."""
         guard = ContextGuard(shared_context=mock_context, token_threshold=10000)
 
         session_state.messages = [{"role": "user", "content": "Hello"}]
 
-        messages, new_state = await guard.check_and_compact(session_state)
+        result = await guard.check_and_compact(session_state)
 
-        # Should return the built messages (system + history)
-        assert isinstance(messages, list)
-        assert messages[0]["role"] == "system"
-        # No new state when under threshold
-        assert new_state is None
+        # Should return the same state
+        assert result is session_state
 
     @pytest.mark.asyncio
     async def test_check_and_compact_over_threshold_triggers_roll(
         self, session_state, mock_context, mock_agent
     ):
-        """Returns (compacted_messages, new_state) when over threshold - session rolls."""
+        """Returns new SessionState when over threshold - session rolls."""
         guard = ContextGuard(shared_context=mock_context, token_threshold=10)
 
         # Many messages to exceed threshold
@@ -204,23 +172,41 @@ class TestCheckAndCompactWithSessionState:
             {"role": "user", "content": f"Message {i} " * 100} for i in range(20)
         ]
 
-        with patch.object(
-            guard, "_generate_summary", new_callable=AsyncMock, return_value="Summary"
-        ):
-            messages, new_state = await guard.check_and_compact(session_state)
+        # Mock new_session to return a session with a new SessionState
+        new_session_id = "new-session-id"
 
-        # Should return compacted messages
-        assert len(messages) < len(session_state.messages) + 1  # +1 for system prompt
-        assert messages[0]["role"] == "system"
-        assert messages[1]["role"] == "user"
-        assert "[Previous conversation summary]" in messages[1]["content"]
+        # Create the new session in history store first
+        mock_context.history_store.create_session(
+            "test-agent", new_session_id, session_state.source
+        )
+
+        new_state = SessionState(
+            session_id=new_session_id,
+            agent=mock_agent,
+            messages=[],
+            source=session_state.source,
+            shared_context=mock_context,
+        )
+        mock_session = MagicMock()
+        mock_session.state = new_state
+        mock_session.session_id = new_session_id
+        mock_agent.new_session = MagicMock(return_value=mock_session)
+
+        with patch.object(
+            guard,
+            "_build_compacted_messages",
+            new_callable=AsyncMock,
+            return_value=[{"role": "user", "content": "[Summary]"}],
+        ):
+            result_state = await guard.check_and_compact(session_state)
 
         # Should return new SessionState
-        assert new_state is not None
-        assert isinstance(new_state, SessionState)
-        assert new_state.session_id != session_state.session_id
-        assert new_state.agent is mock_agent
-        assert new_state.source == session_state.source
+        assert result_state is not None
+        assert isinstance(result_state, SessionState)
+        assert result_state.session_id == new_session_id
+        assert result_state.session_id != session_state.session_id
+        assert result_state.agent is mock_agent
+        assert result_state.source == session_state.source
 
     @pytest.mark.asyncio
     async def test_roll_creates_new_session_in_history_store(
@@ -233,16 +219,35 @@ class TestCheckAndCompactWithSessionState:
             {"role": "user", "content": f"Message {i} " * 100} for i in range(20)
         ]
 
+        # Mock new_session
+        new_session_id = "new-session-id"
+        mock_context.history_store.create_session(
+            "test-agent", new_session_id, session_state.source
+        )
+        new_state = SessionState(
+            session_id=new_session_id,
+            agent=mock_agent,
+            messages=[],
+            source=session_state.source,
+            shared_context=mock_context,
+        )
+        mock_session = MagicMock()
+        mock_session.state = new_state
+        mock_agent.new_session = MagicMock(return_value=mock_session)
+
         with patch.object(
-            guard, "_generate_summary", new_callable=AsyncMock, return_value="Summary"
+            guard,
+            "_build_compacted_messages",
+            new_callable=AsyncMock,
+            return_value=[{"role": "user", "content": "[Summary]"}],
         ):
-            messages, new_state = await guard.check_and_compact(session_state)
+            result_state = await guard.check_and_compact(session_state)
 
         # Verify new session was created in history store
-        assert new_state is not None
+        assert result_state is not None
         sessions = mock_context.history_store.list_sessions()
         session_ids = [s.id for s in sessions]
-        assert new_state.session_id in session_ids
+        assert result_state.session_id in session_ids
 
     @pytest.mark.asyncio
     async def test_roll_updates_source_mapping(
@@ -255,10 +260,29 @@ class TestCheckAndCompactWithSessionState:
             {"role": "user", "content": f"Message {i} " * 100} for i in range(20)
         ]
 
+        # Mock new_session
+        new_session_id = "new-session-id"
+        mock_context.history_store.create_session(
+            "test-agent", new_session_id, session_state.source
+        )
+        new_state = SessionState(
+            session_id=new_session_id,
+            agent=mock_agent,
+            messages=[],
+            source=session_state.source,
+            shared_context=mock_context,
+        )
+        mock_session = MagicMock()
+        mock_session.state = new_state
+        mock_agent.new_session = MagicMock(return_value=mock_session)
+
         with patch.object(
-            guard, "_generate_summary", new_callable=AsyncMock, return_value="Summary"
+            guard,
+            "_build_compacted_messages",
+            new_callable=AsyncMock,
+            return_value=[{"role": "user", "content": "[Summary]"}],
         ):
-            messages, new_state = await guard.check_and_compact(session_state)
+            await guard.check_and_compact(session_state)
 
         # Verify set_runtime was called to update source mapping
         mock_context.config.set_runtime.assert_called_once()
@@ -268,8 +292,8 @@ class TestCheckAndCompactWithSessionState:
 
 class TestSummaryGeneration:
     @pytest.mark.asyncio
-    async def test_generate_summary(self, tmp_path):
-        """Generate summary of older messages using SessionState."""
+    async def test_build_compacted_messages(self, tmp_path):
+        """Build compacted messages using SessionState."""
         from picklebot.core.context_guard import ContextGuard
 
         guard = ContextGuard(shared_context=None, token_threshold=1000)
@@ -281,24 +305,29 @@ class TestSummaryGeneration:
         # Mock context
         mock_context = MagicMock()
 
-        # Create SessionState
+        # Create SessionState with messages
         source = TelegramEventSource(user_id="123", chat_id="456")
-        state = SessionState(
-            session_id="test-session",
-            agent=mock_agent,
-            messages=[],
-            source=source,
-            shared_context=mock_context,
-        )
-
         messages = [
             {"role": "user", "content": "What is Python?"},
             {"role": "assistant", "content": "Python is a programming language."},
             {"role": "user", "content": "Tell me more"},
             {"role": "assistant", "content": "It's high-level and interpreted."},
         ]
+        state = SessionState(
+            session_id="test-session",
+            agent=mock_agent,
+            messages=messages,
+            source=source,
+            shared_context=mock_context,
+        )
 
-        summary = await guard._generate_summary(state, messages)
+        result = await guard._build_compacted_messages(state)
 
-        assert summary == "Summary text"
+        # Should return list of messages
+        assert isinstance(result, list)
+        assert len(result) > 0
+        # First message should be the summary
+        assert result[0]["role"] == "user"
+        assert "[Previous conversation summary]" in result[0]["content"]
+        assert "Summary text" in result[0]["content"]
         mock_agent.llm.chat.assert_called_once()

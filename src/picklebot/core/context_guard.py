@@ -48,9 +48,8 @@ class ContextGuard:
             state: Current session state
 
         Returns:
-            Tuple of (messages to use, new_state or None)
-            - (messages, None) when under threshold
-            - (compacted_messages, new_state) when rolling
+            SessionState to use (same state if under threshold, 
+            new rolled state if over threshold)
         """
         messages = state.build_messages()
         token_count = self._count_tokens(messages, state.agent.llm.model)
@@ -129,7 +128,7 @@ class ContextGuard:
             messages: History message list (without system prompt)
 
         Returns:
-            Generated summary text
+            Compacted message list with summary + recent messages
         """
         compress_count = self._compress_message_count(state)
 

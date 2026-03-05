@@ -97,25 +97,3 @@ class TestSessionStatePersistence:
         assert len(state.messages) == 2
         assert state.messages[0]["content"] == "Hello"
         assert state.messages[1]["content"] == "Hi"
-
-    def test_get_history_returns_messages(self, tmp_path):
-        """get_history should return the messages list."""
-        from picklebot.core.history import HistoryStore
-
-        mock_agent = MagicMock()
-        mock_context = MagicMock()
-        mock_context.history_store = HistoryStore(tmp_path)
-
-        source = TelegramEventSource(user_id="123", chat_id="456")
-
-        state = SessionState(
-            session_id="test-session-id",
-            agent=mock_agent,
-            messages=[{"role": "user", "content": "Test"}],
-            source=source,
-            shared_context=mock_context,
-        )
-
-        history = state.get_history()
-        assert len(history) == 1
-        assert history[0]["content"] == "Test"

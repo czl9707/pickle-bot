@@ -247,7 +247,7 @@ def test_session_builds_prompt_with_layers(test_agent):
     source = TelegramEventSource(user_id="123", chat_id="456")
     session = test_agent.new_session(source=source)
 
-    messages = session._build_messages()
+    messages = session.state.build_messages()
     system_prompt = messages[0]["content"]
 
     # Should include agent_md
@@ -305,13 +305,13 @@ class TestAgentSessionWithSessionState:
         assert session.state.messages == []
 
     def test_agent_session_add_message_through_state(self, test_agent):
-        """Adding messages should go through state."""
+        """Messages are added directly to state."""
         source = TelegramEventSource(user_id="123", chat_id="456")
         session = test_agent.new_session(source=source)
 
-        # Add message via session (should delegate to state)
+        # Add message directly to state
         user_msg = {"role": "user", "content": "test message"}
-        session.add_message(user_msg)
+        session.state.add_message(user_msg)
 
         # Should be in state.messages
         assert user_msg in session.state.messages
@@ -357,7 +357,7 @@ class TestSessionRollingIntegration:
                 session.context_guard,
                 "check_and_compact",
                 new_callable=AsyncMock,
-                return_value=([{"role": "system", "content": "prompt"}], new_state),
+                return_value=new_state,
             ):
                 await session.chat("Hello")
 
