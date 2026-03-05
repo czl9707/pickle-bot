@@ -6,8 +6,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from picklebot.core.context_guard import ContextGuard
-from picklebot.core.history import HistoryMessage
 from picklebot.core.events import EventSource
+from picklebot.core.session_state import SessionState
 from picklebot.provider.llm import LLMProvider
 from picklebot.tools.registry import ToolRegistry
 from picklebot.tools.skill_tool import create_skill_tool
@@ -113,13 +113,20 @@ class Agent:
             token_threshold=self._get_token_threshold(),
         )
 
-        session = AgentSession(
+        # Create SessionState
+        state = SessionState(
             session_id=session_id,
-            shared_context=self.context,
             agent=self,
-            tools=tools,
+            messages=[],
             source=source,
+            shared_context=self.context,
+        )
+
+        session = AgentSession(
+            agent=self,
+            state=state,
             context_guard=context_guard,
+            tools=tools,
         )
 
         self.context.history_store.create_session(self.agent_def.id, session_id, source)
@@ -164,47 +171,59 @@ class Agent:
             token_threshold=self._get_token_threshold(),
         )
 
-        return AgentSession(
+        # Create SessionState with loaded messages
+        state = SessionState(
             session_id=session_info.id,
-            shared_context=self.context,
             agent=self,
-            tools=tools,
-            source=source,
             messages=messages,
+            source=source,
+            shared_context=self.context,
+        )
+
+        return AgentSession(
+            agent=self,
+            state=state,
             context_guard=context_guard,
+            tools=tools,
         )
 
 
 @dataclass
 class AgentSession:
-    """Runtime state for a single conversation."""
+    """Chat orchestrator - operates on swappable SessionState."""
 
-    session_id: str
-    shared_context: "SharedContext"  # Shared app context (DI container)
-    agent: Agent  # Reference to parent agent for LLM access
-    tools: ToolRegistry  # Session's own tool registry
-    source: "EventSource"  # Event source (e.g., "telegram:user_123", "cron:daily")
-    context_guard: ContextGuard  # Context window manager
-
-    messages: list[Message] = field(default_factory=list)
+    agent: Agent
+    state: SessionState  # Swappable reference
+    context_guard: ContextGuard
+    tools: ToolRegistry
     started_at: datetime = field(default_factory=datetime.now)
 
+    @property
+    def session_id(self) -> str:
+        """Delegate to state."""
+        return self.state.session_id
+
+    @property
+    def source(self) -> "EventSource":
+        """Delegate to state."""
+        return self.state.source
+
+    @property
+    def shared_context(self) -> "SharedContext":
+        """Delegate to state."""
+        return self.state.shared_context
+
     def add_message(self, message: Message) -> None:
-        """Add a message to history (in-memory + persist)."""
-        self.messages.append(message)
-        self._persist_message(message)
+        """Add a message to history (delegates to state)."""
+        self.state.add_message(message)
 
     def get_history(self) -> list[Message]:
-        """Get all messages for LLM context.
-
-        Note: Token limiting is handled by ContextGuard, not here.
-        """
-        return self.messages
+        """Get all messages for LLM context (delegates to state)."""
+        return self.state.get_history()
 
     def _persist_message(self, message: Message) -> None:
-        """Save to HistoryStore."""
-        history_msg = HistoryMessage.from_message(message)
-        self.shared_context.history_store.save_message(self.session_id, history_msg)
+        """Save to HistoryStore (delegates to state)."""
+        self.state._persist_message(message)
 
     async def chat(self, message: str) -> str:
         """
@@ -224,8 +243,10 @@ class AgentSession:
         while True:
             messages = self._build_messages()
 
-            # Check context and compact if needed
-            messages = await self.context_guard.check_and_compact(self, messages)
+            # Check context and compact if needed (may swap state)
+            messages, new_state = await self.context_guard.check_and_compact(self.state)
+            if new_state:
+                self.state = new_state  # Swap to new session!
 
             content, tool_calls = await self.agent.llm.chat(messages, tool_schemas)
 
@@ -261,9 +282,11 @@ class AgentSession:
         Returns:
             List of messages compatible with litellm
         """
-        system_prompt = self.shared_context.prompt_builder.build(self)
+        system_prompt = self.state.shared_context.prompt_builder.build_for_state(
+            self.state
+        )
         messages: list[Message] = [{"role": "system", "content": system_prompt}]
-        messages.extend(self.get_history())
+        messages.extend(self.state.get_history())
 
         return messages
 

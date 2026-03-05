@@ -5,8 +5,9 @@ import pytest
 from picklebot.core.agent import Agent
 from picklebot.core.agent_loader import AgentDef
 from picklebot.core.context import SharedContext
-from picklebot.core.events import CronEventSource, CliEventSource
+from picklebot.core.events import CronEventSource
 from picklebot.messagebus.telegram_bus import TelegramEventSource
+from picklebot.messagebus.cli_bus import CliEventSource
 from picklebot.utils.config import LLMConfig, MessageBusConfig, TelegramConfig
 
 
@@ -256,3 +257,119 @@ def test_session_builds_prompt_with_layers(test_agent):
     assert "telegram" in system_prompt.lower()
     # Should include runtime
     assert "Agent:" in system_prompt
+
+
+class TestAgentSessionWithSessionState:
+    """Tests for AgentSession integration with SessionState."""
+
+    def test_agent_session_has_state(self, test_agent):
+        """AgentSession should have a state field."""
+        source = TelegramEventSource(user_id="123", chat_id="456")
+        session = test_agent.new_session(source=source)
+        assert hasattr(session, "state")
+        assert session.state.session_id == session.session_id
+
+    def test_agent_session_state_is_swappable(self, test_agent):
+        """AgentSession.state should be swappable."""
+        from picklebot.core.session_state import SessionState
+
+        source = TelegramEventSource(user_id="123", chat_id="456")
+        session = test_agent.new_session(source=source)
+
+        new_state = SessionState(
+            session_id="new-session-id",
+            agent=test_agent,
+            messages=[],
+            source=source,
+            shared_context=test_agent.context,
+        )
+
+        session.state = new_state
+        assert session.state.session_id == "new-session-id"
+
+    def test_agent_session_delegates_properties_to_state(self, test_agent):
+        """AgentSession properties should delegate to state."""
+        source = TelegramEventSource(user_id="123", chat_id="456")
+        session = test_agent.new_session(source=source)
+
+        # Properties should delegate to state
+        assert session.session_id == session.state.session_id
+        assert session.source == session.state.source
+        assert session.shared_context == session.state.shared_context
+
+    def test_agent_session_state_has_initial_messages(self, test_agent):
+        """AgentSession.state should have empty messages initially."""
+        source = TelegramEventSource(user_id="123", chat_id="456")
+        session = test_agent.new_session(source=source)
+
+        assert hasattr(session.state, "messages")
+        assert session.state.messages == []
+
+    def test_agent_session_add_message_through_state(self, test_agent):
+        """Adding messages should go through state."""
+        source = TelegramEventSource(user_id="123", chat_id="456")
+        session = test_agent.new_session(source=source)
+
+        # Add message via session (should delegate to state)
+        user_msg = {"role": "user", "content": "test message"}
+        session.add_message(user_msg)
+
+        # Should be in state.messages
+        assert user_msg in session.state.messages
+
+
+class TestSessionRollingIntegration:
+    """Integration tests for session rolling with SessionState."""
+
+    @pytest.mark.asyncio
+    async def test_messages_go_to_new_session_after_roll(self, test_agent):
+        """After rolling, new messages should go to the new session."""
+        from unittest.mock import AsyncMock, patch
+        from picklebot.core.session_state import SessionState
+
+        source = TelegramEventSource(user_id="123", chat_id="456")
+        session = test_agent.new_session(source=source)
+
+        old_session_id = session.session_id
+
+        # Create a new state that will be returned by check_and_compact
+        new_state = SessionState(
+            session_id="new-rolled-session",
+            agent=test_agent,
+            messages=[],
+            source=source,
+            shared_context=test_agent.context,
+        )
+
+        # Create the new session in history
+        test_agent.context.history_store.create_session(
+            test_agent.agent_def.id, "new-rolled-session", source
+        )
+
+        # Mock LLM to return response
+        with patch.object(
+            test_agent.llm,
+            "chat",
+            new_callable=AsyncMock,
+            return_value=("Response", []),
+        ):
+            # Mock check_and_compact to trigger a roll
+            with patch.object(
+                session.context_guard,
+                "check_and_compact",
+                new_callable=AsyncMock,
+                return_value=([{"role": "system", "content": "prompt"}], new_state),
+            ):
+                await session.chat("Hello")
+
+        # State should be swapped
+        assert session.state.session_id == "new-rolled-session"
+        assert session.state.session_id != old_session_id
+
+        # Assistant message should be in NEW session
+        new_session_messages = test_agent.context.history_store.get_messages(
+            "new-rolled-session"
+        )
+        assert len(new_session_messages) >= 1
+        # The assistant response should be persisted to the new session
+        assert any(m.role == "assistant" for m in new_session_messages)

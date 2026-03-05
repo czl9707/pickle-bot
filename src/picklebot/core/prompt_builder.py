@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from picklebot.core.agent import AgentSession
     from picklebot.core.context import SharedContext
     from picklebot.core.events import EventSource
+    from picklebot.core.session_state import SessionState
 
 
 class PromptBuilder:
@@ -59,6 +60,42 @@ class PromptBuilder:
 
         # Layer 5: Channel hint
         layers.append(self._build_channel_hint(session.source))
+
+        return "\n\n".join(layers)
+
+    def build_for_state(self, state: "SessionState") -> str:
+        """Build the full system prompt from SessionState.
+
+        Args:
+            state: SessionState with agent and source
+
+        Returns:
+            Assembled system prompt string
+        """
+        layers = []
+
+        # Layer 1: Identity
+        layers.append(state.agent.agent_def.agent_md)
+
+        # Layer 2: Soul (optional)
+        if state.agent.agent_def.soul_md:
+            layers.append(f"## Personality\n\n{state.agent.agent_def.soul_md}")
+
+        # Layer 3: Bootstrap context
+        bootstrap = self._load_bootstrap_context()
+        if bootstrap:
+            layers.append(bootstrap)
+
+        # Layer 4: Runtime context
+        layers.append(
+            self._build_runtime_context(
+                state.agent.agent_def.id,
+                datetime.now(),
+            )
+        )
+
+        # Layer 5: Channel hint
+        layers.append(self._build_channel_hint(state.source))
 
         return "\n\n".join(layers)
 
