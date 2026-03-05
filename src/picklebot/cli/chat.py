@@ -4,6 +4,8 @@ import asyncio
 import logging
 import warnings
 
+from picklebot.core.agent import Agent
+
 # Suppress all warnings at module level (e.g., RequestsDependencyWarning)
 warnings.filterwarnings("ignore")
 
@@ -28,7 +30,7 @@ logger = logging.getLogger(__name__)
 class ChatLoop:
     """Interactive chat session using event-driven architecture."""
 
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, agent_id: str | None = None):
         self.config = config
         self.console = Console()
         self.context = SharedContext(config=config, buses=[])
@@ -40,6 +42,13 @@ class ChatLoop:
 
         self.response_queue: asyncio.Queue[OutboundEvent] = asyncio.Queue()
         self.context.eventbus.subscribe(OutboundEvent, self.handle_outbound_event)
+
+        if not agent_id:
+            agent_id = self.context.routing_table.resolve(str(CliEventSource()))
+        if not agent_id:
+            agent_id = self.config.default_agent
+        self.agent = self.context.agent_loader.load(agent_id)
+
 
     async def handle_outbound_event(self, event: OutboundEvent) -> None:
         """Handle outbound events by adding to response queue."""
@@ -62,7 +71,7 @@ class ChatLoop:
         Args:
             content: Agent response content
         """
-        prefix = Text("Agent: ", style="green")
+        prefix = Text(f"{self.agent.id}: ", style="green")
 
         self.console.print(prefix, end="")
         self.console.print(content)
@@ -91,11 +100,13 @@ class ChatLoop:
                 if not user_input:
                     continue
 
-                session_id = "cli-session"
+                session_id = Agent(self.agent, self.context).new_session(
+                    CliEventSource()
+                ).session_id
 
                 event = InboundEvent(
                     session_id=session_id,
-                    agent_id="default",
+                    agent_id=self.agent.id,
                     source=CliEventSource(),
                     content=user_input,
                 )
@@ -105,7 +116,7 @@ class ChatLoop:
                     response = await asyncio.wait_for(
                         self.response_queue.get(), timeout=60.0
                     )
-                    self.console.print(response.error)
+
                     self.display_agent_response(response.content)
                 except asyncio.TimeoutError:
                     self.console.print("[red]Agent response timed out[/red]")
@@ -118,11 +129,11 @@ class ChatLoop:
                 await worker.stop()
 
 
-def chat_command(ctx: typer.Context) -> None:
+def chat_command(ctx: typer.Context, agent_id: str | None = None) -> None:
     """Start interactive chat session."""
     config = ctx.obj.get("config")
 
     setup_logging(config, console_output=False)
 
-    chat_loop = ChatLoop(config)
+    chat_loop = ChatLoop(config, agent_id=agent_id)
     asyncio.run(chat_loop.run())
