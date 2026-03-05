@@ -13,7 +13,7 @@ from rich.panel import Panel  # noqa: E402
 from rich.prompt import Prompt  # noqa: E402
 from rich.text import Text  # noqa: E402
 
-from picklebot.core.events import OutboundEvent, CliEventSource  # noqa: E402
+from picklebot.core.events import OutboundEvent, CliEventSource, InboundEvent  # noqa: E402
 from picklebot.core.context import SharedContext  # noqa: E402
 from picklebot.server import (  # noqa: E402
     AgentWorker,
@@ -31,20 +31,14 @@ class ChatLoop:
     def __init__(self, config: Config):
         self.config = config
         self.console = Console()
-
-        # Create SharedContext without buses
         self.context = SharedContext(config=config, buses=[])
 
-        # Create minimal workers for CLI chat
         self.workers: list[Worker] = [
             self.context.eventbus,
             AgentWorker(self.context),
         ]
 
-        # Response queue for collecting agent responses
         self.response_queue: asyncio.Queue[OutboundEvent] = asyncio.Queue()
-
-        # Subscribe to outbound events
         self.context.eventbus.subscribe(OutboundEvent, self.handle_outbound_event)
 
     async def handle_outbound_event(self, event: OutboundEvent) -> None:
@@ -58,16 +52,9 @@ class ChatLoop:
         Returns:
             Trimmed user input, or empty string if quit command
         """
-        # Create cyan prompt
-        prompt_text = Text("You: ", style="cyan")
-
-        # Get input (Prompt.get_input handles the styling)
+        prompt_text = Text("You", style="cyan")
         user_input = Prompt.ask(prompt_text, console=self.console)
-
-        # Trim whitespace
-        user_input = user_input.strip()
-
-        return user_input
+        return user_input.strip()
 
     def display_agent_response(self, content: str) -> None:
         """Display agent response with styled prefix.
@@ -75,19 +62,13 @@ class ChatLoop:
         Args:
             content: Agent response content
         """
-        # Create green prefix
         prefix = Text("Agent: ", style="green")
 
-        # Print prefix and content
         self.console.print(prefix, end="")
         self.console.print(content)
 
-        # Add separator line
-        self.console.print()
-
     async def run(self) -> None:
         """Run the interactive chat loop."""
-        # Display welcome message
         self.console.print(
             Panel(
                 Text("Welcome to pickle-bot!", style="bold cyan"),
@@ -97,29 +78,19 @@ class ChatLoop:
         )
         self.console.print("Type 'quit' or 'exit' to end the session.\n")
 
-        # Start workers
         for worker in self.workers:
             worker.start()
 
         try:
             while True:
-                # Get user input
                 user_input = await asyncio.to_thread(self.get_user_input)
-
-                # Check for quit commands
                 if user_input.lower() in ("quit", "exit", "q"):
                     self.console.print("\nGoodbye!")
                     break
 
-                # Skip empty input
                 if not user_input:
                     continue
 
-                # Publish InboundEvent
-                from picklebot.core.events import InboundEvent
-                import time
-
-                # Get or create session (simplified for CLI)
                 session_id = "cli-session"
 
                 event = InboundEvent(
@@ -127,16 +98,14 @@ class ChatLoop:
                     agent_id="default",
                     source=CliEventSource(),
                     content=user_input,
-                    timestamp=time.time(),
                 )
                 await self.context.eventbus.publish(event)
 
-                # Wait for agent response
                 try:
                     response = await asyncio.wait_for(
-                        self.response_queue.get(), timeout=30.0
+                        self.response_queue.get(), timeout=60.0
                     )
-                    # Display response
+                    self.console.print(response.error)
                     self.display_agent_response(response.content)
                 except asyncio.TimeoutError:
                     self.console.print("[red]Agent response timed out[/red]")
@@ -145,7 +114,6 @@ class ChatLoop:
         except (KeyboardInterrupt, EOFError):
             self.console.print("\nGoodbye!")
         finally:
-            # Stop all workers gracefully
             for worker in self.workers:
                 await worker.stop()
 

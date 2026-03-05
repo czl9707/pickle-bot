@@ -1,7 +1,6 @@
 """Tests for layered prompt architecture (SOUL.md + AGENT.md + workspace context)."""
 
 from pathlib import Path
-from unittest.mock import MagicMock
 import uuid
 
 import pytest
@@ -107,7 +106,9 @@ class TestPromptConcatenation:
         )
         return session
 
-    def test_includes_agent_md_content(self, workspace_context: SharedContext, mock_session):
+    def test_includes_agent_md_content(
+        self, workspace_context: SharedContext, mock_session
+    ):
         """Prompt should include AGENT.md content."""
         builder = PromptBuilder(workspace_context)
         prompt = builder.build(mock_session)
@@ -124,7 +125,9 @@ class TestPromptConcatenation:
         assert "## Personality" in prompt
         assert "warm and genuinely helpful" in prompt
 
-    def test_includes_bootstrap_md(self, workspace_context: SharedContext, mock_session):
+    def test_includes_bootstrap_md(
+        self, workspace_context: SharedContext, mock_session
+    ):
         """Prompt should include BOOTSTRAP.md content."""
         builder = PromptBuilder(workspace_context)
         prompt = builder.build(mock_session)
@@ -138,7 +141,9 @@ class TestPromptConcatenation:
 
         assert "Available Agents" in prompt
 
-    def test_prompt_length_reasonable(self, workspace_context: SharedContext, mock_session):
+    def test_prompt_length_reasonable(
+        self, workspace_context: SharedContext, mock_session
+    ):
         """Prompt should have substantial content from all layers."""
         builder = PromptBuilder(workspace_context)
         prompt = builder.build(mock_session)
