@@ -213,18 +213,6 @@ class AgentSession:
         """Delegate to state."""
         return self.state.shared_context
 
-    def add_message(self, message: Message) -> None:
-        """Add a message to history (delegates to state)."""
-        self.state.add_message(message)
-
-    def get_history(self) -> list[Message]:
-        """Get all messages for LLM context (delegates to state)."""
-        return self.state.get_history()
-
-    def _persist_message(self, message: Message) -> None:
-        """Save to HistoryStore (delegates to state)."""
-        self.state._persist_message(message)
-
     async def chat(self, message: str) -> str:
         """
         Send a message to the LLM and get a response.
@@ -236,18 +224,13 @@ class AgentSession:
             Assistant's response text
         """
         user_msg: Message = {"role": "user", "content": message}
-        self.add_message(user_msg)
+        self.state.add_message(user_msg)
 
         tool_schemas = self.tools.get_tool_schemas()
 
         while True:
-            messages = self._build_messages()
-
-            # Check context and compact if needed (may swap state)
-            messages, new_state = await self.context_guard.check_and_compact(self.state)
-            if new_state:
-                self.state = new_state  # Swap to new session!
-
+            messages = self.state.build_messages()
+            self.state = await self.context_guard.check_and_compact(self.state)
             content, tool_calls = await self.agent.llm.chat(messages, tool_schemas)
 
             tool_call_dicts: list[ChatCompletionMessageToolCallParam] = [
@@ -264,7 +247,7 @@ class AgentSession:
                 "tool_calls": tool_call_dicts,
             }
 
-            self.add_message(assistant_msg)
+            self.state.add_message(assistant_msg)
 
             if not tool_calls:
                 break
@@ -275,18 +258,6 @@ class AgentSession:
 
         return content
 
-    def _build_messages(self) -> list[Message]:
-        """
-        Build messages for LLM API call.
-
-        Returns:
-            List of messages compatible with litellm
-        """
-        system_prompt = self.state.shared_context.prompt_builder.build(self.state)
-        messages: list[Message] = [{"role": "system", "content": system_prompt}]
-        messages.extend(self.state.get_history())
-
-        return messages
 
     async def _handle_tool_calls(
         self,
@@ -308,7 +279,7 @@ class AgentSession:
                 "content": result,
                 "tool_call_id": tool_call.id,
             }
-            self.add_message(tool_msg)
+            self.state.add_message(tool_msg)
 
     async def _execute_tool_call(
         self,

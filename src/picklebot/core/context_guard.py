@@ -24,7 +24,7 @@ class ContextGuard:
     shared_context: "SharedContext"
     token_threshold: int = 160000  # 80% of 200k context
 
-    def count_tokens(self, messages: list[Message], model: str) -> int:
+    def _count_tokens(self, messages: list[Message], model: str) -> int:
         """Count tokens using litellm's token_counter.
 
         Args:
@@ -37,6 +37,33 @@ class ContextGuard:
         if not messages:
             return 0
         return token_counter(model=model, messages=messages)
+
+    async def check_and_compact(
+        self,
+        state: "SessionState",
+    ) -> "SessionState":
+        """Check token count, compact and roll session if needed.
+
+        Args:
+            state: Current session state
+
+        Returns:
+            Tuple of (messages to use, new_state or None)
+            - (messages, None) when under threshold
+            - (compacted_messages, new_state) when rolling
+        """
+        messages = state.build_messages()
+        token_count = self._count_tokens(messages, state.agent.llm.model)
+
+        if token_count < self.token_threshold:
+            return state
+
+        return await self._compact_and_roll(state)
+
+    def _compress_message_count(self, state: "SessionState") -> int:
+        keep_count = max(4, int(len(state.messages) * 0.2))
+        compress_count = max(2, int(len(state.messages) * 0.5))
+        return min(compress_count, len(state.messages) - keep_count)
 
     def _serialize_messages_for_summary(self, messages: list[Message]) -> str:
         """Serialize messages to plain text for summarization.
@@ -66,84 +93,10 @@ class ContextGuard:
                 lines.append(f"{role.upper()}: {content}")
         return "\n".join(lines)
 
-    def _build_compacted_messages(
-        self,
-        summary: str,
-        original_messages: list[Message],
-    ) -> list[Message]:
-        """Build new message list with summary + recent messages.
-
-        Args:
-            summary: Generated summary text
-            original_messages: Original message list
-
-        Returns:
-            Compacted message list
-        """
-        keep_count = max(4, int(len(original_messages) * 0.2))
-        compress_count = max(2, int(len(original_messages) * 0.5))
-        compress_count = min(compress_count, len(original_messages) - keep_count)
-
-        messages: list[Message] = []
-        messages.append(
-            {
-                "role": "user",
-                "content": f"[Previous conversation summary]\n{summary}",
-            }
-        )
-        messages.append(
-            {
-                "role": "assistant",
-                "content": "Understood, I have the context.",
-            }
-        )
-        messages.extend(original_messages[compress_count:])
-        return messages
-
-    def _build_full_messages(self, state: "SessionState") -> list[Message]:
-        """Build full message list (system prompt + history).
-
-        Args:
-            state: SessionState containing messages
-
-        Returns:
-            Full message list for LLM
-        """
-        system_prompt = state.shared_context.prompt_builder.build(state)
-        messages: list[Message] = [{"role": "system", "content": system_prompt}]
-        messages.extend(state.get_history())
-        return messages
-
-    async def check_and_compact(
-        self,
-        state: "SessionState",
-    ) -> tuple[list[Message], "SessionState | None"]:
-        """Check token count, compact and roll session if needed.
-
-        Args:
-            state: Current session state
-
-        Returns:
-            Tuple of (messages to use, new_state or None)
-            - (messages, None) when under threshold
-            - (compacted_messages, new_state) when rolling
-        """
-        # Build full messages (system + history)
-        messages = self._build_full_messages(state)
-
-        token_count = self.count_tokens(messages, state.agent.llm.model)
-
-        if token_count < self.token_threshold:
-            return messages, None
-
-        # Over threshold - compact and roll
-        return await self._compact_and_roll(state, messages)
-
     async def _compact_and_roll(
         self,
         state: "SessionState",
-        messages: list[Message],
-    ) -> tuple[list[Message], "SessionState"]:
+    ) -> "SessionState":
         """Compact history, roll to new session, return new messages.
 
         Args:
@@ -153,68 +106,22 @@ class ContextGuard:
         Returns:
             Tuple of (compacted messages, new SessionState)
         """
-        # Extract history messages (skip system prompt at index 0)
-        history_messages = messages[1:]
-
-        # Generate summary of older messages
-        summary = await self._generate_summary(state, history_messages)
-
-        # Roll to new session
-        new_state = self._roll_session(state, summary)
-
-        # Build compacted messages with system prompt
-        compacted_history = self._build_compacted_messages(summary, history_messages)
-        result_messages: list[Message] = [
-            {
-                "role": "system",
-                "content": state.shared_context.prompt_builder.build(new_state),
-            }
-        ]
-        result_messages.extend(compacted_history)
-
-        return result_messages, new_state
-
-    def _roll_session(self, state: "SessionState", summary: str) -> "SessionState":
-        """Create new SessionState with new session ID.
-
-        Args:
-            state: Current session state
-            summary: Generated summary (for reference)
-
-        Returns:
-            New SessionState with fresh session
-        """
-
-        # Generate new session ID
-        new_session_id = str(uuid.uuid4())
-
-        # Create new session in HistoryStore
-        state.shared_context.history_store.create_session(
-            state.agent.agent_def.id,
-            new_session_id,
-            state.source,
-        )
-
-        # Update source -> session mapping
+        new_session = state.agent.new_session(state.source)
         self.shared_context.config.set_runtime(
             f"sources.{state.source}",
-            {"session_id": new_session_id},
+            {"session_id": new_session.session_id},
         )
 
-        # Create and return new SessionState
-        return SessionState(
-            session_id=new_session_id,
-            agent=state.agent,
-            messages=[],
-            source=state.source,
-            shared_context=state.shared_context,
-        )
+        compacted_history = await self._build_compacted_messages(state)
+        for message in compacted_history:
+            new_session.state.add_message(message)
 
-    async def _generate_summary(
+        return new_session.state
+
+    async def _build_compacted_messages(
         self,
         state: "SessionState",
-        messages: list[Message],
-    ) -> str:
+    ) -> list[Message]:
         """Generate summary of older messages using agent's LLM.
 
         Args:
@@ -224,22 +131,33 @@ class ContextGuard:
         Returns:
             Generated summary text
         """
-        keep_count = max(4, int(len(messages) * 0.2))
-        compress_count = max(2, int(len(messages) * 0.5))
-        compress_count = min(compress_count, len(messages) - keep_count)
+        compress_count = self._compress_message_count(state)
 
-        old_messages = messages[:compress_count]
-
-        # Serialize old messages for summary
+        old_messages = state.messages[:compress_count]
         old_text = self._serialize_messages_for_summary(old_messages)
 
         summary_prompt = f"""Summarize the conversation so far. Keep it factual and concise. Focus on key decisions, facts, and user preferences discovered:
 
 {old_text}"""
 
-        # Use agent's LLM to generate summary
         response, _ = await state.agent.llm.chat(
             [{"role": "user", "content": summary_prompt}],
             [],  # No tools needed
         )
-        return response
+        
+        messages: list[Message] = []
+        messages.append(
+            {
+                "role": "user",
+                "content": f"[Previous conversation summary]\n{response}",
+            }
+        )
+        messages.append(
+            {
+                "role": "assistant",
+                "content": "Understood, I have the context.",
+            }
+        )
+        messages.extend(state.messages[compress_count:])
+        return messages
+
