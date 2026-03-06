@@ -25,7 +25,8 @@ class ChannelWorker(Worker):
         self.logger.info(f"ChannelWorker started with {len(self.channels)} channel(es)")
 
         channel_tasks = [
-            channel.run(self._create_callback(channel.platform_name)) for channel in self.channels
+            channel.run(self._create_callback(channel.platform_name))
+            for channel in self.channels
         ]
 
         try:

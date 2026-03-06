@@ -113,7 +113,9 @@ class TestSharedContextEventBus:
 class TestSharedContextCustomChannels:
     """Tests for optional channels parameter in SharedContext.__init__."""
 
-    def test_backward_compatible_loads_from_config_when_channels_none(self, mock_config):
+    def test_backward_compatible_loads_from_config_when_channels_none(
+        self, mock_config
+    ):
         """When channels=None (default), should load from config like before."""
         with patch("picklebot.core.context.Channel.from_config") as mock_from_config:
             mock_from_config.return_value = []

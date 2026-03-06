@@ -3,13 +3,11 @@
 import pytest
 
 from picklebot.core.events import (
-    Event,
     InboundEvent,
     OutboundEvent,
     DispatchEvent,
     DispatchResultEvent,
     AgentEventSource,
-    CronEventSource,
     serialize_event,
     deserialize_event,
 )
@@ -19,12 +17,15 @@ from picklebot.channel.telegram_channel import TelegramEventSource
 class TestEventRoundtrip:
     """Parametrized roundtrip tests for all Event types."""
 
-    @pytest.mark.parametrize("event_cls,extra_args", [
-        (InboundEvent, {"retry_count": 0}),
-        (OutboundEvent, {"error": None}),
-        (DispatchEvent, {"parent_session_id": "parent-1", "retry_count": 0}),
-        (DispatchResultEvent, {"error": None}),
-    ])
+    @pytest.mark.parametrize(
+        "event_cls,extra_args",
+        [
+            (InboundEvent, {"retry_count": 0}),
+            (OutboundEvent, {"error": None}),
+            (DispatchEvent, {"parent_session_id": "parent-1", "retry_count": 0}),
+            (DispatchResultEvent, {"error": None}),
+        ],
+    )
     def test_event_roundtrip(self, event_cls, extra_args):
         """Event should serialize/deserialize with all fields preserved."""
         source = TelegramEventSource(user_id="123", chat_id="456")

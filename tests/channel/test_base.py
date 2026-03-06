@@ -14,6 +14,7 @@ from picklebot.utils.config import (
     LLMConfig,
 )
 
+
 class MockChannel(Channel[Any]):
     """Mock implementation for testing."""
 
