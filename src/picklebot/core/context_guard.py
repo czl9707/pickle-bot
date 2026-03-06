@@ -1,6 +1,5 @@
 """Context guard for proactive context window management."""
 
-import uuid
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
@@ -48,7 +47,7 @@ class ContextGuard:
             state: Current session state
 
         Returns:
-            SessionState to use (same state if under threshold, 
+            SessionState to use (same state if under threshold,
             new rolled state if over threshold)
         """
         messages = state.build_messages()
@@ -143,7 +142,7 @@ class ContextGuard:
             [{"role": "user", "content": summary_prompt}],
             [],  # No tools needed
         )
-        
+
         messages: list[Message] = []
         messages.append(
             {
@@ -159,4 +158,3 @@ class ContextGuard:
         )
         messages.extend(state.messages[compress_count:])
         return messages
-

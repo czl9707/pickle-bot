@@ -258,7 +258,6 @@ class AgentSession:
 
         return content
 
-
     async def _handle_tool_calls(
         self,
         tool_calls: list["LLMToolCall"],

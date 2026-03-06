@@ -10,6 +10,8 @@ from fastapi import WebSocket
 from fastapi.websockets import WebSocketDisconnect
 from pydantic import ValidationError
 
+from picklebot.core.agent import Agent
+
 from .worker import SubscriberWorker
 from picklebot.core.events import (
     Event,
@@ -61,8 +63,6 @@ class WebSocketWorker(SubscriberWorker):
         )
 
         try:
-            # WebSocket should already be accepted by the endpoint
-            # We don't need to call accept() again
             await self._run_client_loop(ws)
         finally:
             self.clients.discard(ws)
@@ -83,27 +83,22 @@ class WebSocketWorker(SubscriberWorker):
 
         while True:
             try:
-                # Receive and validate message
                 data = await ws.receive_json()
                 msg = WebSocketMessage(**data)
 
-                # Normalize to InboundEvent
                 event = self._normalize_message(msg)
 
-                # Emit to EventBus
-                await self.context.eventbus.emit(event)
+                await self.context.eventbus.publish(event)
                 self.logger.debug(f"Emitted InboundEvent from WebSocket: {msg.source}")
 
             except WebSocketDisconnect:
                 self.logger.info("Client disconnected normally")
                 break
             except ValidationError as e:
-                # Send validation error back to client
                 await ws.send_json(
                     {"type": "error", "message": f"Validation error: {e}"}
                 )
                 self.logger.warning(f"Validation error from client: {e}")
-                # Don't disconnect - let client retry
             except Exception as e:
                 self.logger.error(f"Unexpected error in client loop: {e}")
                 break
@@ -117,55 +112,39 @@ class WebSocketWorker(SubscriberWorker):
         Returns:
             InboundEvent ready to emit to EventBus
         """
-        # Determine agent_id (use routing if null)
+        source = WebSocketEventSource(user_id=msg.source)
+
         agent_id = msg.agent_id
         if agent_id is None:
-            agent_id = self._route_message(msg.source, msg.content)
+            agent_id = self.context.routing_table.resolve(str(source))
 
-        # Lookup or create session
-        session_id = self._get_or_create_session(agent_id, msg.source)
+        session_id = self._get_or_create_session_id(source, agent_id)
 
         return InboundEvent(
             session_id=session_id,
             agent_id=agent_id,
-            source=WebSocketEventSource(user_id=msg.source),
+            source=source,
             content=msg.content,
             timestamp=time.time(),
         )
 
-    def _route_message(self, source: str, content: str) -> str:
-        """Route message to determine target agent.
+    def _get_or_create_session_id(
+        self, source: WebSocketEventSource, agent_id: str
+    ) -> str:
+        """Get existing session_id from source cache, or create new session."""
 
-        Uses SharedContext routing to determine agent_id based on source.
+        source_info = self.context.config.sources.get(str(source))
+        if source_info:
+            return source_info["session_id"]
 
-        Args:
-            source: Client source identifier
-            content: Message content
+        agent_def = self.context.agent_loader.load(agent_id)
+        agent = Agent(agent_def, self.context)
+        session = agent.new_session(source)
 
-        Returns:
-            Agent ID to handle this message
-        """
-        # Use routing system to determine agent
-        # For now, default to 'pickle' agent
-        # TODO: Integrate with routing system when available
-        return "pickle"
-
-    def _get_or_create_session(self, agent_id: str, source: str) -> str:
-        """Get existing session or create new one.
-
-        Args:
-            agent_id: Target agent ID
-            source: Client source identifier
-
-        Returns:
-            Session ID
-        """
-        # For now, create a simple session ID based on source and agent
-        # TODO: Integrate with proper session management
-        import hashlib
-
-        session_key = f"{agent_id}:{source}"
-        return hashlib.md5(session_key.encode()).hexdigest()[:12]
+        self.context.config.set_runtime(
+            f"sources.{str(source)}", {"session_id": session.session_id}
+        )
+        return session.session_id
 
     async def handle_event(self, event: Event) -> None:
         """Handle EventBus event by broadcasting to WebSocket clients.
