@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from picklebot.core.context import SharedContext
+    from picklebot.core.agent import AgentSession
 
 
 class Command(ABC):
@@ -15,6 +15,6 @@ class Command(ABC):
     description: str = ""
 
     @abstractmethod
-    def execute(self, args: str, ctx: "SharedContext") -> str:
+    def execute(self, args: str, session: "AgentSession") -> str:
         """Execute the command and return response string."""
         pass
