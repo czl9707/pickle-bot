@@ -6,6 +6,7 @@
 - Skills: `{{skills_path}}`
 - Crons: `{{crons_path}}`
 - Memories: `{{memories_path}}`
+- Agents: `{{agents_path}}`
 
 ## Directory Structure
 
@@ -21,6 +22,8 @@
 │   └── {name}/
 │       └── SKILL.md      # Skill definition
 ├── crons/                # Scheduled tasks
+│   └── {name}/
+│       └── CRON.md      # Skill definition
 └── memories/             # Persistent memory storage
     ├── topics/           # Timeless facts
     ├── projects/         # Project-specific context
