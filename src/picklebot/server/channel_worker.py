@@ -1,4 +1,4 @@
-"""MessageBus worker for ingesting platform messages."""
+"""Channel worker for ingesting platform messages."""
 
 import asyncio
 import time
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
 
 
-class MessageBusWorker(Worker):
+class ChannelWorker(Worker):
     """Ingests messages from platforms, publishes INBOUND events to EventBus."""
 
     def __init__(self, context: "SharedContext"):
@@ -22,7 +22,7 @@ class MessageBusWorker(Worker):
 
     async def run(self) -> None:
         """Start all buses and process incoming messages."""
-        self.logger.info(f"MessageBusWorker started with {len(self.buses)} bus(es)")
+        self.logger.info(f"ChannelWorker started with {len(self.buses)} bus(es)")
 
         bus_tasks = [
             bus.run(self._create_callback(bus.platform_name)) for bus in self.buses
