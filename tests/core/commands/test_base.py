@@ -17,14 +17,14 @@ class ConcreteCommand(Command):
 class TestCommand:
     """Tests for Command ABC."""
 
-    def test_command_properties(self):
-        """Command should have name, aliases, description."""
+    def test_command_creation_and_execution(self):
+        """Command should have properties and execute correctly."""
         cmd = ConcreteCommand()
+
+        # Check properties
         assert cmd.name == "test"
         assert cmd.aliases == ["t", "tst"]
         assert cmd.description == "A test command"
 
-    def test_execute_returns_string(self):
-        """execute() should return string."""
-        cmd = ConcreteCommand()
+        # Check execution
         assert cmd.execute("args", None) == "executed with: args"
