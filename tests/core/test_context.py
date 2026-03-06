@@ -1,6 +1,6 @@
 """Tests for SharedContext."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -41,15 +41,21 @@ llm:
 class TestSharedContextBasics:
     """Tests for basic SharedContext initialization."""
 
-    def test_context_initialization(self, test_context):
+    @pytest.mark.parametrize(
+        "attr",
+        [
+            "config",
+            "history_store",
+            "agent_loader",
+            "skill_loader",
+            "cron_loader",
+            "command_registry",
+            "eventbus",
+        ],
+    )
+    def test_context_initialization(self, test_context, attr):
         """SharedContext should initialize with all required components."""
-        assert test_context.config is not None
-        assert test_context.history_store is not None
-        assert test_context.agent_loader is not None
-        assert test_context.skill_loader is not None
-        assert test_context.cron_loader is not None
-        assert test_context.command_registry is not None
-        assert test_context.eventbus is not None
+        assert getattr(test_context, attr) is not None
 
     def test_shared_context_has_routing_table(self, test_context):
         """SharedContext should initialize RoutingTable."""
@@ -113,41 +119,24 @@ class TestSharedContextEventBus:
 class TestSharedContextCustomChannels:
     """Tests for optional channels parameter in SharedContext.__init__."""
 
-    def test_backward_compatible_loads_from_config_when_channels_none(
-        self, mock_config
+    @pytest.mark.parametrize(
+        "channels_param,expect_from_config_called",
+        [(None, True), ([], False)],
+        ids=["none_loads_from_config", "empty_list_skips_config"],
+    )
+    def test_channels_parameter_behavior(
+        self, mock_config, channels_param, expect_from_config_called
     ):
-        """When channels=None (default), should load from config like before."""
+        """Test channels=None loads from config, empty list skips config."""
         with patch("picklebot.core.context.Channel.from_config") as mock_from_config:
             mock_from_config.return_value = []
 
-            context = SharedContext(config=mock_config, channels=None)
+            context = SharedContext(config=mock_config, channels=channels_param)
 
-            # Should have called from_config with the config
-            mock_from_config.assert_called_once_with(mock_config)
-            assert context.channels == []
-
-    def test_backward_compatible_default_behavior(self, mock_config):
-        """Without channels parameter, should load from config (backward compat)."""
-        with patch("picklebot.core.context.Channel.from_config") as mock_from_config:
-            mock_from_config.return_value = []
-
-            # Call without channels parameter - should work like before
-            context = SharedContext(config=mock_config)
-
-            mock_from_config.assert_called_once_with(mock_config)
-            assert context.channels == []
-
-    def test_empty_channels_list_is_used_not_config(self, mock_config):
-        """Empty list should be used, not fall back to config."""
-        with patch("picklebot.core.context.Channel.from_config") as mock_from_config:
-            mock_from_config.return_value = [
-                MagicMock()
-            ]  # Would return something if called
-
-            # Pass empty list - should NOT call from_config
-            context = SharedContext(config=mock_config, channels=[])
-
-            mock_from_config.assert_not_called()
+            if expect_from_config_called:
+                mock_from_config.assert_called_once_with(mock_config)
+            else:
+                mock_from_config.assert_not_called()
             assert context.channels == []
 
     def test_multiple_channels_accepted(self, mock_config):
