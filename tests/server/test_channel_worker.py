@@ -363,6 +363,12 @@ class TestChannelWorkerSlashCommands:
         # Add eventbus mock
         context.eventbus = MagicMock()
         context.eventbus.publish = AsyncMock()
+        # Add routing_table mock
+        context.routing_table = MagicMock()
+        context.routing_table.resolve = Mock(return_value="test")
+        context.routing_table.get_or_create_session_id = Mock(
+            return_value="test-session-123"
+        )
         return context
 
     def test_context_has_command_registry(self, mock_context):
@@ -375,36 +381,37 @@ class TestChannelWorkerSlashCommands:
         assert isinstance(mock_context.command_registry, CommandRegistry)
 
     @pytest.mark.anyio
-    async def test_callback_handles_slash_command(self, mock_context):
-        """Callback should dispatch slash commands and reply directly."""
+    async def test_channel_worker_passes_commands_through(self, mock_context):
+        """Test that ChannelWorker passes slash commands to AgentWorker via InboundEvent."""
+        # Setup
         mock_context.channels = []
 
         worker = ChannelWorker(mock_context)
 
         # Create mock channel and source
         mock_channel = MagicMock()
-        mock_channel.platform_name = "test"
+        mock_channel.platform_name = "cli"
         mock_channel.is_allowed.return_value = True
-        mock_channel.reply = AsyncMock()
 
-        mock_source = MagicMock(spec=EventSource)
-        mock_source.__str__ = lambda self: "platform-test:user123:chat456"
+        source = CliEventSource()
 
-        worker.channel_map["test"] = mock_channel
+        worker.channel_map["cli"] = mock_channel
 
-        # Get the callback
-        callback = worker._create_callback("test")
+        # Mock routing
+        mock_context.routing_table.resolve = Mock(return_value="test")
+        mock_context.routing_table.get_or_create_session_id = Mock(
+            return_value="test-session-123"
+        )
 
-        # Send slash command
-        await callback("/help", mock_source)
+        # Execute
+        callback = worker._create_callback("cli")
+        await callback("/help", source)
 
-        # Should have replied directly
-        mock_channel.reply.assert_called_once()
-        call_args = mock_channel.reply.call_args[0][0]
-        assert "Available Commands" in call_args
-
-        # Should NOT have published an event
-        mock_context.eventbus.publish.assert_not_called()
+        # Verify - command should be published as InboundEvent (not intercepted)
+        assert mock_context.eventbus.publish.called
+        event = mock_context.eventbus.publish.call_args[0][0]
+        assert isinstance(event, InboundEvent)
+        assert event.content == "/help"  # Command NOT consumed
 
 
 class TestDefaultDeliverySource:

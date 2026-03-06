@@ -47,15 +47,6 @@ class ChannelWorker(Worker):
                     )
                     return
 
-                # Check for slash command
-                if message.startswith("/"):
-                    self.logger.debug(f"Processing slash command from {platform}")
-                    result = self.context.command_registry.dispatch(
-                        message, self.context
-                    )
-                    if result:
-                        return await channel.reply(result, source)
-
                 # Set default delivery source only on first non-CLI platform message
                 if source.is_platform and source.platform_name != "cli":
                     if not self.context.config.default_delivery_source:
