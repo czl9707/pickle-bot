@@ -1,7 +1,7 @@
-"""Message bus implementations for different platforms."""
+"""Channel implementations for different platforms."""
 
-from picklebot.messagebus.base import MessageBus
-from picklebot.messagebus.telegram_bus import TelegramBus
-from picklebot.messagebus.discord_bus import DiscordBus
+from picklebot.channel.base import Channel
+from picklebot.channel.telegram_channel import TelegramChannel
+from picklebot.channel.discord_channel import DiscordChannel
 
-__all__ = ["MessageBus", "TelegramBus", "DiscordBus"]
+__all__ = ["Channel", "TelegramChannel", "DiscordChannel"]
