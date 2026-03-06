@@ -61,9 +61,9 @@ class Server:
             buses = self.context.channels
             if buses:
                 self.workers.append(ChannelWorker(self.context))
-                logger.info(f"MessageBus enabled with {len(buses)} bus(es)")
+                logger.info(f"Channel enabled with {len(buses)} bus(es)")
             else:
-                logger.warning("MessageBus enabled but no buses configured")
+                logger.warning("Channel enabled but no buses configured")
 
         logger.info(f"Server setup complete with {len(self.workers)} core workers")
 
