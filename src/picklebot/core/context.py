@@ -1,4 +1,7 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from picklebot.server.websocket_worker import WebSocketWorker
 
 from picklebot.core.agent_loader import AgentLoader
 from picklebot.core.commands.registry import CommandRegistry
@@ -45,3 +48,4 @@ class SharedContext:
         self.eventbus = EventBus(self)
         self.routing_table = RoutingTable(self)
         self.prompt_builder = PromptBuilder(self)
+        self.websocket_worker: "WebSocketWorker | None" = None
