@@ -72,7 +72,7 @@ def test_server_uses_context_queue():
 
     context = MagicMock()
     context.agent_queue = asyncio.Queue()
-    context.config.messagebus.enabled = False
+    context.config.channels.enabled = False
     context.config.api = None
 
     with (

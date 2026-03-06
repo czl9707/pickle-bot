@@ -9,8 +9,8 @@ from picklebot.utils.config import Config, ChannelConfig, TelegramConfig
 from picklebot.core.events import OutboundEvent
 
 
-def _make_context_with_messagebus(enabled: bool = True):
-    """Helper to create a mock context with messagebus config."""
+def _make_context_with_channels(enabled: bool = True):
+    """Helper to create a mock context with channels config."""
     from picklebot.core.context import SharedContext
 
     # Create minimal config
@@ -41,7 +41,7 @@ You are a test assistant.
 
     config = Config.load(tmp_path)
 
-    # Override messagebus config
+    # Override channels config
     if enabled:
         config.channels = ChannelConfig(
             enabled=True,
@@ -62,22 +62,22 @@ def _make_mock_session(
     """Helper to create a mock session."""
     mock_session = MagicMock()
     mock_session.session_id = session_id
-    mock_session.agent_id = agent_id
+    mock_session.agent.agent_def.id = agent_id
     return mock_session
 
 
 class TestCreatePostMessageTool:
     """Tests for create_post_message_tool factory function."""
 
-    def test_returns_none_when_messagebus_disabled(self):
-        """Should return None when messagebus is not enabled."""
-        context = _make_context_with_messagebus(enabled=False)
+    def test_returns_none_when_channels_disabled(self):
+        """Should return None when channels is not enabled."""
+        context = _make_context_with_channels(enabled=False)
         tool = create_post_message_tool(context)
         assert tool is None
 
     def test_creates_tool_with_correct_schema(self):
-        """Should return a tool with correct name and parameters when messagebus is enabled."""
-        context = _make_context_with_messagebus(enabled=True)
+        """Should return a tool with correct name and parameters when channels is enabled."""
+        context = _make_context_with_channels(enabled=True)
         tool = create_post_message_tool(context)
 
         assert tool is not None
@@ -93,7 +93,7 @@ class TestPostMessageToolExecution:
     @pytest.mark.anyio
     async def test_uses_session_for_event(self):
         """Should use session info for session_id and source."""
-        context = _make_context_with_messagebus(enabled=True)
+        context = _make_context_with_channels(enabled=True)
 
         # Mock the eventbus.publish method
         original_publish = context.eventbus.publish
@@ -126,7 +126,7 @@ class TestPostMessageToolExecution:
     @pytest.mark.anyio
     async def test_returns_error_on_exception(self):
         """Should return error message if publishing fails."""
-        context = _make_context_with_messagebus(enabled=True)
+        context = _make_context_with_channels(enabled=True)
 
         # Mock the eventbus.publish to raise an exception
         original_publish = context.eventbus.publish

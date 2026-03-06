@@ -117,10 +117,10 @@ class TestSessionHistoryLimits:
 
 
 class TestChannelConfig:
-    """Tests for messagebus configuration."""
+    """Tests for channels configuration."""
 
-    def test_messagebus_disabled_by_default(self, llm_config):
-        """Test that messagebus is disabled by default."""
+    def test_channels_disabled_by_default(self, llm_config):
+        """Test that channels is disabled by default."""
         config = Config(
             workspace=Path("/workspace"),
             llm=llm_config,
@@ -128,8 +128,8 @@ class TestChannelConfig:
         )
         assert not config.channels.enabled
 
-    def test_messagebus_can_be_enabled_with_platform(self):
-        """Test that messagebus can be enabled with platform config."""
+    def test_channels_can_be_enabled_with_platform(self):
+        """Test that channels can be enabled with platform config."""
         config = ChannelConfig(
             enabled=True,
             telegram=TelegramConfig(bot_token="test_token"),
@@ -138,13 +138,13 @@ class TestChannelConfig:
         assert config.telegram is not None
         assert config.telegram.bot_token == "test_token"
 
-    def test_messagebus_can_be_disabled(self):
-        """Test that messagebus can be explicitly disabled."""
+    def test_channels_can_be_disabled(self):
+        """Test that channels can be explicitly disabled."""
         config = ChannelConfig(enabled=False)
         assert not config.enabled
 
-    def test_messagebus_integration_with_config(self, llm_config):
-        """Test messagebus integration with full config."""
+    def test_channels_integration_with_config(self, llm_config):
+        """Test channels integration with full config."""
         config = Config(
             workspace=Path("/workspace"),
             llm=llm_config,
@@ -450,7 +450,7 @@ def test_discord_config_no_default_chat_id():
     assert not hasattr(config, "default_chat_id")
 
 
-def test_messagebus_config_no_default_platform():
+def test_channels_config_no_default_platform():
     """ChannelConfig should not have default_platform field."""
     from picklebot.utils.config import ChannelConfig
 

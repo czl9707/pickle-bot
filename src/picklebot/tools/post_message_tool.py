@@ -16,18 +16,18 @@ def create_post_message_tool(context: "SharedContext") -> BaseTool | None:
     Factory to create post_message tool.
 
     Args:
-        context: SharedContext with messagebus configuration
+        context: SharedContext with channels configuration
 
     Returns:
-        Tool for posting messages, or None if messagebus not enabled
+        Tool for posting messages, or None if channels not enabled
     """
     config = context.config
 
-    # Return None if messagebus not enabled or no buses configured
+    # Return None if channels not enabled or no channels configured
     if not config.channels.enabled:
         return None
 
-    # Check if we have any buses configured
+    # Check if we have any channels configured
     if not context.channels:
         return None
 
@@ -60,8 +60,8 @@ def create_post_message_tool(context: "SharedContext") -> BaseTool | None:
             # Publish OUTBOUND event for the DeliveryWorker to handle
             event = OutboundEvent(
                 session_id=session.session_id,
-                agent_id=session.agent_id,
-                source=AgentEventSource(agent_id=session.agent_id),
+                agent_id=session.agent.agent_def.id,
+                source=AgentEventSource(agent_id=session.agent.agent_def.id),
                 content=content,
                 timestamp=time.time(),
             )

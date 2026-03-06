@@ -77,7 +77,6 @@ def chunk_message(content: str, limit: int) -> list[str]:
         if len(potential) <= limit:
             current = potential
         else:
-            # Current chunk is complete
             if current:
                 chunks.append(current)
 
@@ -105,13 +104,13 @@ class DeliveryWorker(SubscriberWorker):
         self.logger.info("DeliveryWorker subscribed to OUTBOUND events")
 
     async def _deliver_with_retry(
-        self, chunks: list[str], source: "EventSource", bus: "Channel[Any]"
+        self, chunks: list[str], source: "EventSource", channel: "Channel[Any]"
     ) -> bool:
         """Deliver all chunks with retry logic. Returns True on success."""
         for attempt in range(1, MAX_RETRIES + 1):
             try:
                 for chunk in chunks:
-                    await bus.reply(chunk, source)
+                    await channel.reply(chunk, source)
                 return True
             except Exception as e:
                 if attempt < MAX_RETRIES:
@@ -192,9 +191,9 @@ class DeliveryWorker(SubscriberWorker):
                 int(limit) if limit != float("inf") else len(event.content),
             )
 
-            bus = self._get_bus(source.platform_name)
-            if bus:
-                success = await self._deliver_with_retry(chunks, source, bus)
+            channel = self._get_channel(source.platform_name)
+            if channel:
+                success = await self._deliver_with_retry(chunks, source, channel)
                 if not success:
                     self.logger.error(f"Dropped message for session {event.session_id}")
 
@@ -206,9 +205,9 @@ class DeliveryWorker(SubscriberWorker):
         except Exception as e:
             self.logger.error(f"Failed to deliver message: {e}")
 
-    def _get_bus(self, platform: str) -> "Channel[Any] | None":
-        """Get the message bus for a platform."""
-        for bus in self.context.channels:
-            if bus.platform_name == platform:
-                return bus
+    def _get_channel(self, platform: str) -> "Channel[Any] | None":
+        """Get the message channel for a platform."""
+        for channel in self.context.channels:
+            if channel.platform_name == platform:
+                return channel
         return None

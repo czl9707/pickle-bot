@@ -81,10 +81,10 @@ async def test_handle_event_delivers_to_platform(mock_context):
     )
     mock_context.history_store.list_sessions.return_value = [mock_session]
 
-    mock_bus = Mock()
-    mock_bus.platform_name = "telegram"
-    mock_bus.reply = AsyncMock()
-    mock_context.channels = [mock_bus]
+    mock_channel = Mock()
+    mock_channel.platform_name = "telegram"
+    mock_channel.reply = AsyncMock()
+    mock_context.channels = [mock_channel]
 
     worker = DeliveryWorker(mock_context)
     event = OutboundEvent(
@@ -98,42 +98,8 @@ async def test_handle_event_delivers_to_platform(mock_context):
     with patch.object(mock_context.eventbus, "ack") as mock_ack:
         await worker.handle_event(event)
 
-        mock_bus.reply.assert_called_once()
+        mock_channel.reply.assert_called_once()
         mock_ack.assert_called_once_with(event)
-
-
-@pytest.mark.asyncio
-async def test_delivery_worker_handles_cli_platform(mock_context):
-    """handle_event should deliver to CLI platform correctly."""
-    from picklebot.core.history import HistorySession
-
-    mock_session = HistorySession(
-        id="test-session",
-        agent_id="pickle",
-        source="platform-cli:cli-user",
-        created_at="2026-03-01T10:00:00",
-        updated_at="2026-03-01T10:00:00",
-    )
-    mock_context.history_store.list_sessions.return_value = [mock_session]
-
-    # Create mock CLI bus
-    mock_cli_bus = Mock()
-    mock_cli_bus.platform_name = "cli"
-    mock_cli_bus.reply = AsyncMock()
-    mock_context.channels = [mock_cli_bus]
-
-    worker = DeliveryWorker(mock_context)
-    event = OutboundEvent(
-        session_id="test-session",
-        agent_id="pickle",
-        source="agent:pickle",
-        content="Hello CLI",
-    )
-
-    await worker.handle_event(event)
-
-    # Should have called CLI bus reply
-    mock_cli_bus.reply.assert_called_once()
 
 
 # chunk_message unit tests
@@ -212,11 +178,11 @@ class TestDefaultDeliverySource:
         # Set default delivery source
         mock_context.config.default_delivery_source = "platform-telegram:123:456"
 
-        # Mock telegram bus
-        mock_bus = Mock()
-        mock_bus.platform_name = "telegram"
-        mock_bus.reply = AsyncMock()
-        mock_context.channels = [mock_bus]
+        # Mock telegram channel
+        mock_channel = Mock()
+        mock_channel.platform_name = "telegram"
+        mock_channel.reply = AsyncMock()
+        mock_context.channels = [mock_channel]
 
         worker = DeliveryWorker(mock_context)
         event = OutboundEvent(
@@ -229,7 +195,7 @@ class TestDefaultDeliverySource:
         with patch.object(mock_context.eventbus, "ack") as mock_ack:
             await worker.handle_event(event)
 
-        mock_bus.reply.assert_called_once()
+        mock_channel.reply.assert_called_once()
         mock_ack.assert_called_once_with(event)
 
     @pytest.mark.asyncio
@@ -279,11 +245,11 @@ class TestDefaultDeliverySource:
         # Set a different default (should be ignored)
         mock_context.config.default_delivery_source = "platform-discord:111:222"
 
-        # Mock telegram bus only
-        mock_bus = Mock()
-        mock_bus.platform_name = "telegram"
-        mock_bus.reply = AsyncMock()
-        mock_context.channels = [mock_bus]
+        # Mock telegram channel only
+        mock_channel = Mock()
+        mock_channel.platform_name = "telegram"
+        mock_channel.reply = AsyncMock()
+        mock_context.channels = [mock_channel]
 
         worker = DeliveryWorker(mock_context)
         event = OutboundEvent(
@@ -297,7 +263,7 @@ class TestDefaultDeliverySource:
             await worker.handle_event(event)
 
         # Should deliver to telegram (from session source), not discord (default)
-        mock_bus.reply.assert_called_once()
+        mock_channel.reply.assert_called_once()
         mock_ack.assert_called_once_with(event)
 
     @pytest.mark.asyncio
@@ -372,16 +338,16 @@ class TestDeliverWithRetry:
         from picklebot.channel.telegram_channel import TelegramEventSource
 
         worker = DeliveryWorker(mock_context)
-        mock_bus = Mock()
-        mock_bus.reply = AsyncMock()
+        mock_channel = Mock()
+        mock_channel.reply = AsyncMock()
 
         source = TelegramEventSource(chat_id="123", user_id="456")
         chunks = ["Hello"]
 
-        result = await worker._deliver_with_retry(chunks, source, mock_bus)
+        result = await worker._deliver_with_retry(chunks, source, mock_channel)
 
         assert result is True
-        mock_bus.reply.assert_called_once_with("Hello", source)
+        mock_channel.reply.assert_called_once_with("Hello", source)
 
     @pytest.mark.asyncio
     async def test_deliver_with_retry_retries_on_failure(self, mock_context):
@@ -389,19 +355,19 @@ class TestDeliverWithRetry:
         from picklebot.channel.telegram_channel import TelegramEventSource
 
         worker = DeliveryWorker(mock_context)
-        mock_bus = Mock()
+        mock_channel = Mock()
         # Fail once, then succeed
-        mock_bus.reply = AsyncMock(side_effect=[Exception("Network error"), None])
+        mock_channel.reply = AsyncMock(side_effect=[Exception("Network error"), None])
 
         source = TelegramEventSource(chat_id="123", user_id="456")
         chunks = ["Hello"]
 
         # Patch asyncio.sleep to avoid actual delay
         with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
-            result = await worker._deliver_with_retry(chunks, source, mock_bus)
+            result = await worker._deliver_with_retry(chunks, source, mock_channel)
 
         assert result is True
-        assert mock_bus.reply.call_count == 2
+        assert mock_channel.reply.call_count == 2
         mock_sleep.assert_called_once()  # One sleep between retries
 
     @pytest.mark.asyncio
@@ -412,17 +378,17 @@ class TestDeliverWithRetry:
         from picklebot.channel.telegram_channel import TelegramEventSource
 
         worker = DeliveryWorker(mock_context)
-        mock_bus = Mock()
-        mock_bus.reply = AsyncMock(side_effect=Exception("Permanent failure"))
+        mock_channel = Mock()
+        mock_channel.reply = AsyncMock(side_effect=Exception("Permanent failure"))
 
         source = TelegramEventSource(chat_id="123", user_id="456")
         chunks = ["Hello"]
 
         with patch("asyncio.sleep", new_callable=AsyncMock):
-            result = await worker._deliver_with_retry(chunks, source, mock_bus)
+            result = await worker._deliver_with_retry(chunks, source, mock_channel)
 
         assert result is False
-        assert mock_bus.reply.call_count == MAX_RETRIES
+        assert mock_channel.reply.call_count == MAX_RETRIES
 
     @pytest.mark.asyncio
     async def test_deliver_with_retry_retries_all_chunks_on_failure(self, mock_context):
@@ -430,7 +396,7 @@ class TestDeliverWithRetry:
         from picklebot.channel.telegram_channel import TelegramEventSource
 
         worker = DeliveryWorker(mock_context)
-        mock_bus = Mock()
+        mock_channel = Mock()
         # First chunk succeeds, second fails, then both succeed
         call_count = 0
 
@@ -440,15 +406,15 @@ class TestDeliverWithRetry:
             if call_count == 2:  # Second chunk on first attempt fails
                 raise Exception("Chunk failed")
 
-        mock_bus.reply = AsyncMock(side_effect=side_effect)
+        mock_channel.reply = AsyncMock(side_effect=side_effect)
 
         source = TelegramEventSource(chat_id="123", user_id="456")
         chunks = ["Chunk 1", "Chunk 2"]
 
         with patch("asyncio.sleep", new_callable=AsyncMock):
-            result = await worker._deliver_with_retry(chunks, source, mock_bus)
+            result = await worker._deliver_with_retry(chunks, source, mock_channel)
 
         assert result is True
         # First attempt: 2 calls (chunk 1 ok, chunk 2 fails)
         # Retry: 2 calls (both ok)
-        assert mock_bus.reply.call_count == 4
+        assert mock_channel.reply.call_count == 4

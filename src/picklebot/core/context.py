@@ -30,7 +30,7 @@ class SharedContext:
     prompt_builder: PromptBuilder
 
     def __init__(
-        self, config: Config, buses: list[Channel[Any]] | None = None
+        self, config: Config, channels: list[Channel[Any]] | None = None
     ) -> None:
         self.config = config
         self.history_store = HistoryStore.from_config(config)
@@ -39,9 +39,9 @@ class SharedContext:
         self.cron_loader = CronLoader.from_config(config)
         self.command_registry = CommandRegistry.with_builtins()
 
-        # Use provided buses (CLI mode) or load from config (server mode)
-        if buses is not None:
-            self.channels = buses
+        # Use provided channels (CLI mode) or load from config (server mode)
+        if channels is not None:
+            self.channels = channels
         else:
             self.channels = Channel.from_config(config)
 

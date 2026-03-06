@@ -1,7 +1,5 @@
 """Tests for Channel abstract interface."""
 
-from unittest.mock import AsyncMock, MagicMock
-
 import pytest
 from typing import Any
 
@@ -16,32 +14,7 @@ from picklebot.utils.config import (
     LLMConfig,
 )
 
-
-def _create_mock_telegram_app():
-    """Create a mock Telegram Application for testing."""
-    mock_app = MagicMock()
-    mock_app.updater = MagicMock()
-    mock_app.updater.running = True
-    mock_app.updater.start_polling = AsyncMock()
-    mock_app.updater.stop = AsyncMock()
-    mock_app.initialize = AsyncMock()
-    mock_app.start = AsyncMock()
-    mock_app.stop = AsyncMock()
-    mock_app.shutdown = AsyncMock()
-    mock_app.add_handler = MagicMock()
-    mock_app.bot = MagicMock()
-    return mock_app
-
-
-def _create_mock_discord_client():
-    """Create a mock Discord Client for testing."""
-    mock_client = MagicMock()
-    mock_client.start = AsyncMock()
-    mock_client.close = AsyncMock()
-    return mock_client
-
-
-class MockBus(Channel[Any]):
+class MockChannel(Channel[Any]):
     """Mock implementation for testing."""
 
     @property
@@ -65,7 +38,7 @@ class MockBus(Channel[Any]):
 
 
 @pytest.mark.parametrize(
-    "bus_type,config_factory,context_factory",
+    "channel_type,config_factory,context_factory",
     [
         (
             "telegram",
@@ -84,81 +57,75 @@ class MockBus(Channel[Any]):
     ],
 )
 class TestChannelIsAllowed:
-    """Shared tests for is_allowed across all bus implementations."""
+    """Shared tests for is_allowed across all channel implementations."""
 
     def test_is_allowed_returns_true_for_whitelisted_user(
-        self, bus_type, config_factory, context_factory
+        self, channel_type, config_factory, context_factory
     ):
         """is_allowed should return True for whitelisted user."""
         config = config_factory()
-        if bus_type == "telegram":
-            bus = TelegramChannel(config)
+        if channel_type == "telegram":
+            channel = TelegramChannel(config)
         else:
-            bus = DiscordChannel(config)
+            channel = DiscordChannel(config)
 
         ctx = context_factory("whitelisted")
-        assert bus.is_allowed(ctx) is True
+        assert channel.is_allowed(ctx) is True
 
     def test_is_allowed_returns_false_for_non_whitelisted_user(
-        self, bus_type, config_factory, context_factory
+        self, channel_type, config_factory, context_factory
     ):
         """is_allowed should return False for non-whitelisted user."""
         config = config_factory()
-        if bus_type == "telegram":
-            bus = TelegramChannel(config)
+        if channel_type == "telegram":
+            channel = TelegramChannel(config)
         else:
-            bus = DiscordChannel(config)
+            channel = DiscordChannel(config)
 
         ctx = context_factory("unknown")
-        assert bus.is_allowed(ctx) is False
+        assert channel.is_allowed(ctx) is False
 
     def test_is_allowed_returns_true_when_whitelist_empty(
-        self, bus_type, config_factory, context_factory
+        self, channel_type, config_factory, context_factory
     ):
         """is_allowed should return True when whitelist is empty."""
-        if bus_type == "telegram":
+        if channel_type == "telegram":
             config = TelegramConfig(bot_token="test-token", allowed_user_ids=[])
-            bus = TelegramChannel(config)
+            channel = TelegramChannel(config)
         else:
             config = DiscordConfig(bot_token="test-token", allowed_user_ids=[])
-            bus = DiscordChannel(config)
+            channel = DiscordChannel(config)
 
         ctx = context_factory("anyone")
-        assert bus.is_allowed(ctx) is True
+        assert channel.is_allowed(ctx) is True
 
 
-def test_messagebus_has_platform_name():
-    """Test that Channel has platform_name property."""
-    bus = MockBus()
-    assert bus.platform_name == "mock"
-
-
-def test_messagebus_from_config_empty(tmp_path):
-    """Test from_config returns empty list when no buses configured."""
+def test_channel_from_config_empty(tmp_path):
+    """Test from_config returns empty list when no channels configured."""
     config = Config(
         workspace=tmp_path,
         llm=LLMConfig(provider="test", model="test", api_key="test"),
         default_agent="test",
-        messagebus=ChannelConfig(enabled=False),
+        channel=ChannelConfig(enabled=False),
     )
-    buses = Channel.from_config(config)
-    assert buses == []
+    channels = Channel.from_config(config)
+    assert channels == []
 
 
-def test_messagebus_from_config_disabled_platform(tmp_path):
+def test_channel_from_config_disabled_platform(tmp_path):
     """Test from_config skips disabled platforms."""
     config = Config(
         workspace=tmp_path,
         llm=LLMConfig(provider="test", model="test", api_key="test"),
         default_agent="test",
-        messagebus=ChannelConfig(
+        channel=ChannelConfig(
             enabled=True,
             telegram=TelegramConfig(enabled=False, bot_token="test_token"),
         ),
     )
-    buses = Channel.from_config(config)
+    channels = Channel.from_config(config)
 
-    assert len(buses) == 0
+    assert len(channels) == 0
 
 
 class TestEventSourceDataclasses:
@@ -177,18 +144,18 @@ class TestEventSourceDataclasses:
         assert source.channel_id == "444"
 
 
-@pytest.mark.parametrize("bus_type", ["telegram", "discord"])
+@pytest.mark.parametrize("channel_type", ["telegram", "discord"])
 class TestChannelLifecycle:
-    """Shared lifecycle tests for all bus implementations."""
+    """Shared lifecycle tests for all channel implementations."""
 
     @pytest.mark.anyio
-    async def test_stop_without_run_is_safe(self, bus_type):
+    async def test_stop_without_run_is_safe(self, channel_type):
         """Calling stop without run should be safe - no-op."""
-        if bus_type == "telegram":
+        if channel_type == "telegram":
             config = TelegramConfig(bot_token="test_token")
-            bus = TelegramChannel(config)
+            channel = TelegramChannel(config)
         else:
             config = DiscordConfig(bot_token="test_token")
-            bus = DiscordChannel(config)
+            channel = DiscordChannel(config)
 
-        await bus.stop()  # Should not raise
+        await channel.stop()  # Should not raise

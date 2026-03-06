@@ -1,4 +1,4 @@
-"""Abstract base class for message bus implementations."""
+"""Abstract base class for channel implementations."""
 
 from abc import ABC, abstractmethod
 from typing import Callable, Awaitable, Generic, TypeVar, Any
@@ -27,7 +27,7 @@ class Channel(ABC, Generic[T]):
     @abstractmethod
     async def run(self, on_message: Callable[[str, T], Awaitable[None]]) -> None:
         """
-        Run the message bus. Blocks until stop() is called.
+        Run the channel. Blocks until stop() is called.
 
         Args:
             on_message: Callback async function(message: str, source: T)
@@ -72,21 +72,21 @@ class Channel(ABC, Generic[T]):
         Create channel instances from configuration.
 
         Args:
-            config: Message bus configuration
+            config: Channel configuration
 
         Returns:
-            List of configured message bus instances
+            List of configured Channel instances
         """
         # Inline imports to avoid circular dependency
         from picklebot.channel.telegram_channel import TelegramChannel
         from picklebot.channel.discord_channel import DiscordChannel
 
-        buses: list["Channel[Any]"] = []
-        bus_config = config.channels
-        if bus_config.telegram and bus_config.telegram.enabled:
-            buses.append(TelegramChannel(bus_config.telegram))
+        channels: list["Channel[Any]"] = []
+        channel_config = config.channels
+        if channel_config.telegram and channel_config.telegram.enabled:
+            channels.append(TelegramChannel(channel_config.telegram))
 
-        if bus_config.discord and bus_config.discord.enabled:
-            buses.append(DiscordChannel(bus_config.discord))
+        if channel_config.discord and channel_config.discord.enabled:
+            channels.append(DiscordChannel(channel_config.discord))
 
-        return buses
+        return channels

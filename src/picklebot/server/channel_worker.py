@@ -13,25 +13,25 @@ if TYPE_CHECKING:
 
 
 class ChannelWorker(Worker):
-    """Ingests messages from platforms, publishes INBOUND events to EventBus."""
+    """Ingests messages from platforms, publishes INBOUND events to Channel."""
 
     def __init__(self, context: "SharedContext"):
         super().__init__(context)
-        self.buses = context.channels
-        self.bus_map = {bus.platform_name: bus for bus in self.buses}
+        self.channels = context.channels
+        self.channel_map = {channel.platform_name: channel for channel in self.channels}
 
     async def run(self) -> None:
-        """Start all buses and process incoming messages."""
-        self.logger.info(f"ChannelWorker started with {len(self.buses)} bus(es)")
+        """Start all channels and process incoming messages."""
+        self.logger.info(f"ChannelWorker started with {len(self.channels)} channel(es)")
 
-        bus_tasks = [
-            bus.run(self._create_callback(bus.platform_name)) for bus in self.buses
+        channel_tasks = [
+            channel.run(self._create_callback(channel.platform_name)) for channel in self.channels
         ]
 
         try:
-            await asyncio.gather(*bus_tasks)
+            await asyncio.gather(*channel_tasks)
         except asyncio.CancelledError:
-            await asyncio.gather(*[bus.stop() for bus in self.buses])
+            await asyncio.gather(*[channel.stop() for channel in self.channels])
             raise
 
     def _create_callback(self, platform: str):
@@ -39,9 +39,9 @@ class ChannelWorker(Worker):
 
         async def callback(message: str, source: EventSource) -> None:
             try:
-                bus = self.bus_map[platform]
+                channel = self.channel_map[platform]
 
-                if not bus.is_allowed(source):
+                if not channel.is_allowed(source):
                     self.logger.debug(
                         f"Ignored non-whitelisted message from {platform}"
                     )
@@ -54,7 +54,7 @@ class ChannelWorker(Worker):
                         message, self.context
                     )
                     if result:
-                        return await bus.reply(result, source)
+                        return await channel.reply(result, source)
 
                 # Set default delivery source only on first non-CLI platform message
                 if source.is_platform and source.platform_name != "cli":

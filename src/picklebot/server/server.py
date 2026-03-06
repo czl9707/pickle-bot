@@ -62,12 +62,12 @@ class Server:
         ]
 
         if self.context.config.channels.enabled:
-            buses = self.context.channels
-            if buses:
+            channels = self.context.channels
+            if channels:
                 self.workers.append(ChannelWorker(self.context))
-                logger.info(f"Channel enabled with {len(buses)} bus(es)")
+                logger.info(f"Channel enabled with {len(channels)} channel(es)")
             else:
-                logger.warning("Channel enabled but no buses configured")
+                logger.warning("Channel enabled but no channels configured")
 
         logger.info(f"Server setup complete with {len(self.workers)} core workers")
 

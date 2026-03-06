@@ -22,8 +22,8 @@ class TestServer:
         assert server.workers == []
 
     @pytest.mark.anyio
-    async def test_server_setup_workers_when_messagebus_disabled(self, test_config):
-        """Server sets up core workers when messagebus disabled."""
+    async def test_server_setup_workers_when_channel_disabled(self, test_config):
+        """Server sets up core workers when channel disabled."""
         context = SharedContext(test_config)
         server = Server(context)
         server._setup_workers()
@@ -39,8 +39,8 @@ class TestServer:
         assert "ChannelWorker" not in worker_types
 
     @pytest.mark.anyio
-    async def test_server_setup_workers_when_messagebus_enabled(self, test_config):
-        """Server sets up ChannelWorker when messagebus enabled."""
+    async def test_server_setup_workers_when_channel_enabled(self, test_config):
+        """Server sets up ChannelWorker when channel enabled."""
         test_config.channels = ChannelConfig(
             enabled=True,
             telegram=TelegramConfig(enabled=True, bot_token="test"),
@@ -63,10 +63,10 @@ class TestServer:
             assert mock_worker_class.called  # ChannelWorker was created
 
     @pytest.mark.anyio
-    async def test_server_does_not_setup_messagebus_worker_when_no_buses(
+    async def test_server_does_not_setup_channel_worker_when_no_channels(
         self, test_config
     ):
-        """Server doesn't setup ChannelWorker if no buses configured."""
+        """Server doesn't setup ChannelWorker if no channels configured."""
         test_config.channels = ChannelConfig(
             enabled=True,
             telegram=TelegramConfig(enabled=False, bot_token="test"),

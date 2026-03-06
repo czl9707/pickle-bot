@@ -70,7 +70,7 @@ class TelegramChannel(Channel[TelegramEventSource]):
         if self.application is not None:
             raise RuntimeError("TelegramChannel already running")
 
-        logger.info(f"Message bus enabled with platform: {self.platform_name}")
+        logger.info(f"Channel enabled with platform: {self.platform_name}")
         self.application = Application.builder().token(self.config.bot_token).build()
         self._stop_event = asyncio.Event()
 

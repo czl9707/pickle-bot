@@ -369,8 +369,8 @@ class TestCopyDefaultAssetsStep:
 class TestConfigureChannelStep:
     """Tests for ConfigureChannelStep."""
 
-    def test_no_platforms_disables_messagebus(self, tmp_path: Path):
-        """No platform selection disables messagebus."""
+    def test_no_platforms_disables_channel(self, tmp_path: Path):
+        """No platform selection disables channel."""
         console = Console()
         defaults = tmp_path / "defaults"
         step = ConfigureChannelStep(tmp_path, console, defaults)

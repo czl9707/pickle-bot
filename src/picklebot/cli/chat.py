@@ -37,7 +37,7 @@ class ChatLoop:
     def __init__(self, config: Config, agent_id: str | None = None):
         self.config = config
         self.console = Console()
-        self.context = SharedContext(config=config, buses=[])
+        self.context = SharedContext(config=config, channels=[])
 
         self.workers: list[Worker] = [
             self.context.eventbus,

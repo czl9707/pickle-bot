@@ -13,7 +13,7 @@ from picklebot.channel.discord_channel import DiscordEventSource
 from picklebot.core.events import CliEventSource
 
 
-class FakeBus:
+class FakeChannel:
     """Fake Channel for testing - uses real EventSource types."""
 
     def __init__(self, platform_name: str = "fake"):
@@ -35,8 +35,8 @@ class FakeBus:
         self.messages.append(content)
 
 
-class FakeTelegramChannel(FakeBus):
-    """Fake bus that uses TelegramEventSource."""
+class FakeTelegramChannel(FakeChannel):
+    """Fake Channel that uses TelegramEventSource."""
 
     def __init__(self):
         super().__init__(platform_name="telegram")
@@ -48,8 +48,8 @@ class FakeTelegramChannel(FakeBus):
         await callback("hello", TelegramEventSource(user_id="123", chat_id="456"))
 
 
-class FakeDiscordChannel(FakeBus):
-    """Fake bus that uses DiscordEventSource."""
+class FakeDiscordChannel(FakeChannel):
+    """Fake Channel that uses DiscordEventSource."""
 
     def __init__(self):
         super().__init__(platform_name="discord")
@@ -61,8 +61,8 @@ class FakeDiscordChannel(FakeBus):
         await callback("hello", DiscordEventSource(user_id="456", channel_id="789"))
 
 
-class FakeCliBus(FakeBus):
-    """Fake bus that uses CliEventSource."""
+class FakeCliChannel(FakeChannel):
+    """Fake Channel that uses CliEventSource."""
 
     def __init__(self):
         super().__init__(platform_name="cli")
@@ -74,8 +74,8 @@ class FakeCliBus(FakeBus):
         await callback("hello", CliEventSource())
 
 
-class BlockingBus(FakeBus):
-    """Fake bus that blocks all messages."""
+class BlockingChannel(FakeChannel):
+    """Fake Channel that blocks all messages."""
 
     def is_allowed(self, source):
         return False
@@ -101,13 +101,13 @@ You are a test assistant.
 """
     )
 
-    bus = FakeCliBus()
+    channel = FakeCliChannel()
     published_events: list[InboundEvent] = []
 
     async def capture_event(event: InboundEvent):
         published_events.append(event)
 
-    with patch.object(test_context, "channels", [bus]):
+    with patch.object(test_context, "channels", [channel]):
         # Mock routing table to return test agent
         test_context.routing_table.resolve = Mock(return_value="test")
         worker = ChannelWorker(test_context)
@@ -166,13 +166,13 @@ You are a test assistant.
 """
     )
 
-    bus = BlockingBus()
+    channel = BlockingChannel()
     published_events: list[InboundEvent] = []
 
     async def capture_event(event: InboundEvent):
         published_events.append(event)
 
-    with patch.object(test_context, "channels", [bus]):
+    with patch.object(test_context, "channels", [channel]):
         worker = ChannelWorker(test_context)
         test_context.eventbus.subscribe(InboundEvent, capture_event)
 
@@ -208,8 +208,8 @@ You are a test assistant.
 """
     )
 
-    bus = FakeCliBus()
-    with patch.object(test_context, "channels", [bus]):
+    channel = FakeCliChannel()
+    with patch.object(test_context, "channels", [channel]):
         # Mock routing table
         test_context.routing_table.resolve = Mock(return_value="test")
         worker = ChannelWorker(test_context)
@@ -246,13 +246,13 @@ You are a test assistant.
         "platform-telegram:123:456": {"session_id": "existing-session-uuid"}
     }
 
-    bus = FakeTelegramChannel()
+    channel = FakeTelegramChannel()
     published_events: list[InboundEvent] = []
 
     async def capture_event(event: InboundEvent):
         published_events.append(event)
 
-    with patch.object(test_context, "channels", [bus]):
+    with patch.object(test_context, "channels", [channel]):
         # Mock routing table
         test_context.routing_table.resolve = Mock(return_value="test")
         worker = ChannelWorker(test_context)
@@ -305,13 +305,13 @@ You are a test assistant.
 """
     )
 
-    bus = FakeDiscordChannel()
+    channel = FakeDiscordChannel()
     published_events: list[InboundEvent] = []
 
     async def capture_event(event: InboundEvent):
         published_events.append(event)
 
-    with patch.object(test_context, "channels", [bus]):
+    with patch.object(test_context, "channels", [channel]):
         # Mock routing table
         test_context.routing_table.resolve = Mock(return_value="test")
         worker = ChannelWorker(test_context)
@@ -378,17 +378,16 @@ class TestChannelWorkerSlashCommands:
 
         worker = ChannelWorker(mock_context)
 
-        # Create mock bus and source
-        mock_bus = MagicMock()
-        mock_bus.platform_name = "test"
-        mock_bus.is_allowed.return_value = True
-        mock_bus.reply = AsyncMock()
+        # Create mock channel and source
+        mock_channel = MagicMock()
+        mock_channel.platform_name = "test"
+        mock_channel.is_allowed.return_value = True
+        mock_channel.reply = AsyncMock()
 
         mock_source = MagicMock(spec=EventSource)
         mock_source.__str__ = lambda self: "platform-test:user123:chat456"
 
-        # Add bus to bus_map
-        worker.bus_map["test"] = mock_bus
+        worker.channel_map["test"] = mock_channel
 
         # Get the callback
         callback = worker._create_callback("test")
@@ -397,8 +396,8 @@ class TestChannelWorkerSlashCommands:
         await callback("/help", mock_source)
 
         # Should have replied directly
-        mock_bus.reply.assert_called_once()
-        call_args = mock_bus.reply.call_args[0][0]
+        mock_channel.reply.assert_called_once()
+        call_args = mock_channel.reply.call_args[0][0]
         assert "Available Commands" in call_args
 
         # Should NOT have published an event
@@ -425,8 +424,8 @@ class TestDefaultDeliverySource:
     async def test_first_platform_message_sets_default(self, mock_context_with_config):
         """First non-CLI platform message should set default_delivery_source."""
         mock_context = mock_context_with_config
-        mock_bus = FakeTelegramChannel()
-        mock_context.channels = [mock_bus]
+        mock_channel = FakeTelegramChannel()
+        mock_context.channels = [mock_channel]
         mock_context.routing_table.resolve = Mock(return_value="test")
         mock_context.config.sources = {}
 
@@ -448,8 +447,8 @@ class TestDefaultDeliverySource:
     async def test_cli_message_does_not_set_default(self, mock_context_with_config):
         """CLI messages should not update default_delivery_source."""
         mock_context = mock_context_with_config
-        mock_bus = FakeCliBus()
-        mock_context.channels = [mock_bus]
+        mock_channel = FakeCliChannel()
+        mock_context.channels = [mock_channel]
         mock_context.routing_table.resolve = Mock(return_value="test")
         mock_context.config.sources = {}
         mock_context.config.default_delivery_source = None
@@ -475,8 +474,8 @@ class TestDefaultDeliverySource:
         mock_context = mock_context_with_config
         mock_context.config.default_delivery_source = "platform-telegram:existing:999"
 
-        mock_bus = FakeTelegramChannel()
-        mock_context.channels = [mock_bus]
+        mock_channel = FakeTelegramChannel()
+        mock_context.channels = [mock_channel]
         mock_context.routing_table.resolve = Mock(return_value="test")
         mock_context.config.sources = {}
 
@@ -518,8 +517,8 @@ You are a test assistant.
 """
     )
 
-    bus = FakeCliBus()
-    with patch.object(test_context, "channels", [bus]):
+    channel = FakeCliChannel()
+    with patch.object(test_context, "channels", [channel]):
         # Mock routing table to resolve to test agent
         test_context.routing_table.resolve = Mock(return_value="test")
         worker = ChannelWorker(test_context)
@@ -553,13 +552,13 @@ You are a test assistant.
 """
     )
 
-    bus = FakeCliBus()
+    channel = FakeCliChannel()
     published_events: list[InboundEvent] = []
 
     async def capture_event(event: InboundEvent):
         published_events.append(event)
 
-    with patch.object(test_context, "channels", [bus]):
+    with patch.object(test_context, "channels", [channel]):
         # Mock routing table
         test_context.routing_table.resolve = Mock(return_value="test")
         worker = ChannelWorker(test_context)
@@ -688,12 +687,12 @@ class TestChannelWorkerRouting:
         # Use real RoutingTable to verify fallback to default_agent
         mock_context.routing_table = RoutingTable(mock_context)
 
-        # Add a mock bus for telegram
-        mock_bus = MagicMock()
-        mock_bus.platform_name = "telegram"
-        mock_bus.is_allowed = MagicMock(return_value=True)
-        mock_bus.reply = AsyncMock()
-        mock_context.channels = [mock_bus]
+        # Add a mock channel for telegram
+        mock_channel = MagicMock()
+        mock_channel.platform_name = "telegram"
+        mock_channel.is_allowed = MagicMock(return_value=True)
+        mock_channel.reply = AsyncMock()
+        mock_context.channels = [mock_channel]
 
         # Mock Agent to avoid loading actual agent
         with patch("picklebot.server.channel_worker.Agent") as MockAgent:

@@ -62,7 +62,7 @@ class DiscordChannel(Channel[DiscordEventSource]):
         if self._running_task is not None:
             raise RuntimeError("DiscordChannel already running")
 
-        logger.info(f"Message bus enabled with platform: {self.platform_name}")
+        logger.info(f"Channel enabled with platform: {self.platform_name}")
 
         # Configure intents
         intents = discord.Intents.default()
