@@ -4,7 +4,7 @@
 
 **Goal:** Enable delivery of agent/cron outbound messages to a default platform source.
 
-**Architecture:** Store a global `default_delivery_source` in runtime config. MessageBusWorker sets it on first non-CLI platform message. DeliveryWorker uses it as fallback when source has no platform.
+**Architecture:** Store a global `default_delivery_source` in runtime config. ChannelWorker sets it on first non-CLI platform message. DeliveryWorker uses it as fallback when source has no platform.
 
 **Tech Stack:** Python, pytest, asyncio
 
@@ -69,15 +69,15 @@ git commit -m "feat(config): add default_delivery_source field"
 
 ---
 
-## Task 2: Auto-populate default in MessageBusWorker
+## Task 2: Auto-populate default in ChannelWorker
 
 **Files:**
-- Modify: `src/picklebot/server/messagebus_worker.py:58-76`
-- Test: `tests/server/test_messagebus_worker.py`
+- Modify: `src/picklebot/server/channels_worker.py:58-76`
+- Test: `tests/server/test_channels_worker.py`
 
 **Step 1: Write the failing tests**
 
-Add to `tests/server/test_messagebus_worker.py`:
+Add to `tests/server/test_channels_worker.py`:
 
 ```python
 class TestDefaultDeliverySource:
@@ -101,15 +101,15 @@ class TestDefaultDeliverySource:
         """First non-CLI platform message should set default_delivery_source."""
         mock_context = mock_context_with_config
         mock_bus = FakeTelegramBus()
-        mock_context.messagebus_buses = [mock_bus]
+        mock_context.channels_buses = [mock_bus]
         mock_context.routing_table.resolve = Mock(return_value="test")
         mock_context.config.sources = {}
 
-        with patch("picklebot.server.messagebus_worker.Agent") as MockAgent:
+        with patch("picklebot.server.channels_worker.Agent") as MockAgent:
             mock_session = Mock(session_id="test-session")
             MockAgent.return_value.new_session.return_value = mock_session
 
-            worker = MessageBusWorker(mock_context)
+            worker = ChannelWorker(mock_context)
             worker._get_or_create_session_id = lambda s, a: "test-session"
             callback = worker._create_callback("telegram")
 
@@ -122,16 +122,16 @@ class TestDefaultDeliverySource:
         """CLI messages should not update default_delivery_source."""
         mock_context = mock_context_with_config
         mock_bus = FakeCliBus()
-        mock_context.messagebus_buses = [mock_bus]
+        mock_context.channels_buses = [mock_bus]
         mock_context.routing_table.resolve = Mock(return_value="test")
         mock_context.config.sources = {}
         mock_context.config.default_delivery_source = None
 
-        with patch("picklebot.server.messagebus_worker.Agent") as MockAgent:
+        with patch("picklebot.server.channels_worker.Agent") as MockAgent:
             mock_session = Mock(session_id="test-session")
             MockAgent.return_value.new_session.return_value = mock_session
 
-            worker = MessageBusWorker(mock_context)
+            worker = ChannelWorker(mock_context)
             worker._get_or_create_session_id = lambda s, a: "test-session"
 
         # CLI should not set default
@@ -144,15 +144,15 @@ class TestDefaultDeliverySource:
         mock_context.config.default_delivery_source = "platform-telegram:existing:999"
 
         mock_bus = FakeTelegramBus()
-        mock_context.messagebus_buses = [mock_bus]
+        mock_context.channels_buses = [mock_bus]
         mock_context.routing_table.resolve = Mock(return_value="test")
         mock_context.config.sources = {}
 
-        with patch("picklebot.server.messagebus_worker.Agent") as MockAgent:
+        with patch("picklebot.server.channels_worker.Agent") as MockAgent:
             mock_session = Mock(session_id="test-session")
             MockAgent.return_value.new_session.return_value = mock_session
 
-            worker = MessageBusWorker(mock_context)
+            worker = ChannelWorker(mock_context)
             worker._get_or_create_session_id = lambda s, a: "test-session"
             callback = worker._create_callback("telegram")
 
@@ -164,12 +164,12 @@ class TestDefaultDeliverySource:
 
 **Step 2: Run test to verify it fails**
 
-Run: `uv run pytest tests/server/test_messagebus_worker.py::TestDefaultDeliverySource -v`
+Run: `uv run pytest tests/server/test_channels_worker.py::TestDefaultDeliverySource -v`
 Expected: FAIL with assertion errors
 
 **Step 3: Write minimal implementation**
 
-Modify `src/picklebot/server/messagebus_worker.py` in the `_create_callback` method. Add after the slash command handling block (after line 76):
+Modify `src/picklebot/server/channels_worker.py` in the `_create_callback` method. Add after the slash command handling block (after line 76):
 
 ```python
                 # Set default delivery source only on first non-CLI platform message
@@ -182,14 +182,14 @@ Modify `src/picklebot/server/messagebus_worker.py` in the `_create_callback` met
 
 **Step 4: Run test to verify it passes**
 
-Run: `uv run pytest tests/server/test_messagebus_worker.py::TestDefaultDeliverySource -v`
+Run: `uv run pytest tests/server/test_channels_worker.py::TestDefaultDeliverySource -v`
 Expected: PASS
 
 **Step 5: Commit**
 
 ```bash
-git add src/picklebot/server/messagebus_worker.py tests/server/test_messagebus_worker.py
-git commit -m "feat(messagebus): auto-populate default_delivery_source"
+git add src/picklebot/server/channels_worker.py tests/server/test_channels_worker.py
+git commit -m "feat(channels): auto-populate default_delivery_source"
 ```
 
 ---
@@ -230,7 +230,7 @@ class TestDefaultDeliverySource:
         mock_bus = Mock()
         mock_bus.platform_name = "telegram"
         mock_bus.reply = AsyncMock()
-        mock_context.messagebus_buses = [mock_bus]
+        mock_context.channels_buses = [mock_bus]
 
         worker = DeliveryWorker(mock_context)
         event = OutboundEvent(
@@ -297,7 +297,7 @@ class TestDefaultDeliverySource:
         mock_bus = Mock()
         mock_bus.platform_name = "telegram"
         mock_bus.reply = AsyncMock()
-        mock_context.messagebus_buses = [mock_bus]
+        mock_context.channels_buses = [mock_bus]
 
         worker = DeliveryWorker(mock_context)
         event = OutboundEvent(
@@ -427,6 +427,6 @@ git commit -m "fix: cleanup after default delivery source implementation"
 | Task | Files Changed |
 |------|---------------|
 | 1 | `config.py`, `test_config.py` |
-| 2 | `messagebus_worker.py`, `test_messagebus_worker.py` |
+| 2 | `channels_worker.py`, `test_channels_worker.py` |
 | 3 | `delivery_worker.py`, `test_delivery_worker.py` |
 | 4 | Full test suite verification |

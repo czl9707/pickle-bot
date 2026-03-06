@@ -4,7 +4,7 @@
 
 **Goal:** Replace simple CLI with Textual-based TUI providing scrollable message history and fixed input at bottom.
 
-**Architecture:** Create Textual widgets (MessageHistory, InputBar, ChatApp) in cli/tui/, move CliBus from messagebus/ to cli/ and rewrite it to use Textual components, maintaining the same MessageBus interface for seamless integration with existing event-driven architecture.
+**Architecture:** Create Textual widgets (MessageHistory, InputBar, ChatApp) in cli/tui/, move CliBus from channels/ to cli/ and rewrite it to use Textual components, maintaining the same Channel interface for seamless integration with existing event-driven architecture.
 
 **Tech Stack:** Textual (TUI framework), Rich (markdown rendering), asyncio
 
@@ -530,13 +530,13 @@ git commit -m "feat: add ChatApp with message history and input bar"
 ## Task 6: Move and Rewrite CliBus
 
 **Files:**
-- Create: `src/picklebot/cli/cli_bus.py` (copy from messagebus/cli_bus.py then rewrite)
-- Modify: `tests/messagebus/test_cli_bus.py` (will move to tests/cli/)
+- Create: `src/picklebot/cli/cli_bus.py` (copy from channels/cli_bus.py then rewrite)
+- Modify: `tests/channels/test_cli_bus.py` (will move to tests/cli/)
 - Create: `tests/cli/test_cli_bus.py`
 
 **Step 1: Read existing CliBus**
 
-Run: `cat src/picklebot/messagebus/cli_bus.py`
+Run: `cat src/picklebot/channels/cli_bus.py`
 (Expected: See existing implementation)
 
 **Step 2: Write failing test for Textual CliBus**
@@ -602,7 +602,7 @@ from dataclasses import dataclass
 from typing import Callable, Awaitable
 
 from picklebot.core.events import EventSource
-from picklebot.messagebus.base import MessageBus
+from picklebot.channels.base import Channel
 from picklebot.cli.tui.app import ChatApp
 
 logger = logging.getLogger(__name__)
@@ -626,7 +626,7 @@ class CliEventSource(EventSource):
         return "cli"
 
 
-class CliBus(MessageBus[CliEventSource]):
+class CliBus(Channel[CliEventSource]):
     """CLI platform implementation using Textual TUI."""
 
     platform_name = "cli"
@@ -654,7 +654,7 @@ class CliBus(MessageBus[CliEventSource]):
 
         self._running = True
         self._stop_event.clear()
-        logger.info(f"Message bus enabled with platform: {self.platform_name}")
+        logger.info(f"Channel enabled with platform: {self.platform_name}")
 
         # Create Textual app with callback wrapper
         async def handle_user_input(message: str):
@@ -743,7 +743,7 @@ Modify `src/picklebot/cli/chat.py` line 12:
 
 ```python
 # OLD:
-from picklebot.messagebus.cli_bus import CliBus
+from picklebot.channels.cli_bus import CliBus
 
 # NEW:
 from picklebot.cli.cli_bus import CliBus
@@ -763,25 +763,25 @@ git commit -m "refactor: update chat.py to use CliBus from cli/ package"
 
 ---
 
-## Task 8: Remove Old messagebus/cli_bus.py and Tests
+## Task 8: Remove Old channels/cli_bus.py and Tests
 
 **Files:**
-- Delete: `src/picklebot/messagebus/cli_bus.py`
-- Delete: `tests/messagebus/test_cli_bus.py`
+- Delete: `src/picklebot/channels/cli_bus.py`
+- Delete: `tests/channels/test_cli_bus.py`
 - Modify: Any files importing from old location
 
 **Step 1: Find all imports of old CliBus**
 
-Run: `grep -r "from picklebot.messagebus.cli_bus import" src/ tests/`
+Run: `grep -r "from picklebot.channels.cli_bus import" src/ tests/`
 Expected: No results (we updated chat.py already)
 
 **Step 2: Remove old cli_bus.py**
 
-Run: `rm src/picklebot/messagebus/cli_bus.py`
+Run: `rm src/picklebot/channels/cli_bus.py`
 
 **Step 3: Remove old test file**
 
-Run: `rm tests/messagebus/test_cli_bus.py`
+Run: `rm tests/channels/test_cli_bus.py`
 
 **Step 4: Verify no broken imports**
 
@@ -792,7 +792,7 @@ Expected: No errors
 
 ```bash
 git add -A
-git commit -m "refactor: remove old messagebus/cli_bus.py (moved to cli/)"
+git commit -m "refactor: remove old channels/cli_bus.py (moved to cli/)"
 ```
 
 ---
@@ -824,7 +824,7 @@ def test_chat_loop_creation():
     assert chat_loop.config == config
     assert isinstance(chat_loop.bus, CliBus)
     assert isinstance(chat_loop.context, SharedContext)
-    assert len(chat_loop.workers) == 4  # EventBus, AgentWorker, DeliveryWorker, MessageBusWorker
+    assert len(chat_loop.workers) == 4  # EventBus, AgentWorker, DeliveryWorker, ChannelWorker
 
 
 @pytest.mark.asyncio
@@ -906,7 +906,7 @@ Expected: All tests pass
 - [ ] ChatApp composes history + input correctly
 - [ ] CliBus moved to cli/ and uses Textual
 - [ ] chat.py imports from new location
-- [ ] Old messagebus/cli_bus.py removed
+- [ ] Old channels/cli_bus.py removed
 - [ ] Integration tests pass
 - [ ] Manual testing shows TUI works correctly
 - [ ] All automated tests pass

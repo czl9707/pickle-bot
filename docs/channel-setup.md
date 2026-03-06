@@ -1,4 +1,4 @@
-# Message Bus Setup Guide
+# Channel Setup Guide
 
 ## Telegram Setup
 
@@ -10,7 +10,7 @@
 2. Add to config:
    ```yaml
    # ~/.pickle-bot/config.user.yaml
-   messagebus:
+   channels:
      enabled: true
      default_platform: "telegram"
      telegram:
@@ -43,7 +43,7 @@
 3. Add to config:
    ```yaml
    # ~/.pickle-bot/config.user.yaml
-   messagebus:
+   channels:
      enabled: true
      default_platform: "discord"
      discord:

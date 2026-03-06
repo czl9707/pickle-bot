@@ -105,7 +105,7 @@ class Config(BaseModel):
     event_path: Path = Field(default=Path(".event"))
     crons_path: Path = Field(default=Path("crons"))
     memories_path: Path = Field(default=Path("memories"))
-    channels: ChannelConfig = Field(default_factory=MessageBusConfig)
+    channels: ChannelConfig = Field(default_factory=ChannelConfig)
     api: ApiConfig | None = None
     websearch: BraveWebSearchConfig | None = None
     webread: Crawl4AIWebReadConfig | None = None

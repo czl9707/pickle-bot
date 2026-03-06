@@ -24,7 +24,7 @@ context.config.set_runtime("default_delivery_source", "telegram:user:123:chat:45
 default = context.config.default_delivery_source
 ```
 
-### Auto-population (MessageBusWorker)
+### Auto-population (ChannelWorker)
 
 When processing a platform message (non-CLI), set the default only if not already configured:
 
@@ -74,7 +74,7 @@ if not platform:
 
 ## Testing
 
-### test_messagebus_worker.py
+### test_channels_worker.py
 
 1. First platform message sets `default_delivery_source`
 2. CLI messages don't update the default
@@ -90,7 +90,7 @@ if not platform:
 
 | File | Change |
 |------|--------|
-| `messagebus_worker.py` | Set `default_delivery_source` on first non-CLI platform message |
+| `channels_worker.py` | Set `default_delivery_source` on first non-CLI platform message |
 | `delivery_worker.py` | Fallback to `default_delivery_source` when source has no platform |
-| `test_messagebus_worker.py` | Tests for auto-population |
+| `test_channels_worker.py` | Tests for auto-population |
 | `test_delivery_worker.py` | Tests for fallback delivery |

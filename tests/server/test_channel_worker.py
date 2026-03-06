@@ -14,7 +14,7 @@ from picklebot.core.events import CliEventSource
 
 
 class FakeBus:
-    """Fake MessageBus for testing - uses real EventSource types."""
+    """Fake Channel for testing - uses real EventSource types."""
 
     def __init__(self, platform_name: str = "fake"):
         self.platform_name = platform_name
@@ -35,7 +35,7 @@ class FakeBus:
         self.messages.append(content)
 
 
-class FakeTelegramBus(FakeBus):
+class FakeTelegramChannel(FakeBus):
     """Fake bus that uses TelegramEventSource."""
 
     def __init__(self):
@@ -48,7 +48,7 @@ class FakeTelegramBus(FakeBus):
         await callback("hello", TelegramEventSource(user_id="123", chat_id="456"))
 
 
-class FakeDiscordBus(FakeBus):
+class FakeDiscordChannel(FakeBus):
     """Fake bus that uses DiscordEventSource."""
 
     def __init__(self):
@@ -246,7 +246,7 @@ You are a test assistant.
         "platform-telegram:123:456": {"session_id": "existing-session-uuid"}
     }
 
-    bus = FakeTelegramBus()
+    bus = FakeTelegramChannel()
     published_events: list[InboundEvent] = []
 
     async def capture_event(event: InboundEvent):
@@ -305,7 +305,7 @@ You are a test assistant.
 """
     )
 
-    bus = FakeDiscordBus()
+    bus = FakeDiscordChannel()
     published_events: list[InboundEvent] = []
 
     async def capture_event(event: InboundEvent):
@@ -353,9 +353,9 @@ class TestChannelWorkerSlashCommands:
         context.config = test_config
         context.agent_loader = MagicMock()
         context.agent_loader.load.return_value = test_agent_def
-        context.config.messagebus = MagicMock()
-        context.config.messagebus.telegram = None
-        context.config.messagebus.discord = None
+        context.config.channels = MagicMock()
+        context.config.channels.telegram = None
+        context.config.channels.discord = None
         context.command_registry = CommandRegistry.with_builtins()
         # Add eventbus mock
         context.eventbus = MagicMock()
@@ -425,7 +425,7 @@ class TestDefaultDeliverySource:
     async def test_first_platform_message_sets_default(self, mock_context_with_config):
         """First non-CLI platform message should set default_delivery_source."""
         mock_context = mock_context_with_config
-        mock_bus = FakeTelegramBus()
+        mock_bus = FakeTelegramChannel()
         mock_context.channels = [mock_bus]
         mock_context.routing_table.resolve = Mock(return_value="test")
         mock_context.config.sources = {}
@@ -475,7 +475,7 @@ class TestDefaultDeliverySource:
         mock_context = mock_context_with_config
         mock_context.config.default_delivery_source = "platform-telegram:existing:999"
 
-        mock_bus = FakeTelegramBus()
+        mock_bus = FakeTelegramChannel()
         mock_context.channels = [mock_bus]
         mock_context.routing_table.resolve = Mock(return_value="test")
         mock_context.config.sources = {}
@@ -606,8 +606,8 @@ class TestChannelWorkerRouting:
         context.config = Mock()
         context.config.default_agent = "pickle"
         context.config.sources = {}
-        context.config.messagebus = Mock()
-        context.config.messagebus.enabled = True
+        context.config.channels = Mock()
+        context.config.channels.enabled = True
         context.config.routing = {
             "bindings": [
                 {"agent": "cookie", "value": "telegram:123456"},

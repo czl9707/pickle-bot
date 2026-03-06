@@ -87,8 +87,8 @@ api:
   host: "127.0.0.1"
   port: 8000
 
-# MessageBus (optional - enables Telegram/Discord)
-messagebus:
+# Channel (optional - enables Telegram/Discord)
+channels:
   enabled: true
   default_platform: telegram       # Required if enabled: "telegram" or "discord"
 
@@ -109,23 +109,23 @@ messagebus:
 # Do not edit these manually - they are managed internally
 
 # current_session_id: "uuid"       # Current session tracking
-# messagebus.telegram.sessions: {} # Maps user_id -> session_id
-# messagebus.discord.sessions: {}  # Maps user_id -> session_id
+# channels.telegram.sessions: {} # Maps user_id -> session_id
+# channels.discord.sessions: {}  # Maps user_id -> session_id
 ```
 
-### MessageBus Platform Setup
+### Channel Platform Setup
 
 **Telegram:**
 1. Message @BotFather on Telegram
 2. Send `/newbot` and follow instructions
-3. Copy the token to `messagebus.telegram.bot_token`
+3. Copy the token to `channels.telegram.bot_token`
 4. Add @userinfobot to your chat to get the chat ID
 
 **Discord:**
 1. Go to https://discord.com/developers/applications
 2. Create new application
 3. Navigate to Bot section, click "Add Bot"
-4. Copy the token to `messagebus.discord.bot_token`
+4. Copy the token to `channels.discord.bot_token`
 5. Enable Developer Mode in Discord (User Settings -> Advanced)
 6. Right-click channel -> Copy ID for `channel_id`
 
@@ -143,7 +143,7 @@ The `allowed_user_ids` array controls who can interact with the bot:
 - **Cron messages** - Send to `default_platform` using `default_chat_id`
 - **Proactive messages** - Use `post_message` tool to send to `default_chat_id`
 
-## MessageBus Patterns
+## Channel Patterns
 
 ### Shared Session
 
@@ -156,7 +156,7 @@ All platforms share a single conversation session. This means:
 
 Messages are processed sequentially via asyncio.Queue:
 1. Platform receives message
-2. MessageBusWorker adds to queue
+2. ChannelWorker adds to queue
 3. AgentWorker picks up job
 4. Agent processes and responds
 5. Response routed to originating platform

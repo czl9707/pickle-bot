@@ -261,7 +261,7 @@ class HistoryStore:
 ## Data Flow
 
 ```
-  Telegram/Discord          MessageBusWorker
+  Telegram/Discord          ChannelWorker
        │                         │
        │  message + source      │
        └────────────────────────►│
@@ -316,7 +316,7 @@ class HistoryStore:
 | `core/agent.py` | Add ContextGuard integration, remove max_history, remove get_source_settings() |
 | `core/history.py` | Remove chunking, simplify HistorySession and HistoryStore |
 | `utils/config.py` | Remove max_history_file_size config |
-| `server/messagebus_worker.py` | No changes needed |
+| `server/channels_worker.py` | No changes needed |
 | `server/agent_worker.py` | No changes needed |
 
 ## Removed

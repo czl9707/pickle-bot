@@ -57,7 +57,7 @@ class Server:
             WebSocketWorker(self.context),  # SubscriberWorker
         ]
 
-        if self.context.config.messagebus.enabled:
+        if self.context.config.channels.enabled:
             buses = self.context.channels
             if buses:
                 self.workers.append(ChannelWorker(self.context))

@@ -74,7 +74,7 @@ class TestTelegramEventSource:
 
     def test_string_roundtrip(self):
         """Telegram source should serialize and deserialize correctly."""
-        from picklebot.messagebus.telegram_bus import TelegramEventSource
+        from picklebot.channel.telegram_channel import TelegramEventSource
 
         original = TelegramEventSource(user_id="12345", chat_id="67890")
         serialized = str(original)
@@ -86,7 +86,7 @@ class TestTelegramEventSource:
 
     def test_type_properties(self):
         """Telegram source should have correct type properties."""
-        from picklebot.messagebus.telegram_bus import TelegramEventSource
+        from picklebot.channel.telegram_channel import TelegramEventSource
 
         source = TelegramEventSource(user_id="12345", chat_id="67890")
         assert source.is_platform is True
@@ -97,7 +97,7 @@ class TestTelegramEventSource:
     def test_via_base_from_string(self):
         """Telegram source should be parseable via EventSource.from_string."""
         from picklebot.core.events import EventSource
-        from picklebot.messagebus.telegram_bus import TelegramEventSource
+        from picklebot.channel.telegram_channel import TelegramEventSource
 
         source = EventSource.from_string("platform-telegram:12345:67890")
         assert isinstance(source, TelegramEventSource)
@@ -110,7 +110,7 @@ class TestDiscordEventSource:
 
     def test_string_roundtrip(self):
         """Discord source should serialize and deserialize correctly."""
-        from picklebot.messagebus.discord_bus import DiscordEventSource
+        from picklebot.channel.discord_channel import DiscordEventSource
 
         original = DiscordEventSource(user_id="12345", channel_id="67890")
         serialized = str(original)
@@ -122,7 +122,7 @@ class TestDiscordEventSource:
 
     def test_type_properties(self):
         """Discord source should have correct type properties."""
-        from picklebot.messagebus.discord_bus import DiscordEventSource
+        from picklebot.channel.discord_channel import DiscordEventSource
 
         source = DiscordEventSource(user_id="12345", channel_id="67890")
         assert source.is_platform is True

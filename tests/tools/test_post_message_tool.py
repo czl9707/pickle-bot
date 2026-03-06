@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 from pathlib import Path
 
 from picklebot.tools.post_message_tool import create_post_message_tool
-from picklebot.utils.config import Config, MessageBusConfig, TelegramConfig
+from picklebot.utils.config import Config, ChannelConfig, TelegramConfig
 from picklebot.core.events import OutboundEvent
 
 
@@ -43,7 +43,7 @@ You are a test assistant.
 
     # Override messagebus config
     if enabled:
-        config.messagebus = MessageBusConfig(
+        config.channels = ChannelConfig(
             enabled=True,
             telegram=TelegramConfig(
                 enabled=True,
@@ -51,7 +51,7 @@ You are a test assistant.
             ),
         )
     else:
-        config.messagebus = MessageBusConfig(enabled=False)
+        config.channels = ChannelConfig(enabled=False)
 
     return SharedContext(config)
 

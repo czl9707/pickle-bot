@@ -1,16 +1,16 @@
-# MessageBus to Channel Rename - Design Document
+# Channel to Channel Rename - Design Document
 
 **Date:** 2026-03-05
 **Status:** Approved
-**Scope:** Comprehensive rename of MessageBus terminology to Channel
+**Scope:** Comprehensive rename of Channel terminology to Channel
 
 ## Overview
 
 ### Goal
-Rename all instances of "MessageBus" terminology to "Channel" throughout the codebase to make the concept clearer and more accessible.
+Rename all instances of "Channel" terminology to "Channel" throughout the codebase to make the concept clearer and more accessible.
 
 ### Motivation
-- **Accessibility:** "MessageBus" is overly technical/architectural
+- **Accessibility:** "Channel" is overly technical/architectural
 - **Clarity:** "Channels" better describes the concept (platforms like Telegram, Discord, CLI)
 - **Industry alignment:** Common terminology in messaging systems
 - **Consistency:** Uniform naming across codebase
@@ -34,40 +34,40 @@ Rename all instances of "MessageBus" terminology to "Channel" throughout the cod
 ## Complete Naming Mappings
 
 ### Class Names
-- `MessageBus` → `Channel`
+- `Channel` → `Channel`
 - `TelegramBus` → `TelegramChannel`
 - `DiscordBus` → `DiscordChannel`
-- `MessageBusWorker` → `ChannelWorker`
-- `MessageBusConfig` → `ChannelConfig`
+- `ChannelWorker` → `ChannelWorker`
+- `ChannelConfig` → `ChannelConfig`
 
 ### Directory & File Names
-- `src/picklebot/messagebus/` → `src/picklebot/channel/`
-- `messagebus_worker.py` → `channel_worker.py`
+- `src/picklebot/channels/` → `src/picklebot/channel/`
+- `channels_worker.py` → `channel_worker.py`
 - `telegram_bus.py` → `telegram_channel.py`
 - `discord_bus.py` → `discord_channel.py`
 - `base.py` (no change)
-- `docs/messagebus-setup.md` → `docs/channel-setup.md`
-- `tests/messagebus/` → `tests/channel/`
-- `test_messagebus_worker.py` → `test_channel_worker.py`
+- `docs/channels-setup.md` → `docs/channel-setup.md`
+- `tests/channels/` → `tests/channel/`
+- `test_channels_worker.py` → `test_channel_worker.py`
 - `test_telegram_bus.py` → `test_telegram_channel.py`
 - `test_discord_bus.py` → `test_discord_channel.py`
 
 ### Variable & Attribute Names
-- `messagebus_buses` → `channels` (in SharedContext)
-- `messagebus` → `channels` (config field)
+- `channels_buses` → `channels` (in SharedContext)
+- `channels` → `channels` (config field)
 
 ### Config Keys
-- `messagebus:` → `channels:` (in YAML configs)
-- `messagebus.telegram` → `channels.telegram`
-- `messagebus.discord` → `channels.discord`
+- `channels:` → `channels:` (in YAML configs)
+- `channels.telegram` → `channels.telegram`
+- `channels.discord` → `channels.discord`
 
 ### Import Statements
-- `from picklebot.messagebus` → `from picklebot.channel`
-- `from picklebot.messagebus.base import MessageBus` → `from picklebot.channel.base import Channel`
+- `from picklebot.channels` → `from picklebot.channel`
+- `from picklebot.channels.base import Channel` → `from picklebot.channel.base import Channel`
 - All related imports updated accordingly
 
 ### Documentation & Comments
-- All occurrences of "MessageBus", "message bus", "messagebus" → "Channel", "channel"
+- All occurrences of "Channel", "message bus", "channels" → "Channel", "channel"
 
 ## Execution Plan
 
@@ -75,21 +75,21 @@ Rename all instances of "MessageBus" terminology to "Channel" throughout the cod
 Automated bulk find-replace with systematic phases and comprehensive verification.
 
 ### Phase 1: Directory & File Structure
-1. Rename `src/picklebot/messagebus/` → `src/picklebot/channel/`
+1. Rename `src/picklebot/channels/` → `src/picklebot/channel/`
 2. Rename files inside:
    - `telegram_bus.py` → `telegram_channel.py`
    - `discord_bus.py` → `discord_channel.py`
-   - `messagebus_worker.py` → `channel_worker.py`
-3. Rename `docs/messagebus-setup.md` → `docs/channel-setup.md`
-4. Rename test directory `tests/messagebus/` → `tests/channel/`
+   - `channels_worker.py` → `channel_worker.py`
+3. Rename `docs/channels-setup.md` → `docs/channel-setup.md`
+4. Rename test directory `tests/channels/` → `tests/channel/`
 5. Rename test files:
-   - `test_messagebus_worker.py` → `test_channel_worker.py`
+   - `test_channels_worker.py` → `test_channel_worker.py`
    - `test_telegram_bus.py` → `test_telegram_channel.py`
    - `test_discord_bus.py` → `test_discord_channel.py`
 
 ### Phase 2: Core Class Renames
 1. Update `src/picklebot/channel/base.py`:
-   - `class MessageBus` → `class Channel`
+   - `class Channel` → `class Channel`
 2. Update `src/picklebot/channel/telegram_channel.py`:
    - `class TelegramBus` → `class TelegramChannel`
 3. Update `src/picklebot/channel/discord_channel.py`:
@@ -99,27 +99,27 @@ Automated bulk find-replace with systematic phases and comprehensive verificatio
 
 ### Phase 3: Worker & Context Updates
 1. Update `src/picklebot/server/channel_worker.py`:
-   - `class MessageBusWorker` → `class ChannelWorker`
-   - Update all references to `MessageBus`/`messagebus`
+   - `class ChannelWorker` → `class ChannelWorker`
+   - Update all references to `Channel`/`channels`
 2. Update `src/picklebot/core/context.py`:
-   - `messagebus_buses` → `channels`
+   - `channels_buses` → `channels`
    - Update imports
 
 ### Phase 4: Configuration Schema
 1. Update `src/picklebot/utils/config.py`:
-   - `class MessageBusConfig` → `class ChannelConfig`
+   - `class ChannelConfig` → `class ChannelConfig`
    - Update field names and references
 2. Update all config loading/validation code
 
 ### Phase 5: Find-Replace in Source Code
 1. Search and replace in all `src/picklebot/**/*.py`:
-   - `MessageBus` → `Channel`
+   - `Channel` → `Channel`
    - `TelegramBus` → `TelegramChannel`
    - `DiscordBus` → `DiscordChannel`
-   - `MessageBusWorker` → `ChannelWorker`
-   - `MessageBusConfig` → `ChannelConfig`
-   - `messagebus` → `channel` (with context awareness)
-   - Import paths: `picklebot.messagebus` → `picklebot.channel`
+   - `ChannelWorker` → `ChannelWorker`
+   - `ChannelConfig` → `ChannelConfig`
+   - `channels` → `channel` (with context awareness)
+   - Import paths: `picklebot.channels` → `picklebot.channel`
 
 ### Phase 6: Find-Replace in Tests
 1. Same replacements in all `tests/**/*.py` files
@@ -136,13 +136,13 @@ Automated bulk find-replace with systematic phases and comprehensive verificatio
 
 ### Phase 8: Configuration Files
 1. Update any example config files
-2. Update onboarding wizard if it references messagebus
+2. Update onboarding wizard if it references channels
 
 ### Phase 9: Verification
 1. Run `uv run black . && uv run ruff check .`
 2. Run `uv run pytest` - all tests must pass
 3. Manual verification:
-   - Check for any remaining "messagebus" strings
+   - Check for any remaining "channels" strings
    - Verify imports resolve correctly
    - Test server startup
 
@@ -185,8 +185,8 @@ uv run pytest tests/server/test_channel_worker.py
 
 3. **Search for remaining instances:**
    ```bash
-   # Check for any remaining "messagebus" (excluding cache/worktrees)
-   rg -i "messagebus" src/ tests/ docs/ --type-add 'exclude:*.{pyc,pyo}' -t py -t md
+   # Check for any remaining "channels" (excluding cache/worktrees)
+   rg -i "channels" src/ tests/ docs/ --type-add 'exclude:*.{pyc,pyo}' -t py -t md
    ```
 
 4. **Manual smoke test:**
@@ -210,7 +210,7 @@ None expected - this is purely a rename with no logic changes.
 
 ### Files Modified
 - **35+ files** will be modified
-- **1 directory** renamed (`messagebus/` → `channel/`)
+- **1 directory** renamed (`channels/` → `channel/`)
 - **6 core classes** renamed
 - **All configs, docs, and tests** updated
 
@@ -225,7 +225,7 @@ None expected - this is purely a rename with no logic changes.
 
 ## Success Criteria
 
-- ✅ All "messagebus" references replaced with "channel"
+- ✅ All "channels" references replaced with "channel"
 - ✅ All tests pass
 - ✅ Code formats cleanly (black + ruff)
 - ✅ No import errors

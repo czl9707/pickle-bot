@@ -14,7 +14,7 @@ from picklebot.cli.onboarding.steps import (
     ConfigureLLMStep,
     ConfigureExtraFunctionalityStep,
     CopyDefaultAssetsStep,
-    ConfigureMessageBusStep,
+    ConfigureChannelStep,
     SaveConfigStep,
 )
 
@@ -366,14 +366,14 @@ class TestCopyDefaultAssetsStep:
         ).read_text() == "---\nname: Pickle\ndescription: Test agent\n---\n# New Content"
 
 
-class TestConfigureMessageBusStep:
-    """Tests for ConfigureMessageBusStep."""
+class TestConfigureChannelStep:
+    """Tests for ConfigureChannelStep."""
 
     def test_no_platforms_disables_messagebus(self, tmp_path: Path):
         """No platform selection disables messagebus."""
         console = Console()
         defaults = tmp_path / "defaults"
-        step = ConfigureMessageBusStep(tmp_path, console, defaults)
+        step = ConfigureChannelStep(tmp_path, console, defaults)
 
         with patch("questionary.checkbox") as mock_checkbox:
             mock_checkbox.return_value.ask.return_value = []
@@ -382,13 +382,13 @@ class TestConfigureMessageBusStep:
             result = step.run(state)
 
         assert result is True
-        assert state["messagebus"]["enabled"] is False
+        assert state["channels"]["enabled"] is False
 
     def test_telegram_configuration(self, tmp_path: Path):
         """Telegram selection prompts for token and users."""
         console = Console()
         defaults = tmp_path / "defaults"
-        step = ConfigureMessageBusStep(tmp_path, console, defaults)
+        step = ConfigureChannelStep(tmp_path, console, defaults)
 
         with (
             patch("questionary.checkbox") as mock_checkbox,
@@ -404,14 +404,14 @@ class TestConfigureMessageBusStep:
             result = step.run(state)
 
         assert result is True
-        assert state["messagebus"]["enabled"] is True
-        assert state["messagebus"]["telegram"]["bot_token"] == "123:ABC"
+        assert state["channels"]["enabled"] is True
+        assert state["channels"]["telegram"]["bot_token"] == "123:ABC"
 
     def test_discord_configuration(self, tmp_path: Path):
         """Discord selection prompts for token and users."""
         console = Console()
         defaults = tmp_path / "defaults"
-        step = ConfigureMessageBusStep(tmp_path, console, defaults)
+        step = ConfigureChannelStep(tmp_path, console, defaults)
 
         with (
             patch("questionary.checkbox") as mock_checkbox,
@@ -428,8 +428,8 @@ class TestConfigureMessageBusStep:
             result = step.run(state)
 
         assert result is True
-        assert state["messagebus"]["enabled"] is True
-        assert state["messagebus"]["discord"]["bot_token"] == "discord-token"
+        assert state["channels"]["enabled"] is True
+        assert state["channels"]["discord"]["bot_token"] == "discord-token"
 
 
 class TestSaveConfigStep:
@@ -445,7 +445,7 @@ class TestSaveConfigStep:
 
         state = {
             "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test"},
-            "messagebus": {"enabled": False},
+            "channels": {"enabled": False},
         }
         result = step.run(state)
 
@@ -463,7 +463,7 @@ class TestSaveConfigStep:
 
         state = {
             "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test"},
-            "messagebus": {"enabled": False},
+            "channels": {"enabled": False},
         }
         step.run(state)
 
@@ -480,7 +480,7 @@ class TestSaveConfigStep:
         # Missing required fields
         state = {
             "llm": {"provider": "openai"},  # missing model and api_key
-            "messagebus": {"enabled": False},
+            "channels": {"enabled": False},
         }
         result = step.run(state)
 

@@ -137,7 +137,7 @@ Scheduled job emitter:
 - Checks cron schedules
 - Emits `InboundEvent` for due jobs
 
-### MessageBusWorker (`server/messagebus_worker.py`)
+### ChannelWorker (`server/channels_worker.py`)
 
 Platform message ingester:
 
@@ -150,7 +150,7 @@ Platform message ingester:
 Message delivery:
 
 - Subscribes to `OutboundEvent`
-- Routes to appropriate MessageBus
+- Routes to appropriate Channel
 - Calls `bus.reply()` or `bus.post()`
 - Acknowledges event on success
 
@@ -187,12 +187,12 @@ routing:
       value: "platform-discord:.*"
 ```
 
-## MessageBus (`messagebus/`)
+## Channel (`channels/`)
 
 Platform abstraction with EventSource:
 
 ```python
-class MessageBus(ABC, Generic[T]):
+class Channel(ABC, Generic[T]):
     @property
     @abstractmethod
     def platform_name(self) -> str: ...
@@ -282,7 +282,7 @@ class SharedContext:
     agent_loader: AgentLoader
     skill_loader: SkillLoader
     cron_loader: CronLoader
-    messagebus_buses: list[MessageBus]
+    channels_buses: list[Channel]
 ```
 
 ## History (`core/history.py`)
@@ -357,10 +357,10 @@ src/picklebot/
 │   ├── agent_worker.py    # Agent execution
 │   ├── cron_worker.py     # Scheduled jobs
 │   ├── delivery_worker.py # Message delivery
-│   ├── messagebus_worker.py # Platform ingestion
+│   ├── channels_worker.py # Platform ingestion
 │   └── websocket_worker.py # WebSocket streaming
-├── messagebus/            # Platform implementations
-│   ├── base.py            # MessageBus ABC
+├── channels/            # Platform implementations
+│   ├── base.py            # Channel ABC
 │   ├── cli_bus.py         # CLI (CliEventSource)
 │   ├── telegram_bus.py    # Telegram (TelegramEventSource)
 │   └── discord_bus.py     # Discord (DiscordEventSource)

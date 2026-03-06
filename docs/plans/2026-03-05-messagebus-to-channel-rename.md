@@ -1,28 +1,28 @@
-# MessageBus to Channel Rename Implementation Plan
+# Channel to Channel Rename Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Rename all "MessageBus" terminology to "Channel" across the entire pickle-bot codebase.
+**Goal:** Rename all "Channel" terminology to "Channel" across the entire pickle-bot codebase.
 
 **Architecture:** Systematic file-by-file rename with test verification at each phase. Directory structure changes first, then class renames, then config updates, followed by documentation and final verification.
 
 **Tech Stack:** Python, pytest, black, ruff, git
 
-**Design Doc:** [2026-03-05-messagebus-to-channel-rename-design.md](./2026-03-05-messagebus-to-channel-rename-design.md)
+**Design Doc:** [2026-03-05-channels-to-channel-rename-design.md](./2026-03-05-channels-to-channel-rename-design.md)
 
 ---
 
 ## Phase 1: Directory Structure Renames
 
-### Task 1: Rename messagebus directory to channel
+### Task 1: Rename channels directory to channel
 
 **Files:**
-- Move: `src/picklebot/messagebus/` → `src/picklebot/channel/`
+- Move: `src/picklebot/channels/` → `src/picklebot/channel/`
 
 **Step 1: Rename the directory**
 
 ```bash
-git mv src/picklebot/messagebus src/picklebot/channel
+git mv src/picklebot/channels src/picklebot/channel
 ```
 
 **Step 2: Verify directory structure**
@@ -34,7 +34,7 @@ Expected: See `base.py`, `telegram_bus.py`, `discord_bus.py`, `__init__.py`
 
 ```bash
 git add -A
-git commit -m "refactor: rename messagebus directory to channel"
+git commit -m "refactor: rename channels directory to channel"
 ```
 
 ### Task 2: Rename files inside channel directory
@@ -67,15 +67,15 @@ git add -A
 git commit -m "refactor: rename telegram_bus and discord_bus files"
 ```
 
-### Task 3: Rename messagebus_worker.py to channel_worker.py
+### Task 3: Rename channels_worker.py to channel_worker.py
 
 **Files:**
-- Move: `src/picklebot/server/messagebus_worker.py` → `src/picklebot/server/channel_worker.py`
+- Move: `src/picklebot/server/channels_worker.py` → `src/picklebot/server/channel_worker.py`
 
 **Step 1: Rename the worker file**
 
 ```bash
-git mv src/picklebot/server/messagebus_worker.py src/picklebot/server/channel_worker.py
+git mv src/picklebot/server/channels_worker.py src/picklebot/server/channel_worker.py
 ```
 
 **Step 2: Verify file renamed**
@@ -87,22 +87,22 @@ Expected: File exists
 
 ```bash
 git add -A
-git commit -m "refactor: rename messagebus_worker to channel_worker"
+git commit -m "refactor: rename channels_worker to channel_worker"
 ```
 
 ### Task 4: Rename test directory structure
 
 **Files:**
-- Move: `tests/messagebus/` → `tests/channel/`
-- Move: `tests/messagebus/test_base.py` → `tests/channel/test_base.py` (auto-moved with dir)
-- Move: `tests/messagebus/test_telegram_bus.py` → `tests/channel/test_telegram_channel.py`
-- Move: `tests/messagebus/test_discord_bus.py` → `tests/channel/test_discord_channel.py`
-- Move: `tests/server/test_messagebus_worker.py` → `tests/server/test_channel_worker.py`
+- Move: `tests/channels/` → `tests/channel/`
+- Move: `tests/channels/test_base.py` → `tests/channel/test_base.py` (auto-moved with dir)
+- Move: `tests/channels/test_telegram_bus.py` → `tests/channel/test_telegram_channel.py`
+- Move: `tests/channels/test_discord_bus.py` → `tests/channel/test_discord_channel.py`
+- Move: `tests/server/test_channels_worker.py` → `tests/server/test_channel_worker.py`
 
-**Step 1: Rename tests/messagebus directory**
+**Step 1: Rename tests/channels directory**
 
 ```bash
-git mv tests/messagebus tests/channel
+git mv tests/channels tests/channel
 ```
 
 **Step 2: Rename test_telegram_bus.py**
@@ -117,10 +117,10 @@ git mv tests/channel/test_telegram_bus.py tests/channel/test_telegram_channel.py
 git mv tests/channel/test_discord_bus.py tests/channel/test_discord_channel.py
 ```
 
-**Step 4: Rename test_messagebus_worker.py**
+**Step 4: Rename test_channels_worker.py**
 
 ```bash
-git mv tests/server/test_messagebus_worker.py tests/server/test_channel_worker.py
+git mv tests/server/test_channels_worker.py tests/server/test_channel_worker.py
 ```
 
 **Step 5: Verify all test files renamed**
@@ -138,12 +138,12 @@ git commit -m "refactor: rename test files to match channel naming"
 ### Task 5: Rename documentation file
 
 **Files:**
-- Move: `docs/messagebus-setup.md` → `docs/channel-setup.md`
+- Move: `docs/channels-setup.md` → `docs/channel-setup.md`
 
 **Step 1: Rename the doc file**
 
 ```bash
-git mv docs/messagebus-setup.md docs/channel-setup.md
+git mv docs/channels-setup.md docs/channel-setup.md
 ```
 
 **Step 2: Verify file renamed**
@@ -155,14 +155,14 @@ Expected: File exists
 
 ```bash
 git add -A
-git commit -m "refactor: rename messagebus-setup.md to channel-setup.md"
+git commit -m "refactor: rename channels-setup.md to channel-setup.md"
 ```
 
 ---
 
 ## Phase 2: Core Class Renames in channel/base.py
 
-### Task 6: Rename MessageBus class to Channel
+### Task 6: Rename Channel class to Channel
 
 **Files:**
 - Modify: `src/picklebot/channel/base.py:13`
@@ -176,7 +176,7 @@ Note the current class definition
 
 Change line 13 from:
 ```python
-class MessageBus(ABC, Generic[T]):
+class Channel(ABC, Generic[T]):
     """Abstract base for messaging platforms with EventSource-based context."""
 ```
 
@@ -191,7 +191,7 @@ class Channel(ABC, Generic[T]):
 Update line 70-72 from:
 ```python
     @staticmethod
-    def from_config(config: Config) -> list["MessageBus[Any]"]:
+    def from_config(config: Config) -> list["Channel[Any]"]:
         """
         Create message bus instances from configuration.
 ```
@@ -206,7 +206,7 @@ To:
 
 Update line 84 from:
 ```python
-        buses: list["MessageBus[Any]"] = []
+        buses: list["Channel[Any]"] = []
 ```
 
 To:
@@ -223,7 +223,7 @@ Expected: No errors
 
 ```bash
 git add src/picklebot/channel/base.py
-git commit -m "refactor: rename MessageBus class to Channel"
+git commit -m "refactor: rename Channel class to Channel"
 ```
 
 ### Task 7: Update channel/__init__.py exports
@@ -239,13 +239,13 @@ Run: `cat src/picklebot/channel/__init__.py`
 
 Change:
 ```python
-"""Message bus implementations for different platforms."""
+"""Channel implementations for different platforms."""
 
-from picklebot.messagebus.base import MessageBus
-from picklebot.messagebus.telegram_bus import TelegramBus
-from picklebot.messagebus.discord_bus import DiscordBus
+from picklebot.channels.base import Channel
+from picklebot.channels.telegram_bus import TelegramBus
+from picklebot.channels.discord_bus import DiscordBus
 
-__all__ = ["MessageBus", "TelegramBus", "DiscordBus"]
+__all__ = ["Channel", "TelegramBus", "DiscordBus"]
 ```
 
 To:
@@ -337,7 +337,7 @@ git commit -m "refactor: rename DiscordBus to DiscordChannel"
 
 ## Phase 3: Worker Class Rename
 
-### Task 10: Rename MessageBusWorker to ChannelWorker
+### Task 10: Rename ChannelWorker to ChannelWorker
 
 **Files:**
 - Modify: `src/picklebot/server/channel_worker.py`
@@ -350,7 +350,7 @@ Run: `cat src/picklebot/server/channel_worker.py`
 
 Change:
 ```python
-from picklebot.messagebus.base import MessageBus
+from picklebot.channels.base import Channel
 ```
 
 To:
@@ -360,7 +360,7 @@ from picklebot.channel.base import Channel
 
 Change:
 ```python
-class MessageBusWorker(Worker):
+class ChannelWorker(Worker):
     """Ingests messages from platforms, publishes INBOUND events to EventBus."""
 ```
 
@@ -374,7 +374,7 @@ class ChannelWorker(Worker):
 
 Find: `self.buses` and references
 Update docstrings and log messages:
-- `MessageBusWorker started` → `ChannelWorker started`
+- `ChannelWorker started` → `ChannelWorker started`
 
 **Step 4: Verify syntax**
 
@@ -385,7 +385,7 @@ Expected: No errors
 
 ```bash
 git add src/picklebot/server/channel_worker.py
-git commit -m "refactor: rename MessageBusWorker to ChannelWorker"
+git commit -m "refactor: rename ChannelWorker to ChannelWorker"
 ```
 
 ### Task 11: Update server/__init__.py exports
@@ -401,7 +401,7 @@ Run: `cat src/picklebot/server/__init__.py`
 
 Change:
 ```python
-from .messagebus_worker import MessageBusWorker
+from .channels_worker import ChannelWorker
 ```
 
 To:
@@ -425,7 +425,7 @@ git commit -m "refactor: update server exports for ChannelWorker"
 
 ## Phase 4: Configuration Schema Updates
 
-### Task 12: Rename MessageBusConfig to ChannelConfig
+### Task 12: Rename ChannelConfig to ChannelConfig
 
 **Files:**
 - Modify: `src/picklebot/utils/config.py:60-66`
@@ -438,8 +438,8 @@ Run: `sed -n '60,66p' src/picklebot/utils/config.py`
 
 Change:
 ```python
-class MessageBusConfig(BaseModel):
-    """Message bus configuration."""
+class ChannelConfig(BaseModel):
+    """Channel configuration."""
 
     enabled: bool = False
     telegram: TelegramConfig | None = None
@@ -460,7 +460,7 @@ class ChannelConfig(BaseModel):
 
 Find line 108 and change:
 ```python
-    messagebus: MessageBusConfig = Field(default_factory=MessageBusConfig)
+    channels: ChannelConfig = Field(default_factory=ChannelConfig)
 ```
 
 To:
@@ -470,7 +470,7 @@ To:
 
 **Step 4: Search for other references**
 
-Run: `rg "MessageBusConfig|\.messagebus" src/picklebot/utils/config.py`
+Run: `rg "ChannelConfig|\.channels" src/picklebot/utils/config.py`
 Review and update any additional references
 
 **Step 5: Verify syntax**
@@ -482,7 +482,7 @@ Expected: No errors
 
 ```bash
 git add src/picklebot/utils/config.py
-git commit -m "refactor: rename MessageBusConfig to ChannelConfig"
+git commit -m "refactor: rename ChannelConfig to ChannelConfig"
 ```
 
 ---
@@ -502,7 +502,7 @@ Run: `cat src/picklebot/core/context.py`
 
 Change line 11:
 ```python
-from picklebot.messagebus.base import MessageBus
+from picklebot.channels.base import Channel
 ```
 
 To:
@@ -514,7 +514,7 @@ from picklebot.channel.base import Channel
 
 Change line 24:
 ```python
-    messagebus_buses: list[MessageBus[Any]]
+    channels_buses: list[Channel[Any]]
 ```
 
 To:
@@ -526,9 +526,9 @@ To:
 
 Change lines 41-43:
 ```python
-            self.messagebus_buses = buses
+            self.channels_buses = buses
         else:
-            self.messagebus_buses = MessageBus.from_config(config)
+            self.channels_buses = Channel.from_config(config)
 ```
 
 To:
@@ -547,33 +547,33 @@ Expected: No errors
 
 ```bash
 git add src/picklebot/core/context.py
-git commit -m "refactor: rename messagebus_buses to channels in SharedContext"
+git commit -m "refactor: rename channels_buses to channels in SharedContext"
 ```
 
 ---
 
 ## Phase 6: Bulk Find-Replace in Source Code
 
-### Task 14: Find and replace MessageBus references in src/
+### Task 14: Find and replace Channel references in src/
 
 **Files:**
 - All Python files in `src/picklebot/`
 
-**Step 1: Find all MessageBus references**
+**Step 1: Find all Channel references**
 
-Run: `rg "MessageBus|MessageBusWorker|MessageBusConfig" src/picklebot/ --type py -l`
+Run: `rg "Channel|ChannelWorker|ChannelConfig" src/picklebot/ --type py -l`
 Note: This will show which files need updating
 
 **Step 2: Perform systematic replacements**
 
 For each file found, replace:
-- `MessageBus` → `Channel`
+- `Channel` → `Channel`
 - `TelegramBus` → `TelegramChannel`
 - `DiscordBus` → `DiscordChannel`
-- `MessageBusWorker` → `ChannelWorker`
-- `MessageBusConfig` → `ChannelConfig`
-- `messagebus_buses` → `channels`
-- `picklebot.messagebus` → `picklebot.channel`
+- `ChannelWorker` → `ChannelWorker`
+- `ChannelConfig` → `ChannelConfig`
+- `channels_buses` → `channels`
+- `picklebot.channels` → `picklebot.channel`
 
 **Step 3: Run syntax check on all modified files**
 
@@ -589,7 +589,7 @@ Expected: Tests may fail due to import issues, but syntax should be valid
 
 ```bash
 git add src/picklebot/
-git commit -m "refactor: replace MessageBus references with Channel in source code"
+git commit -m "refactor: replace Channel references with Channel in source code"
 ```
 
 ### Task 15: Update delivery_worker.py references
@@ -597,15 +597,15 @@ git commit -m "refactor: replace MessageBus references with Channel in source co
 **Files:**
 - Modify: `src/picklebot/server/delivery_worker.py`
 
-**Step 1: Find messagebus references**
+**Step 1: Find channels references**
 
-Run: `rg "messagebus|MessageBus" src/picklebot/server/delivery_worker.py`
+Run: `rg "channels|Channel" src/picklebot/server/delivery_worker.py`
 
 **Step 2: Update imports and references**
 
 Replace any occurrences of:
-- `from picklebot.messagebus` → `from picklebot.channel`
-- `MessageBus` → `Channel`
+- `from picklebot.channels` → `from picklebot.channel`
+- `Channel` → `Channel`
 
 **Step 3: Verify syntax**
 
@@ -628,21 +628,21 @@ git commit -m "refactor: update delivery_worker Channel references"
 **Files:**
 - All test files in `tests/`
 
-**Step 1: Find test files with MessageBus references**
+**Step 1: Find test files with Channel references**
 
-Run: `rg "MessageBus|TelegramBus|DiscordBus|MessageBusWorker" tests/ --type py -l`
+Run: `rg "Channel|TelegramBus|DiscordBus|ChannelWorker" tests/ --type py -l`
 
 **Step 2: Update each test file**
 
 For each file, replace:
-- `from picklebot.messagebus` → `from picklebot.channel`
-- `MessageBus` → `Channel`
+- `from picklebot.channels` → `from picklebot.channel`
+- `Channel` → `Channel`
 - `TelegramBus` → `TelegramChannel`
 - `DiscordBus` → `DiscordChannel`
-- `MessageBusWorker` → `ChannelWorker`
+- `ChannelWorker` → `ChannelWorker`
 - `test_telegram_bus` → `test_telegram_channel`
 - `test_discord_bus` → `test_discord_channel`
-- `test_messagebus_worker` → `test_channel_worker`
+- `test_channels_worker` → `test_channel_worker`
 
 **Step 3: Run channel tests**
 
@@ -668,13 +668,13 @@ git commit -m "refactor: update test files for Channel naming"
 
 **Step 1: Find fixture references**
 
-Run: `rg "messagebus|MessageBus" tests/conftest.py`
+Run: `rg "channels|Channel" tests/conftest.py`
 
 **Step 2: Update fixtures**
 
 Replace:
-- `messagebus` → `channels` in fixture names and config
-- `MessageBus` → `Channel` in type hints
+- `channels` → `channels` in fixture names and config
+- `Channel` → `Channel` in type hints
 
 **Step 3: Verify tests still work**
 
@@ -697,16 +697,16 @@ git commit -m "refactor: update test fixtures for Channel naming"
 **Files:**
 - Modify: `docs/channel-setup.md`
 
-**Step 1: Find MessageBus references**
+**Step 1: Find Channel references**
 
-Run: `rg "messagebus|Message bus|MessageBus" docs/channel-setup.md -i`
+Run: `rg "channels|Channel|Channel" docs/channel-setup.md -i`
 
 **Step 2: Update all references**
 
 Replace:
-- `Message Bus` → `Channel`
-- `messagebus` → `channel` (in config examples)
-- `MessageBus` → `Channel`
+- `Channel` → `Channel`
+- `channels` → `channel` (in config examples)
+- `Channel` → `Channel`
 
 **Step 3: Verify file reads correctly**
 
@@ -727,14 +727,14 @@ git commit -m "docs: update channel-setup.md terminology"
 
 **Step 1: Find all references**
 
-Run: `rg "messagebus|MessageBus|Message bus" docs/configuration.md -i -C 2`
+Run: `rg "channels|Channel|Channel" docs/configuration.md -i -C 2`
 
 **Step 2: Update terminology**
 
 Replace throughout:
-- `MessageBus` → `Channel`
-- `messagebus:` → `channels:` in config examples
-- `Message Bus` → `Channel` in prose
+- `Channel` → `Channel`
+- `channels:` → `channels:` in config examples
+- `Channel` → `Channel` in prose
 
 **Step 3: Verify examples are correct**
 
@@ -760,14 +760,14 @@ git commit -m "docs: update configuration.md for Channel terminology"
 
 **Step 1: Find references**
 
-Run: `rg "messagebus|MessageBus" docs/architecture.md -i -C 2`
+Run: `rg "channels|Channel" docs/architecture.md -i -C 2`
 
 **Step 2: Update all occurrences**
 
 Replace:
-- `MessageBus` → `Channel`
-- `messagebus/` → `channel/`
-- `MessageBusWorker` → `ChannelWorker`
+- `Channel` → `Channel`
+- `channels/` → `channel/`
+- `ChannelWorker` → `ChannelWorker`
 
 **Step 3: Commit**
 
@@ -783,11 +783,11 @@ git commit -m "docs: update architecture.md for Channel terminology"
 
 **Step 1: Find references**
 
-Run: `rg "messagebus|MessageBus" docs/features.md -i`
+Run: `rg "channels|Channel" docs/features.md -i`
 
 **Step 2: Update all occurrences**
 
-Replace MessageBus terminology with Channel
+Replace Channel terminology with Channel
 
 **Step 3: Commit**
 
@@ -803,14 +803,14 @@ git commit -m "docs: update features.md for Channel terminology"
 
 **Step 1: Find references**
 
-Run: `rg "messagebus|MessageBus" CLAUDE.md -i`
+Run: `rg "channels|Channel" CLAUDE.md -i`
 
 **Step 2: Update all occurrences**
 
 Replace:
-- `MessageBusWorker` → `ChannelWorker`
-- `messagebus/` → `channel/`
-- `MessageBus` → `Channel`
+- `ChannelWorker` → `ChannelWorker`
+- `channels/` → `channel/`
+- `Channel` → `Channel`
 
 **Step 3: Commit**
 
@@ -826,11 +826,11 @@ git commit -m "docs: update CLAUDE.md for Channel terminology"
 
 **Step 1: Find affected plan docs**
 
-Run: `rg "messagebus|MessageBus" docs/plans/*.md -l`
+Run: `rg "channels|Channel" docs/plans/*.md -l`
 
 **Step 2: Update each document**
 
-For each file found, replace MessageBus terminology with Channel
+For each file found, replace Channel terminology with Channel
 
 **Step 3: Commit**
 
@@ -849,15 +849,15 @@ git commit -m "docs: update design documents for Channel terminology"
 - Modify: `src/picklebot/cli/onboarding/steps.py`
 - Modify: `src/picklebot/cli/onboarding/wizard.py`
 
-**Step 1: Find MessageBus references**
+**Step 1: Find Channel references**
 
-Run: `rg "messagebus|MessageBus" src/picklebot/cli/onboarding/`
+Run: `rg "channels|Channel" src/picklebot/cli/onboarding/`
 
 **Step 2: Update references**
 
 Replace:
-- `messagebus` → `channels` (config keys)
-- `MessageBus` → `Channel`
+- `channels` → `channels` (config keys)
+- `Channel` → `Channel`
 
 **Step 3: Verify syntax**
 
@@ -877,14 +877,14 @@ git commit -m "refactor: update onboarding for Channel terminology"
 **Files:**
 - Modify: `src/picklebot/cli/server.py`
 
-**Step 1: Find MessageBus references**
+**Step 1: Find Channel references**
 
-Run: `rg "MessageBusWorker|MessageBus" src/picklebot/cli/server.py`
+Run: `rg "ChannelWorker|Channel" src/picklebot/cli/server.py`
 
 **Step 2: Update imports and references**
 
 Replace:
-- `MessageBusWorker` → `ChannelWorker`
+- `ChannelWorker` → `ChannelWorker`
 
 **Step 3: Verify syntax**
 
@@ -946,14 +946,14 @@ For each failure:
 
 Compare test count before and after - should be identical
 
-### Task 28: Search for remaining MessageBus references
+### Task 28: Search for remaining Channel references
 
 **Files:**
 - All source, test, and doc files
 
 **Step 1: Search for remaining occurrences**
 
-Run: `rg -i "messagebus" src/ tests/ docs/ --type py --type md -C 2`
+Run: `rg -i "channels" src/ tests/ docs/ --type py --type md -C 2`
 
 **Step 2: Review any findings**
 
@@ -1006,7 +1006,7 @@ Expected: Clean working tree
 If there are any remaining changes:
 ```bash
 git add -A
-git commit -m "refactor: complete MessageBus to Channel rename"
+git commit -m "refactor: complete Channel to Channel rename"
 ```
 
 ---
@@ -1015,17 +1015,17 @@ git commit -m "refactor: complete MessageBus to Channel rename"
 
 After completing all tasks, verify:
 
-- [ ] Directory `src/picklebot/messagebus/` no longer exists
+- [ ] Directory `src/picklebot/channels/` no longer exists
 - [ ] Directory `src/picklebot/channel/` exists with all files
 - [ ] All test files renamed correctly
 - [ ] All classes renamed (Channel, TelegramChannel, DiscordChannel, ChannelWorker, ChannelConfig)
-- [ ] All imports updated from `picklebot.messagebus` to `picklebot.channel`
-- [ ] Config schema uses `channels:` instead of `messagebus:`
-- [ ] Context attribute is `context.channels` not `context.messagebus_buses`
+- [ ] All imports updated from `picklebot.channels` to `picklebot.channel`
+- [ ] Config schema uses `channels:` instead of `channels:`
+- [ ] Context attribute is `context.channels` not `context.channels_buses`
 - [ ] All documentation updated
 - [ ] All tests pass
 - [ ] Code formats cleanly with black and ruff
-- [ ] No remaining "MessageBus" references in src/, tests/, or docs/
+- [ ] No remaining "Channel" references in src/, tests/, or docs/
 - [ ] Server can start successfully
 - [ ] CLI commands work
 
@@ -1036,7 +1036,7 @@ If major issues arise:
 1. **Soft rollback (if on feature branch):**
    ```bash
    git checkout main
-   git branch -D feature/messagebus-to-channel-rename
+   git branch -D feature/channels-to-channel-rename
    ```
 
 2. **Hard rollback (if on main):**

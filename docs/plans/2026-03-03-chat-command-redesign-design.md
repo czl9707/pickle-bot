@@ -20,7 +20,7 @@ Refactor the chat command to use a synchronous loop with response queue, elimina
 ### Current Flow (Problematic)
 
 ```
-CliBus.run() [async] → MessageBusWorker → EventBus → AgentWorker → DeliveryWorker → CliBus.reply()
+CliBus.run() [async] → ChannelWorker → EventBus → AgentWorker → DeliveryWorker → CliBus.reply()
 ```
 
 Issues:
@@ -43,7 +43,7 @@ Benefits:
 
 ### Eliminated Components
 
-**CliBus** (`src/picklebot/messagebus/cli_bus.py`)
+**CliBus** (`src/picklebot/channels/cli_bus.py`)
 - Remove entirely
 - No longer needed with synchronous chat loop
 - CLI I/O moves to ChatLoop
@@ -71,7 +71,7 @@ Key methods:
 - EventBus - No changes
 - AgentWorker - No changes
 - DeliveryWorker - Will be removed from CLI workers list
-- MessageBusWorker - Will be removed from CLI workers list
+- ChannelWorker - Will be removed from CLI workers list
 
 ## Data Flow
 
@@ -136,13 +136,13 @@ You: _
 ### Files Modified
 
 1. **`src/picklebot/cli/chat.py`** - Major refactor
-   - Remove CliBus and MessageBusWorker from workers list
+   - Remove CliBus and ChannelWorker from workers list
    - Add response queue
    - Subscribe to OutboundEvents
    - Implement synchronous loop with styled I/O
    - Add warning suppression
 
-2. **`src/picklebot/messagebus/cli_bus.py`** - Delete entirely
+2. **`src/picklebot/channels/cli_bus.py`** - Delete entirely
 
 3. **`src/picklebot/core/context.py`** - Check if CliBus initialization needs removal
 
@@ -163,7 +163,7 @@ self.workers = [
     self.context.eventbus,
     AgentWorker(self.context),
     DeliveryWorker(self.context),
-    MessageBusWorker(self.context),
+    ChannelWorker(self.context),
 ]
 ```
 
@@ -176,7 +176,7 @@ self.workers = [
 ```
 
 - DeliveryWorker removed (ChatLoop handles output)
-- MessageBusWorker removed (no buses for CLI)
+- ChannelWorker removed (no buses for CLI)
 
 ### Event Acknowledgment
 

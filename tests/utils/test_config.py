@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from picklebot.utils.config import (
     Config,
-    MessageBusConfig,
+    ChannelConfig,
     TelegramConfig,
     DiscordConfig,
     ApiConfig,
@@ -116,7 +116,7 @@ class TestSessionHistoryLimits:
         assert config.default_agent == "test"
 
 
-class TestMessageBusConfig:
+class TestChannelConfig:
     """Tests for messagebus configuration."""
 
     def test_messagebus_disabled_by_default(self, llm_config):
@@ -126,11 +126,11 @@ class TestMessageBusConfig:
             llm=llm_config,
             default_agent="pickle",
         )
-        assert not config.messagebus.enabled
+        assert not config.channels.enabled
 
     def test_messagebus_can_be_enabled_with_platform(self):
         """Test that messagebus can be enabled with platform config."""
-        config = MessageBusConfig(
+        config = ChannelConfig(
             enabled=True,
             telegram=TelegramConfig(bot_token="test_token"),
         )
@@ -140,7 +140,7 @@ class TestMessageBusConfig:
 
     def test_messagebus_can_be_disabled(self):
         """Test that messagebus can be explicitly disabled."""
-        config = MessageBusConfig(enabled=False)
+        config = ChannelConfig(enabled=False)
         assert not config.enabled
 
     def test_messagebus_integration_with_config(self, llm_config):
@@ -149,13 +149,13 @@ class TestMessageBusConfig:
             workspace=Path("/workspace"),
             llm=llm_config,
             default_agent="pickle",
-            messagebus=MessageBusConfig(
+            channels=ChannelConfig(
                 enabled=True,
                 telegram=TelegramConfig(bot_token="test_token"),
             ),
         )
-        assert config.messagebus.enabled
-        assert config.messagebus.telegram.bot_token == "test_token"
+        assert config.channels.enabled
+        assert config.channels.telegram.bot_token == "test_token"
 
 
 class TestLLMConfig:
@@ -451,10 +451,10 @@ def test_discord_config_no_default_chat_id():
 
 
 def test_messagebus_config_no_default_platform():
-    """MessageBusConfig should not have default_platform field."""
-    from picklebot.utils.config import MessageBusConfig
+    """ChannelConfig should not have default_platform field."""
+    from picklebot.utils.config import ChannelConfig
 
-    config = MessageBusConfig()
+    config = ChannelConfig()
     assert not hasattr(config, "default_platform")
 
 

@@ -6,7 +6,7 @@ import pytest
 
 from picklebot.core.context import SharedContext
 from picklebot.server.server import Server
-from picklebot.utils.config import MessageBusConfig, TelegramConfig
+from picklebot.utils.config import ChannelConfig, TelegramConfig
 
 
 class TestServer:
@@ -41,7 +41,7 @@ class TestServer:
     @pytest.mark.anyio
     async def test_server_setup_workers_when_messagebus_enabled(self, test_config):
         """Server sets up ChannelWorker when messagebus enabled."""
-        test_config.messagebus = MessageBusConfig(
+        test_config.channels = ChannelConfig(
             enabled=True,
             telegram=TelegramConfig(enabled=True, bot_token="test"),
         )
@@ -67,7 +67,7 @@ class TestServer:
         self, test_config
     ):
         """Server doesn't setup ChannelWorker if no buses configured."""
-        test_config.messagebus = MessageBusConfig(
+        test_config.channels = ChannelConfig(
             enabled=True,
             telegram=TelegramConfig(enabled=False, bot_token="test"),
         )

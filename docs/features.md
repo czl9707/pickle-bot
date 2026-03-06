@@ -124,7 +124,7 @@ webread:
 
 No API key needed - uses local browser.
 
-## MessageBus
+## Channel
 
 Chat via Telegram and Discord with shared conversation history.
 

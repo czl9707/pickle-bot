@@ -172,27 +172,27 @@ git commit -m "feat(chat): suppress Python warnings"
 ```python
 # Add to tests/cli/test_chat_integration.py
 
-def test_chat_loop_has_no_messagebus_worker():
-    """Test that ChatLoop doesn't use MessageBusWorker."""
+def test_chat_loop_has_no_channels_worker():
+    """Test that ChatLoop doesn't use ChannelWorker."""
     config = Config.load()
     chat_loop = ChatLoop(config)
 
     # Check workers list
     worker_types = [type(worker).__name__ for worker in chat_loop.workers]
 
-    # Should have EventBus, AgentWorker, but NOT MessageBusWorker or DeliveryWorker
+    # Should have EventBus, AgentWorker, but NOT ChannelWorker or DeliveryWorker
     assert "EventBus" in worker_types
     assert "AgentWorker" in worker_types
-    assert "MessageBusWorker" not in worker_types
+    assert "ChannelWorker" not in worker_types
     assert "DeliveryWorker" not in worker_types
 ```
 
 **Step 2: Run test to verify it fails**
 
-Run: `uv run pytest tests/cli/test_chat_integration.py::test_chat_loop_has_no_messagebus_worker -v`
-Expected: FAIL - MessageBusWorker and DeliveryWorker still in list
+Run: `uv run pytest tests/cli/test_chat_integration.py::test_chat_loop_has_no_channels_worker -v`
+Expected: FAIL - ChannelWorker and DeliveryWorker still in list
 
-**Step 3: Remove MessageBusWorker and DeliveryWorker**
+**Step 3: Remove ChannelWorker and DeliveryWorker**
 
 ```python
 # In src/picklebot/cli/chat.py, ChatLoop.__init__
@@ -216,14 +216,14 @@ def __init__(self, config: Config):
 
 **Step 4: Run test to verify it passes**
 
-Run: `uv run pytest tests/cli/test_chat_integration.py::test_chat_loop_has_no_messagebus_worker -v`
+Run: `uv run pytest tests/cli/test_chat_integration.py::test_chat_loop_has_no_channels_worker -v`
 Expected: PASS
 
 **Step 5: Commit**
 
 ```bash
 git add src/picklebot/cli/chat.py tests/cli/test_chat_integration.py
-git commit -m "refactor(chat): remove MessageBusWorker and DeliveryWorker"
+git commit -m "refactor(chat): remove ChannelWorker and DeliveryWorker"
 ```
 
 ---
@@ -579,11 +579,11 @@ git commit -m "refactor(chat): implement synchronous chat loop"
 ## Task 8: Delete CliBus
 
 **Files:**
-- Delete: `src/picklebot/messagebus/cli_bus.py`
+- Delete: `src/picklebot/channels/cli_bus.py`
 
 **Step 1: Verify no imports of CliBus**
 
-Run: `grep -r "from picklebot.messagebus.cli_bus import" src/`
+Run: `grep -r "from picklebot.channels.cli_bus import" src/`
 Expected: No output (CliBus not imported anywhere)
 
 Run: `grep -r "CliBus" src/picklebot/cli/`
@@ -592,12 +592,12 @@ Expected: No output (CliBus not referenced in CLI code)
 **Step 2: Delete CliBus file**
 
 ```bash
-rm src/picklebot/messagebus/cli_bus.py
+rm src/picklebot/channels/cli_bus.py
 ```
 
 **Step 3: Verify deletion**
 
-Run: `ls src/picklebot/messagebus/cli_bus.py`
+Run: `ls src/picklebot/channels/cli_bus.py`
 Expected: Error - file not found
 
 **Step 4: Run tests to ensure nothing broke**

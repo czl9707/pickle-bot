@@ -24,7 +24,7 @@ def create_post_message_tool(context: "SharedContext") -> BaseTool | None:
     config = context.config
 
     # Return None if messagebus not enabled or no buses configured
-    if not config.messagebus.enabled:
+    if not config.channels.enabled:
         return None
 
     # Check if we have any buses configured

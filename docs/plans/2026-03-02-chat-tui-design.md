@@ -23,7 +23,7 @@ Replace the simple CLI with a Textual-based TUI that provides:
 1. **ChatApp** (Textual App) - Main TUI application
 2. **MessageHistory** (Widget) - Scrollable conversation display
 3. **InputBar** (Widget) - Fixed single-line input at bottom
-4. **CliBus** (MessageBus) - Connects Textual to event system
+4. **CliBus** (Channel) - Connects Textual to event system
 
 **Event Flow:**
 ```
@@ -37,24 +37,24 @@ OutboundEvent → CliBus → MessageHistory display
 src/picklebot/
 ├── cli/
 │   ├── chat.py              # Updated to use ChatApp
-│   ├── cli_bus.py           # MOVED from messagebus/, rewritten with Textual
+│   ├── cli_bus.py           # MOVED from channels/, rewritten with Textual
 │   └── tui/                 # NEW: TUI components
 │       ├── __init__.py
 │       ├── app.py           # ChatApp
 │       ├── widgets.py       # MessageHistory, InputBar
 │       └── styles.css       # Textual CSS
-└── messagebus/
-    ├── base.py              # MessageBus base class
+└── channels/
+    ├── base.py              # Channel base class
     ├── telegram_bus.py      # Platform buses
     └── discord_bus.py
 ```
 
 ### CliBus Implementation
 
-**Location:** `cli/cli_bus.py` (moved from `messagebus/`)
+**Location:** `cli/cli_bus.py` (moved from `channels/`)
 
 **Responsibilities:**
-- Implements `MessageBus[CliEventSource]` interface
+- Implements `Channel[CliEventSource]` interface
 - Launches Textual ChatApp in `run()` method
 - Receives messages from ChatApp and calls `on_message` callback (emits InboundEvent)
 - Implements `reply()` to display OutboundEvents in ChatApp
@@ -169,17 +169,17 @@ The `CliBus.reply()` checks `OutboundEvent.error` field:
 **Step 1: Create TUI components**
 - Create `cli/tui/` directory structure
 - Implement `app.py`, `widgets.py`, `styles.css`
-- Keep existing `messagebus/cli_bus.py` unchanged
+- Keep existing `channels/cli_bus.py` unchanged
 
 **Step 2: Move and rewrite CliBus**
-- Move `messagebus/cli_bus.py` → `cli/cli_bus.py`
+- Move `channels/cli_bus.py` → `cli/cli_bus.py`
 - Rewrite to use Textual components
 - Update imports in `cli/chat.py`
 
 **Step 3: Update imports**
 - Update `cli/chat.py` to import from `cli.cli_bus`
 - Update any test files importing from old location
-- Remove old `messagebus/cli_bus.py`
+- Remove old `channels/cli_bus.py`
 
 **Step 4: Add dependencies**
 - Add `textual` to project dependencies (pyproject.toml)
@@ -233,13 +233,13 @@ tests/
 
 | File | Change |
 |------|--------|
-| `messagebus/cli_bus.py` | DELETE (moved to cli/) |
-| `cli/cli_bus.py` | NEW (moved from messagebus/, rewritten with Textual) |
+| `channels/cli_bus.py` | DELETE (moved to cli/) |
+| `cli/cli_bus.py` | NEW (moved from channels/, rewritten with Textual) |
 | `cli/chat.py` | Update to use new CliBus location |
 | `cli/tui/__init__.py` | NEW |
 | `cli/tui/app.py` | NEW - ChatApp |
 | `cli/tui/widgets.py` | NEW - MessageHistory, InputBar |
 | `cli/tui/styles.css` | NEW - Textual styling |
 | `pyproject.toml` | Add textual dependency |
-| `tests/messagebus/test_cli_bus.py` | DELETE (moved to cli/) |
+| `tests/channels/test_cli_bus.py` | DELETE (moved to cli/) |
 | `tests/cli/test_cli_bus.py` | NEW - Unit tests for CliBus |

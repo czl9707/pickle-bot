@@ -702,7 +702,7 @@ from picklebot.core.prompt_builder import PromptBuilder  # Add import
 from picklebot.core.routing import RoutingTable
 from picklebot.core.skill_loader import SkillLoader
 from picklebot.core.eventbus import EventBus
-from picklebot.messagebus.base import MessageBus
+from picklebot.channels.base import Channel
 from picklebot.utils.config import Config
 
 
@@ -715,13 +715,13 @@ class SharedContext:
     skill_loader: SkillLoader
     cron_loader: CronLoader
     command_registry: CommandRegistry
-    messagebus_buses: list[MessageBus[Any]]
+    channels_buses: list[Channel[Any]]
     eventbus: EventBus
     routing_table: RoutingTable
     prompt_builder: PromptBuilder  # Add field
 
     def __init__(
-        self, config: Config, buses: list[MessageBus[Any]] | None = None
+        self, config: Config, buses: list[Channel[Any]] | None = None
     ) -> None:
         self.config = config
         self.history_store = HistoryStore.from_config(config)
@@ -731,9 +731,9 @@ class SharedContext:
         self.command_registry = CommandRegistry.with_builtins()
 
         if buses is not None:
-            self.messagebus_buses = buses
+            self.channels_buses = buses
         else:
-            self.messagebus_buses = MessageBus.from_config(config)
+            self.channels_buses = Channel.from_config(config)
 
         self.eventbus = EventBus(self)
         self.routing_table = RoutingTable(self)

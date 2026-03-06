@@ -82,7 +82,7 @@ class Channel(ABC, Generic[T]):
         from picklebot.channel.discord_channel import DiscordChannel
 
         buses: list["Channel[Any]"] = []
-        bus_config = config.messagebus
+        bus_config = config.channels
         if bus_config.telegram and bus_config.telegram.enabled:
             buses.append(TelegramChannel(bus_config.telegram))
 

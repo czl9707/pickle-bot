@@ -9,7 +9,7 @@ import pytest
 
 from tests.helpers import create_test_agent
 
-from picklebot.messagebus.telegram_bus import TelegramEventSource
+from picklebot.channel.telegram_channel import TelegramEventSource
 from picklebot.server.agent_worker import (
     MAX_RETRIES,
     AgentWorker,

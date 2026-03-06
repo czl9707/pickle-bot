@@ -69,7 +69,7 @@ Add this method to the `DeliveryWorker` class (after `__init__`):
 
 ```python
     async def _deliver_with_retry(
-        self, chunks: list[str], source: "EventSource", bus: "MessageBus[Any]"
+        self, chunks: list[str], source: "EventSource", bus: "Channel[Any]"
     ) -> bool:
         """Deliver all chunks with retry logic. Returns True on success."""
         for attempt in range(1, MAX_RETRIES + 1):

@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch, AsyncMock
 from picklebot.core.context_guard import ContextGuard
 from picklebot.core.session_state import SessionState
 from picklebot.core.history import HistoryStore
-from picklebot.messagebus.telegram_bus import TelegramEventSource
+from picklebot.channel.telegram_channel import TelegramEventSource
 
 
 class TestContextGuard:

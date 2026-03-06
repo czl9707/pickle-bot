@@ -1,7 +1,7 @@
 # tests/events/test_bus.py
 import pytest
 from picklebot.core.events import Event, OutboundEvent, InboundEvent, AgentEventSource
-from picklebot.messagebus.telegram_bus import TelegramEventSource
+from picklebot.channel.telegram_channel import TelegramEventSource
 
 
 @pytest.fixture

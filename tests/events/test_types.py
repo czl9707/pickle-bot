@@ -15,7 +15,7 @@ from picklebot.core.events import (
     serialize_event,
     deserialize_event,
 )
-from picklebot.messagebus.telegram_bus import TelegramEventSource
+from picklebot.channel.telegram_channel import TelegramEventSource
 from picklebot.core.events import CliEventSource
 
 
@@ -329,7 +329,7 @@ class TestEventSourceSerialization:
     def test_inbound_event_with_platform_source(self):
         """InboundEvent should serialize/deserialize with platform sources."""
         from picklebot.core.events import InboundEvent
-        from picklebot.messagebus.telegram_bus import TelegramEventSource
+        from picklebot.channel.telegram_channel import TelegramEventSource
 
         source = TelegramEventSource(user_id="123", chat_id="456")
         event = InboundEvent(
