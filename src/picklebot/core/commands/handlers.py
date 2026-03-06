@@ -61,11 +61,17 @@ class SessionCommand(Command):
     description = "Show current session details"
 
     def execute(self, args: str, session: "AgentSession") -> str:
-        info = session.shared_context.history_store.get_session_info(session.session_id)
+        info = session.shared_context.history_store.get_session_info(
+            session.session_id
+        )
+
+        # Handle case where session not found in index
+        created_str = info.created_at if info else "Unknown"
+
         lines = [
             f"**Session ID:** `{session.session_id}`",
             f"**Agent:** {session.agent.agent_def.name} (`{session.agent.agent_def.id}`)",
-            f"**Created:** {info.created_at}",
+            f"**Created:** {created_str}",
             f"**Messages:** {len(session.state.messages)}",
             f"**Source:** `{session.source}`",
         ]
