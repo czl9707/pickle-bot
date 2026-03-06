@@ -2,13 +2,17 @@
 """Tests for built-in command handlers."""
 
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock
 
 from picklebot.core.commands.handlers import (
     HelpCommand,
     AgentCommand,
     SkillsCommand,
     CronsCommand,
+    CompactCommand,
+    ContextCommand,
+    ClearCommand,
+    SessionCommand,
 )
 
 
@@ -43,6 +47,10 @@ class TestCommandProperties:
             ),
             (SkillsCommand, "skills", [], "List all skills"),
             (CronsCommand, "crons", [], "List all cron jobs"),
+            (CompactCommand, "compact", [], "Compact conversation context manually"),
+            (ContextCommand, "context", [], "Show session context information"),
+            (ClearCommand, "clear", [], "Clear conversation and start fresh"),
+            (SessionCommand, "session", [], "Show current session details"),
         ],
     )
     def test_command_properties(self, cls, name, aliases, description):
@@ -169,3 +177,62 @@ class TestCommandExecute:
         assert "not found" in result
         mock_context.routing_table.add_runtime_binding.assert_not_called()
         mock_context.routing_table.clear_session_cache.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_compact_command(self, mock_session):
+        """Test compact command triggers compaction."""
+        mock_session.context_guard.check_and_compact = AsyncMock(
+            return_value=mock_session.state
+        )
+        mock_session.context_guard.estimate_tokens = MagicMock(return_value=1000)
+
+        cmd = CompactCommand()
+        result = await cmd.execute("", mock_session)
+
+        assert "✓ Context compacted" in result
+        assert "messages retained" in result
+        mock_session.context_guard.check_and_compact.assert_called_once_with(
+            mock_session.state, force=True
+        )
+
+    def test_context_command(self, mock_session):
+        """Test context command shows session info."""
+        mock_session.context_guard.estimate_tokens = MagicMock(return_value=1000)
+
+        cmd = ContextCommand()
+        result = cmd.execute("", mock_session)
+
+        assert "**Session:**" in result
+        assert "**Agent:**" in result
+        assert "**Messages:**" in result
+        assert "**Tokens:**" in result
+
+    def test_clear_command(self, mock_session, mock_context):
+        """Test clear command clears session cache."""
+        mock_session.shared_context = mock_context
+        mock_session.source = MagicMock()
+        mock_session.source.__str__ = MagicMock(return_value="platform-cli:test")
+
+        cmd = ClearCommand()
+        result = cmd.execute("", mock_session)
+
+        assert "✓ Conversation cleared" in result
+        mock_context.routing_table.clear_session_cache.assert_called_once_with(
+            "platform-cli:test"
+        )
+
+    def test_session_command(self, mock_session, mock_context):
+        """Test session command shows session details."""
+        mock_session.shared_context = mock_context
+        mock_info = MagicMock()
+        mock_info.created_at = "2024-01-01 12:00:00"
+        mock_context.history_store.get_session_info.return_value = mock_info
+
+        cmd = SessionCommand()
+        result = cmd.execute("", mock_session)
+
+        assert "**Session ID:**" in result
+        assert "**Agent:**" in result
+        assert "**Created:**" in result
+        assert "**Messages:**" in result
+        assert "**Source:**" in result

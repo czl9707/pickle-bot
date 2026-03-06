@@ -8,6 +8,70 @@ if TYPE_CHECKING:
     from picklebot.core.agent import AgentSession
 
 
+class CompactCommand(Command):
+    """Trigger manual context compaction."""
+
+    name = "compact"
+    description = "Compact conversation context manually"
+
+    async def execute(self, args: str, session: "AgentSession") -> str:
+        # Force compaction via context_guard
+        session.state = await session.context_guard.check_and_compact(
+            session.state, force=True
+        )
+        msg_count = len(session.state.messages)
+        return f"✓ Context compacted. {msg_count} messages retained."
+
+
+class ContextCommand(Command):
+    """Show session context information."""
+
+    name = "context"
+    description = "Show session context information"
+
+    def execute(self, args: str, session: "AgentSession") -> str:
+        lines = [
+            f"**Session:** `{session.session_id}`",
+            f"**Agent:** {session.agent.agent_def.name}",
+            f"**Source:** `{session.source}`",
+            f"**Messages:** {len(session.state.messages)}",
+            f"**Tokens:** {session.context_guard.estimate_tokens(session.state):,}",
+        ]
+        return "\n".join(lines)
+
+
+class ClearCommand(Command):
+    """Clear conversation and start fresh."""
+
+    name = "clear"
+    description = "Clear conversation and start fresh"
+
+    def execute(self, args: str, session: "AgentSession") -> str:
+        # Clear session cache
+        source_str = str(session.source)
+        session.shared_context.routing_table.clear_session_cache(source_str)
+
+        return "✓ Conversation cleared. Next message starts fresh."
+
+
+class SessionCommand(Command):
+    """Show current session details."""
+
+    name = "session"
+    description = "Show current session details"
+
+    def execute(self, args: str, session: "AgentSession") -> str:
+        info = session.shared_context.history_store.get_session_info(session.session_id)
+        lines = [
+            f"**Session ID:** `{session.session_id}`",
+            f"**Agent:** {session.agent.agent_def.name} (`{session.agent.agent_def.id}`)",
+            f"**Created:** {info.created_at}",
+            f"**Messages:** {len(session.state.messages)}",
+            f"**Source:** `{session.source}`",
+        ]
+        return "\n".join(lines)
+
+
 class HelpCommand(Command):
     """Show available commands."""
 
