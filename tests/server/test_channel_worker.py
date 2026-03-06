@@ -110,9 +110,10 @@ You are a test assistant.
     with patch.object(test_context, "channels", [channel]):
         # Mock routing table to return test agent
         test_context.routing_table.resolve = Mock(return_value="test")
+        test_context.routing_table.get_or_create_session_id = Mock(
+            return_value="test-session-123"
+        )
         worker = ChannelWorker(test_context)
-        # Patch _get_or_create_session_id to return a known session ID for testing
-        worker._get_or_create_session_id = lambda source, agent_id: "test-session-123"
         # Subscribe to capture events
         test_context.eventbus.subscribe(InboundEvent, capture_event)
 
@@ -314,8 +315,10 @@ You are a test assistant.
     with patch.object(test_context, "channels", [channel]):
         # Mock routing table
         test_context.routing_table.resolve = Mock(return_value="test")
+        test_context.routing_table.get_or_create_session_id = Mock(
+            return_value="test-session-123"
+        )
         worker = ChannelWorker(test_context)
-        worker._get_or_create_session_id = lambda source, agent_id: "test-session-123"
         test_context.eventbus.subscribe(InboundEvent, capture_event)
 
     # Start EventBus worker to process queued events
@@ -427,17 +430,15 @@ class TestDefaultDeliverySource:
         mock_channel = FakeTelegramChannel()
         mock_context.channels = [mock_channel]
         mock_context.routing_table.resolve = Mock(return_value="test")
+        mock_context.routing_table.get_or_create_session_id = Mock(
+            return_value="test-session"
+        )
         mock_context.config.sources = {}
 
-        with patch("picklebot.server.channel_worker.Agent") as MockAgent:
-            mock_session = Mock(session_id="test-session")
-            MockAgent.return_value.new_session.return_value = mock_session
+        worker = ChannelWorker(mock_context)
+        callback = worker._create_callback("telegram")
 
-            worker = ChannelWorker(mock_context)
-            worker._get_or_create_session_id = lambda s, a: "test-session"
-            callback = worker._create_callback("telegram")
-
-            await callback("hello", TelegramEventSource(user_id="123", chat_id="456"))
+        await callback("hello", TelegramEventSource(user_id="123", chat_id="456"))
 
         assert (
             mock_context.config.default_delivery_source == "platform-telegram:123:456"
@@ -450,18 +451,16 @@ class TestDefaultDeliverySource:
         mock_channel = FakeCliChannel()
         mock_context.channels = [mock_channel]
         mock_context.routing_table.resolve = Mock(return_value="test")
+        mock_context.routing_table.get_or_create_session_id = Mock(
+            return_value="test-session"
+        )
         mock_context.config.sources = {}
         mock_context.config.default_delivery_source = None
 
-        with patch("picklebot.server.channel_worker.Agent") as MockAgent:
-            mock_session = Mock(session_id="test-session")
-            MockAgent.return_value.new_session.return_value = mock_session
+        worker = ChannelWorker(mock_context)
+        callback = worker._create_callback("cli")
 
-            worker = ChannelWorker(mock_context)
-            worker._get_or_create_session_id = lambda s, a: "test-session"
-            callback = worker._create_callback("cli")
-
-            await callback("hello", CliEventSource())
+        await callback("hello", CliEventSource())
 
         # CLI should not set default
         assert mock_context.config.default_delivery_source is None
@@ -477,17 +476,15 @@ class TestDefaultDeliverySource:
         mock_channel = FakeTelegramChannel()
         mock_context.channels = [mock_channel]
         mock_context.routing_table.resolve = Mock(return_value="test")
+        mock_context.routing_table.get_or_create_session_id = Mock(
+            return_value="test-session"
+        )
         mock_context.config.sources = {}
 
-        with patch("picklebot.server.channel_worker.Agent") as MockAgent:
-            mock_session = Mock(session_id="test-session")
-            MockAgent.return_value.new_session.return_value = mock_session
+        worker = ChannelWorker(mock_context)
+        callback = worker._create_callback("telegram")
 
-            worker = ChannelWorker(mock_context)
-            worker._get_or_create_session_id = lambda s, a: "test-session"
-            callback = worker._create_callback("telegram")
-
-            await callback("hello", TelegramEventSource(user_id="123", chat_id="456"))
+        await callback("hello", TelegramEventSource(user_id="123", chat_id="456"))
 
         # Should NOT have been overwritten
         assert (
@@ -521,8 +518,10 @@ You are a test assistant.
     with patch.object(test_context, "channels", [channel]):
         # Mock routing table to resolve to test agent
         test_context.routing_table.resolve = Mock(return_value="test")
+        test_context.routing_table.get_or_create_session_id = Mock(
+            return_value="test-session-123"
+        )
         worker = ChannelWorker(test_context)
-        worker._get_or_create_session_id = lambda source, agent_id: "test-session-123"
 
     # Worker should not pre-load any agent
     assert not hasattr(worker, "agent_def")
@@ -561,8 +560,10 @@ You are a test assistant.
     with patch.object(test_context, "channels", [channel]):
         # Mock routing table
         test_context.routing_table.resolve = Mock(return_value="test")
+        test_context.routing_table.get_or_create_session_id = Mock(
+            return_value="test-session-123"
+        )
         worker = ChannelWorker(test_context)
-        worker._get_or_create_session_id = lambda source, agent_id: "test-session-123"
         test_context.eventbus.subscribe(InboundEvent, capture_event)
 
     # Start EventBus worker to process queued events
@@ -644,38 +645,6 @@ class TestChannelWorkerRouting:
         assert not hasattr(worker, "agent_def")
         assert not hasattr(worker, "agent")
 
-    def test_get_or_create_session_uses_source_cache(self, mock_context):
-        """_get_or_create_session_id should check source cache first."""
-        mock_context.config.sources = {
-            "platform-telegram:123456:789": {"session_id": "existing-session"}
-        }
-
-        worker = ChannelWorker(mock_context)
-        session_id = worker._get_or_create_session_id(
-            "platform-telegram:123456:789", "cookie"
-        )
-
-        assert session_id == "existing-session"
-
-    def test_get_or_create_session_creates_new(self, mock_context):
-        """_get_or_create_session_id should create session if not cached."""
-        mock_context.config.set_runtime = Mock()
-        mock_context.config.sources = {}
-
-        with patch("picklebot.server.channel_worker.Agent") as MockAgent:
-            mock_session = Mock(session_id="new-session-id")
-            MockAgent.return_value.new_session.return_value = mock_session
-
-            worker = ChannelWorker(mock_context)
-            session_id = worker._get_or_create_session_id(
-                "platform-telegram:123456:789", "cookie"
-            )
-
-            assert session_id == "new-session-id"
-            mock_context.config.set_runtime.assert_called_once_with(
-                "sources.platform-telegram:123456:789", {"session_id": "new-session-id"}
-            )
-
     def test_channel_worker_routes_unknown_source_to_default(self, mock_context):
         """ChannelWorker should route unknown sources to default_agent."""
         from picklebot.core.routing import RoutingTable
@@ -694,8 +663,8 @@ class TestChannelWorkerRouting:
         mock_channel.reply = AsyncMock()
         mock_context.channels = [mock_channel]
 
-        # Mock Agent to avoid loading actual agent
-        with patch("picklebot.server.channel_worker.Agent") as MockAgent:
+        # Mock Agent in routing module since that's where it's used now
+        with patch("picklebot.core.routing.Agent") as MockAgent:
             mock_session = Mock(session_id="new-session-id")
             MockAgent.return_value.new_session.return_value = mock_session
 

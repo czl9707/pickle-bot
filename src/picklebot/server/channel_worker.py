@@ -5,7 +5,6 @@ import time
 from typing import TYPE_CHECKING
 
 from .worker import Worker
-from picklebot.core.agent import Agent
 from picklebot.core.events import EventSource, InboundEvent
 
 if TYPE_CHECKING:
@@ -25,7 +24,8 @@ class ChannelWorker(Worker):
         self.logger.info(f"ChannelWorker started with {len(self.channels)} channel(es)")
 
         channel_tasks = [
-            channel.run(self._create_callback(channel.platform_name)) for channel in self.channels
+            channel.run(self._create_callback(channel.platform_name))
+            for channel in self.channels
         ]
 
         try:
@@ -67,7 +67,9 @@ class ChannelWorker(Worker):
                         self.context.config.default_delivery_source = source_str_value
 
                 agent_id = self.context.routing_table.resolve(str(source))
-                session_id = self._get_or_create_session_id(str(source), agent_id)
+                session_id = self.context.routing_table.get_or_create_session_id(
+                    source, agent_id
+                )
 
                 # Publish INBOUND event with typed source
                 event = InboundEvent(
@@ -84,22 +86,3 @@ class ChannelWorker(Worker):
                 self.logger.error(f"Error processing message from {platform}: {e}")
 
         return callback
-
-    def _get_or_create_session_id(self, source_str: str, agent_id: str) -> str:
-        """Get existing session_id from source cache, or create new session."""
-        # Check source cache
-        source_info = self.context.config.sources.get(source_str)
-        if source_info:
-            return source_info["session_id"]
-
-        # Create new session - parse source string to typed EventSource
-        agent_def = self.context.agent_loader.load(agent_id)
-        agent = Agent(agent_def, self.context)
-        source = EventSource.from_string(source_str)
-        session = agent.new_session(source)
-
-        # Update source cache
-        self.context.config.set_runtime(
-            f"sources.{source_str}", {"session_id": session.session_id}
-        )
-        return session.session_id
