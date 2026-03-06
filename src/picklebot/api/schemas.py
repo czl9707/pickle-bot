@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel, Field, create_model
 
 from picklebot.core.cron_loader import CronDef
 from picklebot.core.skill_loader import SkillDef
@@ -55,3 +55,21 @@ class ConfigUpdate(BaseModel):
     """Request body for updating config (partial updates)."""
 
     default_agent: str | None = None
+
+
+class WebSocketMessage(BaseModel):
+    """Incoming WebSocket message from client.
+
+    Used for clients sending messages to agents via WebSocket.
+
+    Attributes:
+        source: Client identifier (user ID, client name, etc.)
+        content: Message content to send to agent
+        agent_id: Target agent ID (optional - will use routing if not specified)
+    """
+
+    source: str = Field(..., min_length=1, description="Client identifier")
+    content: str = Field(..., min_length=1, description="Message content")
+    agent_id: str | None = Field(
+        None, description="Target agent ID (optional - uses routing if not specified)"
+    )
