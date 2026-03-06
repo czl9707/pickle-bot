@@ -10,7 +10,7 @@ from picklebot.utils.config import Config
 T = TypeVar("T", bound=EventSource)
 
 
-class MessageBus(ABC, Generic[T]):
+class Channel(ABC, Generic[T]):
     """Abstract base for messaging platforms with EventSource-based context."""
 
     @property
@@ -67,9 +67,9 @@ class MessageBus(ABC, Generic[T]):
         pass
 
     @staticmethod
-    def from_config(config: Config) -> list["MessageBus[Any]"]:
+    def from_config(config: Config) -> list["Channel[Any]"]:
         """
-        Create message bus instances from configuration.
+        Create channel instances from configuration.
 
         Args:
             config: Message bus configuration
@@ -81,7 +81,7 @@ class MessageBus(ABC, Generic[T]):
         from picklebot.messagebus.telegram_bus import TelegramBus
         from picklebot.messagebus.discord_bus import DiscordBus
 
-        buses: list["MessageBus[Any]"] = []
+        buses: list["Channel[Any]"] = []
         bus_config = config.messagebus
         if bus_config.telegram and bus_config.telegram.enabled:
             buses.append(TelegramBus(bus_config.telegram))
