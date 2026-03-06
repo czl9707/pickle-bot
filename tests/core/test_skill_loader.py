@@ -91,8 +91,21 @@ More content here.
 class TestSkillLoaderTemplateSubstitution:
     """Tests for template variable substitution in skill content."""
 
-    def test_substitutes_template_variables(self, test_config):
-        """Skill content can use template variables."""
+    @pytest.mark.parametrize(
+        "content,expected_check",
+        [
+            ("Workspace is at: {{workspace}}", "workspace"),
+            (
+                "Skills: {{skills_path}}\nMemories: {{memories_path}}\nCrons: {{crons_path}}",
+                "multiple",
+            ),
+            ("No templates here.", "literal"),
+        ],
+    )
+    def test_template_substitution(self, test_config, content, expected_check):
+        """Skill content should substitute template variables."""
+        from picklebot.core.skill_loader import SkillLoader
+
         skills_dir = test_config.skills_path
         skills_dir.mkdir(parents=True, exist_ok=True)
 
@@ -100,67 +113,25 @@ class TestSkillLoaderTemplateSubstitution:
         skill_dir.mkdir()
         skill_file = skill_dir / "SKILL.md"
         skill_file.write_text(
-            """---
+            f"""---
 name: Test Skill
 description: A test skill
 ---
 
-Workspace is at: {{workspace}}
+{content}
 """
         )
 
         loader = SkillLoader(test_config)
         skill_def = loader.load_skill("test-skill")
 
-        expected = f"Workspace is at: {test_config.workspace}"
-        assert expected in skill_def.content
-
-    def test_substitutes_multiple_variables(self, test_config):
-        """Skill content can use multiple template variables."""
-        skills_dir = test_config.skills_path
-        skills_dir.mkdir(parents=True, exist_ok=True)
-
-        skill_dir = skills_dir / "test-skill"
-        skill_dir.mkdir()
-        skill_file = skill_dir / "SKILL.md"
-        skill_file.write_text(
-            """---
-name: Test Skill
-description: A test skill
----
-
-Skills: {{skills_path}}
-Memories: {{memories_path}}
-Crons: {{crons_path}}
-"""
-        )
-
-        loader = SkillLoader(test_config)
-        skill_def = loader.load_skill("test-skill")
-
-        assert str(test_config.skills_path) in skill_def.content
-        assert str(test_config.memories_path) in skill_def.content
-        assert str(test_config.crons_path) in skill_def.content
-
-    def test_no_template_variables_unchanged(self, test_config):
-        """Skill without templates loads normally."""
-        skills_dir = test_config.skills_path
-        skills_dir.mkdir(parents=True, exist_ok=True)
-
-        skill_dir = skills_dir / "test-skill"
-        skill_dir.mkdir()
-        skill_file = skill_dir / "SKILL.md"
-        skill_file.write_text(
-            """---
-name: Test Skill
-description: A test skill
----
-
-No templates here.
-"""
-        )
-
-        loader = SkillLoader(test_config)
-        skill_def = loader.load_skill("test-skill")
-
-        assert skill_def.content == "No templates here."
+        if expected_check == "workspace":
+            assert str(test_config.workspace) in skill_def.content
+        elif expected_check == "multiple":
+            # Multiple variables case
+            assert str(test_config.skills_path) in skill_def.content
+            assert str(test_config.memories_path) in skill_def.content
+            assert str(test_config.crons_path) in skill_def.content
+        else:
+            # No substitution case
+            assert skill_def.content == "No templates here."

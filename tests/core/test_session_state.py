@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from picklebot.core.session_state import SessionState
 from picklebot.channel.telegram_channel import TelegramEventSource
 
@@ -35,8 +37,22 @@ class TestSessionStateCreation:
 
 
 class TestSessionStatePersistence:
-    def test_add_message_persists_to_history(self, tmp_path):
-        """add_message should persist to HistoryStore."""
+    @pytest.mark.parametrize(
+        "messages_to_add,verify_type",
+        [
+            ([{"role": "user", "content": "Hello"}], "history"),
+            (
+                [
+                    {"role": "user", "content": "Hello"},
+                    {"role": "assistant", "content": "Hi"},
+                ],
+                "memory",
+            ),
+        ],
+        ids=["persist_to_history", "append_to_memory"],
+    )
+    def test_add_message_behavior(self, tmp_path, messages_to_add, verify_type):
+        """add_message should persist to history and append to in-memory list."""
         from picklebot.core.history import HistoryStore
 
         mock_agent = MagicMock()
@@ -55,45 +71,19 @@ class TestSessionStatePersistence:
             shared_context=mock_context,
         )
 
-        # Create session in history store
         mock_context.history_store.create_session(
             "test-agent", "test-session-id", source
         )
 
-        # Add a message
-        state.add_message({"role": "user", "content": "Hello"})
+        for msg in messages_to_add:
+            state.add_message(msg)
 
-        # Verify persisted
-        messages = mock_context.history_store.get_messages("test-session-id")
-        assert len(messages) == 1
-        assert messages[0].role == "user"
-        assert messages[0].content == "Hello"
-
-    def test_add_message_appends_to_memory(self, tmp_path):
-        """add_message should append to in-memory list."""
-        from picklebot.core.history import HistoryStore
-
-        mock_agent = MagicMock()
-        mock_context = MagicMock()
-        mock_context.history_store = HistoryStore(tmp_path)
-
-        source = TelegramEventSource(user_id="123", chat_id="456")
-
-        state = SessionState(
-            session_id="test-session-id",
-            agent=mock_agent,
-            messages=[],
-            source=source,
-            shared_context=mock_context,
-        )
-
-        mock_context.history_store.create_session(
-            "test-agent", "test-session-id", source
-        )
-
-        state.add_message({"role": "user", "content": "Hello"})
-        state.add_message({"role": "assistant", "content": "Hi"})
-
-        assert len(state.messages) == 2
-        assert state.messages[0]["content"] == "Hello"
-        assert state.messages[1]["content"] == "Hi"
+        if verify_type == "history":
+            messages = mock_context.history_store.get_messages("test-session-id")
+            assert len(messages) == 1
+            assert messages[0].role == "user"
+            assert messages[0].content == "Hello"
+        else:
+            assert len(state.messages) == 2
+            assert state.messages[0]["content"] == "Hello"
+            assert state.messages[1]["content"] == "Hi"

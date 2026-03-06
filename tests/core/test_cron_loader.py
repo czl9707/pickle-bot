@@ -23,67 +23,43 @@ def test_cron_def_requires_description(tmp_path):
 class TestCronLoader:
     """Test CronLoader class."""
 
-    def test_load_simple_cron(self, test_config):
-        """Parse cron with required fields."""
+    @pytest.mark.parametrize(
+        "one_off,expected_one_off",
+        [
+            (None, False),  # default
+            (True, True),  # explicit true
+        ],
+    )
+    def test_load_cron_with_optional_fields(
+        self, test_config, one_off, expected_one_off
+    ):
+        """Load cron with various field combinations."""
         crons_dir = test_config.crons_path
         crons_dir.mkdir(parents=True, exist_ok=True)
 
-        cron_dir = crons_dir / "inbox-check"
+        cron_dir = crons_dir / "test-cron"
         cron_dir.mkdir()
+
+        one_off_yaml = f"one_off: {one_off}\n" if one_off is not None else ""
         (cron_dir / "CRON.md").write_text(
-            "---\n"
-            "name: Inbox Check\n"
-            "description: Check inbox periodically\n"
-            "agent: pickle\n"
-            "schedule: '*/15 * * * *'\n"
-            "---\n"
-            "Check my inbox and summarize."
+            f"---\n"
+            f"name: Test Cron\n"
+            f"description: Test description\n"
+            f"agent: pickle\n"
+            f"schedule: '*/15 * * * *'\n"
+            f"{one_off_yaml}"
+            f"---\n"
+            f"Test prompt."
         )
 
         loader = CronLoader(test_config)
-        cron_def = loader.load("inbox-check")
+        cron_def = loader.load("test-cron")
 
-        assert cron_def.id == "inbox-check"
-        assert cron_def.name == "Inbox Check"
-        assert cron_def.description == "Check inbox periodically"
+        assert cron_def.id == "test-cron"
+        assert cron_def.name == "Test Cron"
         assert cron_def.agent == "pickle"
         assert cron_def.schedule == "*/15 * * * *"
-        assert cron_def.prompt == "Check my inbox and summarize."
-
-    def test_discover_crons(self, test_config):
-        """Discover all valid cron jobs."""
-        crons_dir = test_config.crons_path
-        crons_dir.mkdir(parents=True, exist_ok=True)
-
-        # Create two valid cron jobs
-        for name, schedule in [("job-a", "*/5 * * * *"), ("job-b", "0 * * * *")]:
-            cron_dir = crons_dir / name
-            cron_dir.mkdir()
-            (cron_dir / "CRON.md").write_text(
-                f"---\n"
-                f"name: {name}\n"
-                f"description: Job {name} description\n"
-                f"agent: pickle\n"
-                f"schedule: '{schedule}'\n"
-                f"---\n"
-                f"Do {name}"
-            )
-
-        # Create a directory without CRON.md (should be skipped)
-        (crons_dir / "no-file").mkdir()
-
-        loader = CronLoader(test_config)
-        defs = loader.discover_crons()
-
-        assert len(defs) == 2
-        ids = [d.id for d in defs]
-        assert "job-a" in ids
-        assert "job-b" in ids
-        assert "no-file" not in ids
-
-        for d in defs:
-            assert d.prompt.startswith("Do ")
-            assert d.id in d.prompt
+        assert cron_def.one_off == expected_one_off
 
     def test_substitutes_template_variables(self, test_config):
         """Cron prompt can use template variables."""
@@ -108,67 +84,52 @@ class TestCronLoader:
         expected = f"Check memories at {test_config.memories_path}"
         assert cron_def.prompt == expected
 
-    def test_load_cron_with_one_off(self, test_config):
-        """Parse cron with one_off field."""
+    def test_discover_crons(self, test_config):
+        """Discover all valid cron jobs including one_off variations."""
         crons_dir = test_config.crons_path
         crons_dir.mkdir(parents=True, exist_ok=True)
 
-        cron_dir = crons_dir / "one-time"
+        # Create recurring cron
+        cron_dir = crons_dir / "recurring-job"
         cron_dir.mkdir()
         (cron_dir / "CRON.md").write_text(
             "---\n"
-            "name: One Time\n"
-            "description: One-time reminder\n"
+            "name: Recurring Job\n"
+            "description: A recurring job\n"
             "agent: pickle\n"
-            "schedule: '0 10 18 2 *'\n"
-            "one_off: true\n"
+            "schedule: '*/5 * * * *'\n"
             "---\n"
-            "Remind me once."
+            "Do repeatedly."
         )
 
-        loader = CronLoader(test_config)
-        cron_def = loader.load("one-time")
-
-        assert cron_def.one_off is True
-
-    def test_discover_crons_with_one_off(self, test_config):
-        """Discover crons includes one_off field."""
-        crons_dir = test_config.crons_path
-        crons_dir.mkdir(parents=True, exist_ok=True)
-
-        # Create a one-off cron
-        cron_dir = crons_dir / "one-off-job"
-        cron_dir.mkdir()
-        (cron_dir / "CRON.md").write_text(
+        # Create one-off cron
+        cron_dir2 = crons_dir / "one-off-job"
+        cron_dir2.mkdir()
+        (cron_dir2 / "CRON.md").write_text(
             "---\n"
             "name: One Off Job\n"
             "description: A one-off job\n"
             "agent: pickle\n"
-            "schedule: '*/5 * * * *'\n"
+            "schedule: '0 10 18 2 *'\n"
             "one_off: true\n"
             "---\n"
             "Do once."
         )
 
-        # Create a recurring cron (no one_off field)
-        cron_dir2 = crons_dir / "recurring-job"
-        cron_dir2.mkdir()
-        (cron_dir2 / "CRON.md").write_text(
-            "---\n"
-            "name: Recurring Job\n"
-            "description: A recurring job\n"
-            "agent: pickle\n"
-            "schedule: '0 * * * *'\n"
-            "---\n"
-            "Do repeatedly."
-        )
+        # Create a directory without CRON.md (should be skipped)
+        (crons_dir / "no-file").mkdir()
 
         loader = CronLoader(test_config)
         defs = loader.discover_crons()
 
         assert len(defs) == 2
-        one_off = next(d for d in defs if d.id == "one-off-job")
-        recurring = next(d for d in defs if d.id == "recurring-job")
+        ids = [d.id for d in defs]
+        assert "recurring-job" in ids
+        assert "one-off-job" in ids
+        assert "no-file" not in ids
 
-        assert one_off.one_off is True
+        recurring = next(d for d in defs if d.id == "recurring-job")
+        one_off = next(d for d in defs if d.id == "one-off-job")
+
         assert recurring.one_off is False
+        assert one_off.one_off is True

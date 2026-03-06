@@ -5,46 +5,42 @@ from picklebot.core.events import WebSocketEventSource
 
 
 class TestWebSocketEventSource:
-    """Test WebSocketEventSource functionality."""
+    """Parametrized tests for WebSocketEventSource."""
 
-    def test_create_websocket_event_source(self):
-        """Test creating WebSocketEventSource with user_id."""
-        source = WebSocketEventSource(user_id="user-123")
+    @pytest.mark.parametrize("user_id,expected_str,type_props", [
+        (
+            "user-123",
+            "platform-ws:user-123",
+            {"is_platform": True, "is_agent": False, "is_cron": False},
+        ),
+        (
+            "user:with:colons",
+            "platform-ws:user:with:colons",
+            {"is_platform": True, "is_agent": False, "is_cron": False},
+        ),
+    ])
+    def test_source_roundtrip(self, user_id, expected_str, type_props):
+        """Source should serialize/deserialize and have correct type properties."""
+        # Create
+        source = WebSocketEventSource(user_id=user_id)
 
-        assert source.user_id == "user-123"
-        assert source.is_platform is True
-        assert source.is_agent is False
-        assert source.is_cron is False
+        # Check serialization
+        assert str(source) == expected_str
 
-    def test_string_representation(self):
-        """Test string representation of WebSocketEventSource."""
-        source = WebSocketEventSource(user_id="user-456")
+        # Check roundtrip
+        restored = WebSocketEventSource.from_string(expected_str)
+        assert restored.user_id == user_id
 
-        assert str(source) == "platform-ws:user-456"
+        # Check type properties
+        for prop, expected in type_props.items():
+            assert getattr(source, prop) == expected
 
-    def test_from_string_valid(self):
-        """Test parsing valid source string."""
-        source = WebSocketEventSource.from_string("platform-ws:user-789")
-
-        assert source.user_id == "user-789"
-
-    def test_from_string_with_colon_in_user_id(self):
-        """Test parsing source string with colon in user_id."""
-        source = WebSocketEventSource.from_string("platform-ws:user:with:colons")
-
-        assert source.user_id == "user:with:colons"
-
-    def test_from_string_invalid_namespace(self):
-        """Test parsing with invalid namespace."""
-        with pytest.raises(ValueError, match="Invalid WebSocketEventSource"):
-            WebSocketEventSource.from_string("invalid-namespace:user-123")
-
-    def test_from_string_invalid_format(self):
-        """Test parsing with invalid format (no colon)."""
-        with pytest.raises(ValueError, match="Invalid WebSocketEventSource"):
-            WebSocketEventSource.from_string("invalid-format")
-
-    def test_from_string_empty_user_id(self):
-        """Test parsing with empty user_id."""
-        with pytest.raises(ValueError, match="Invalid WebSocketEventSource"):
-            WebSocketEventSource.from_string("platform-ws:")
+    @pytest.mark.parametrize("invalid_str,error_match", [
+        ("invalid-namespace:user", "Invalid WebSocketEventSource"),
+        ("invalid-format", "Invalid WebSocketEventSource"),
+        ("platform-ws:", "Invalid WebSocketEventSource"),
+    ])
+    def test_from_string_rejects_invalid(self, invalid_str, error_match):
+        """from_string should reject invalid formats."""
+        with pytest.raises(ValueError, match=error_match):
+            WebSocketEventSource.from_string(invalid_str)

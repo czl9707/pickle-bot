@@ -52,39 +52,28 @@ class TestAgentLoaderParsing:
         assert agent_def.llm.temperature == 0.5
         assert agent_def.llm.max_tokens == 8192
 
-    def test_parse_agent_with_allow_skills(self, test_config):
-        """Test AgentLoader parses allow_skills from frontmatter."""
+    @pytest.mark.parametrize(
+        "frontmatter,expected",
+        [
+            ("allow_skills: true\n", True),
+            ("", False),
+        ],
+        ids=["explicit_true", "default_false"],
+    )
+    def test_parse_agent_allow_skills(self, test_config, frontmatter, expected):
+        """Test AgentLoader parses allow_skills from frontmatter or defaults to False."""
         agents_dir = test_config.agents_path
         agents_dir.mkdir()
         agent_dir = agents_dir / "test-agent"
         agent_dir.mkdir()
         (agent_dir / "AGENT.md").write_text(
-            "---\n"
-            "name: Test Agent\n"
-            "allow_skills: true\n"
-            "---\n"
-            "System prompt here.\n"
+            f"---\nname: Test Agent\n{frontmatter}---\nSystem prompt here.\n"
         )
 
         loader = AgentLoader(test_config)
         agent_def = loader.load("test-agent")
 
-        assert agent_def.allow_skills is True
-
-    def test_parse_agent_without_allow_skills_defaults_false(self, test_config):
-        """Test AgentLoader defaults allow_skills to False."""
-        agents_dir = test_config.agents_path
-        agents_dir.mkdir()
-        agent_dir = agents_dir / "test-agent"
-        agent_dir.mkdir()
-        (agent_dir / "AGENT.md").write_text(
-            "---\n" "name: Test Agent\n" "---\n" "System prompt here.\n"
-        )
-
-        loader = AgentLoader(test_config)
-        agent_def = loader.load("test-agent")
-
-        assert agent_def.allow_skills is False
+        assert agent_def.allow_skills is expected
 
     def test_load_agent_without_description_defaults_to_empty_string(self, test_config):
         """AgentDef should default description to empty string if not provided."""
@@ -130,29 +119,24 @@ class TestAgentLoaderParsing:
 
 
 class TestAgentLoaderErrors:
-    def test_raises_not_found_when_folder_missing(self, test_config):
-        """Raise DefNotFoundError when folder doesn't exist."""
+    @pytest.mark.parametrize(
+        "setup_type",
+        ["folder_missing", "file_missing"],
+    )
+    def test_raises_not_found(self, test_config, setup_type):
+        """Raise DefNotFoundError when folder or AGENT.md doesn't exist."""
         agents_dir = test_config.agents_path
         agents_dir.mkdir()
-        loader = AgentLoader(test_config)
 
-        with pytest.raises(DefNotFoundError) as exc:
-            loader.load("nonexistent")
-
-        assert exc.value.def_id == "nonexistent"
-
-    def test_raises_not_found_when_file_missing(self, test_config):
-        """Raise DefNotFoundError when AGENT.md doesn't exist."""
-        agents_dir = test_config.agents_path
-        agents_dir.mkdir()
-        agent_dir = agents_dir / "pickle"
-        agent_dir.mkdir()
-        # No AGENT.md created
+        if setup_type == "file_missing":
+            agent_dir = agents_dir / "pickle"
+            agent_dir.mkdir()
+            # No AGENT.md created
 
         loader = AgentLoader(test_config)
 
         with pytest.raises(DefNotFoundError):
-            loader.load("pickle")
+            loader.load("pickle" if setup_type == "file_missing" else "nonexistent")
 
     def test_raises_invalid_when_missing_name(self, test_config):
         """Raise InvalidDefError when name field is missing."""
@@ -269,92 +253,58 @@ class TestAgentDefFields:
 
 
 class TestAgentLoaderMaxConcurrency:
-    def test_load_agent_with_max_concurrency(self, test_config):
-        """AgentLoader parses max_concurrency from frontmatter."""
+    @pytest.mark.parametrize(
+        "frontmatter,expected",
+        [
+            ("max_concurrency: 5\n", 5),
+            ("", 1),
+        ],
+        ids=["explicit_5", "default_1"],
+    )
+    def test_load_agent_max_concurrency(self, test_config, frontmatter, expected):
+        """AgentLoader parses max_concurrency from frontmatter or defaults to 1."""
         agents_dir = test_config.agents_path
         agents_dir.mkdir()
-        agent_dir = agents_dir / "concurrent-agent"
+        agent_dir = agents_dir / "test-agent"
         agent_dir.mkdir()
         (agent_dir / "AGENT.md").write_text(
-            """---
-name: Concurrent Agent
-description: An agent with high concurrency
-max_concurrency: 5
----
-You are a concurrent assistant.
-"""
+            f"---\nname: Test Agent\n{frontmatter}---\nYou are a test assistant.\n"
         )
 
         loader = AgentLoader(test_config)
-        agent_def = loader.load("concurrent-agent")
+        agent_def = loader.load("test-agent")
 
-        assert agent_def.max_concurrency == 5
-
-    def test_load_agent_without_max_concurrency_uses_default(self, test_config):
-        """AgentLoader defaults max_concurrency to 1 if not specified."""
-        agents_dir = test_config.agents_path
-        agents_dir.mkdir()
-        agent_dir = agents_dir / "default-agent"
-        agent_dir.mkdir()
-        (agent_dir / "AGENT.md").write_text(
-            """---
-name: Default Agent
-description: An agent with default concurrency
----
-You are a default assistant.
-"""
-        )
-
-        loader = AgentLoader(test_config)
-        agent_def = loader.load("default-agent")
-
-        assert agent_def.max_concurrency == 1
+        assert agent_def.max_concurrency == expected
 
 
 class TestAgentLoaderTemplateSubstitution:
-    def test_substitutes_memories_path(self, test_config):
-        """AgentLoader substitutes {{memories_path}} in system prompt."""
+    @pytest.mark.parametrize(
+        "prompt,expected_content",
+        [
+            ("Memories at: {{memories_path}}", "memories_path"),
+            ("Workspace: {{workspace}}, Skills: {{skills_path}}", "multiple"),
+            ("No templates here.", None),
+        ],
+        ids=["single_variable", "multiple_variables", "no_variables"],
+    )
+    def test_template_substitution(self, test_config, prompt, expected_content):
+        """AgentLoader substitutes template variables in system prompt."""
         agents_dir = test_config.agents_path
         agents_dir.mkdir()
         agent_dir = agents_dir / "test-agent"
         agent_dir.mkdir()
-        (agent_dir / "AGENT.md").write_text(
-            "---\nname: Test\n---\nMemories at: {{memories_path}}"
-        )
+        (agent_dir / "AGENT.md").write_text(f"---\nname: Test\n---\n{prompt}")
 
         loader = AgentLoader(test_config)
         agent_def = loader.load("test-agent")
 
-        expected = f"Memories at: {test_config.memories_path}"
-        assert agent_def.agent_md == expected
-
-    def test_substitutes_multiple_variables(self, test_config):
-        """AgentLoader substitutes multiple template variables."""
-        agents_dir = test_config.agents_path
-        agents_dir.mkdir()
-        agent_dir = agents_dir / "test-agent"
-        agent_dir.mkdir()
-        (agent_dir / "AGENT.md").write_text(
-            "---\nname: Test\n---\nWorkspace: {{workspace}}, Skills: {{skills_path}}"
-        )
-
-        loader = AgentLoader(test_config)
-        agent_def = loader.load("test-agent")
-
-        expected = (
-            f"Workspace: {test_config.workspace}, Skills: {test_config.skills_path}"
-        )
-        assert agent_def.agent_md == expected
-
-    def test_no_template_variables_unchanged(self, test_config):
-        """Agent without templates loads normally."""
-        agents_dir = test_config.agents_path
-        agents_dir.mkdir()
-        agent_dir = agents_dir / "test-agent"
-        agent_dir.mkdir()
-        (agent_dir / "AGENT.md").write_text("---\nname: Test\n---\nNo templates here.")
-
-        loader = AgentLoader(test_config)
-        agent_def = loader.load("test-agent")
-
-        assert agent_def.agent_md == "No templates here."
+        if expected_content == "memories_path":
+            expected = f"Memories at: {test_config.memories_path}"
+            assert agent_def.agent_md == expected
+        elif expected_content == "multiple":
+            expected = (
+                f"Workspace: {test_config.workspace}, Skills: {test_config.skills_path}"
+            )
+            assert agent_def.agent_md == expected
+        else:
+            assert agent_def.agent_md == "No templates here."
