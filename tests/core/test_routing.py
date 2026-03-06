@@ -177,3 +177,30 @@ def test_routing_table_rebuilds_on_config_change():
     table.resolve("telegram:123")
     assert table._bindings != old_bindings
     assert table.resolve("telegram:123") == "cookie"
+
+
+def test_get_or_create_session_id_cache_hit(mock_context):
+    """Test that existing session_id is returned from cache without creating new session."""
+    from picklebot.channel.telegram_channel import TelegramEventSource
+    from picklebot.core.routing import RoutingTable
+    from unittest.mock import MagicMock
+
+    # Setup
+    routing = RoutingTable(mock_context)
+    source = TelegramEventSource(user_id="123", chat_id="456")
+    agent_id = "test-agent"
+    existing_session_id = "existing-session-789"
+
+    # Ensure agent_loader is mocked
+    mock_context.agent_loader = MagicMock()
+
+    # Pre-populate cache
+    mock_context.config.sources[str(source)] = {"session_id": existing_session_id}
+
+    # Execute
+    result = routing.get_or_create_session_id(source, agent_id)
+
+    # Verify
+    assert result == existing_session_id
+    # Ensure no new session was created
+    mock_context.agent_loader.load.assert_not_called()
