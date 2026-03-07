@@ -168,17 +168,34 @@ class SkillsCommand(Command):
 
 
 class CronsCommand(Command):
-    """List all cron jobs."""
+    """List all cron jobs or show cron details."""
 
     name = "crons"
-    description = "List all cron jobs"
+    description = "List all cron jobs or show cron details"
 
     def execute(self, args: str, session: "AgentSession") -> str:
-        crons = session.shared_context.cron_loader.discover_crons()
-        if not crons:
-            return "No cron jobs configured."
+        if not args:
+            crons = session.shared_context.cron_loader.discover_crons()
+            if not crons:
+                return "No cron jobs configured."
 
-        lines = ["**Cron Jobs:**"]
-        for cron in crons:
-            lines.append(f"- `{cron.id}`: {cron.schedule}")
+            lines = ["**Cron Jobs:**"]
+            for cron in crons:
+                lines.append(f"- `{cron.id}`: {cron.schedule}")
+            return "\n".join(lines)
+
+        # Show specific cron details
+        cron_id = args.strip()
+        try:
+            cron = session.shared_context.cron_loader.load(cron_id)
+        except Exception:
+            return f"✗ Cron `{cron_id}` not found."
+
+        lines = [
+            f"**Cron:** `{cron.id}`",
+            f"**Name:** {cron.name}",
+            f"**Schedule:** `{cron.schedule}`",
+            f"**Agent:** {cron.agent}",
+            f"\n---\n\n**CRON.md:**\n```\n{cron.prompt}\n```",
+        ]
         return "\n".join(lines)

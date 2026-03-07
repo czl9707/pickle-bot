@@ -46,7 +46,7 @@ class TestCommandProperties:
                 "List agents or show agent details",
             ),
             (SkillsCommand, "skills", [], "List all skills or show skill details"),
-            (CronsCommand, "crons", [], "List all cron jobs"),
+            (CronsCommand, "crons", [], "List all cron jobs or show cron details"),
             (CompactCommand, "compact", [], "Compact conversation context manually"),
             (ContextCommand, "context", [], "Show session context information"),
             (ClearCommand, "clear", [], "Clear conversation and start fresh"),
@@ -177,6 +177,41 @@ class TestCommandExecute:
 
         result = CronsCommand().execute("", mock_session)
         assert "No cron jobs configured" in result
+
+    def test_crons_show_detail(self, mock_session, mock_context):
+        """Test crons command shows detail for specific cron."""
+        from picklebot.core.cron_loader import CronDef
+
+        mock_cron = CronDef(
+            id="daily-summary",
+            name="Daily Summary",
+            description="Daily summary cron",
+            schedule="0 9 * * *",
+            agent="pickle",
+            prompt="Generate a daily summary of activities.",
+        )
+        mock_session.shared_context = mock_context
+        mock_context.cron_loader.load.return_value = mock_cron
+
+        cmd = CronsCommand()
+        result = cmd.execute("daily-summary", mock_session)
+
+        assert "**Cron:** `daily-summary`" in result
+        assert "**Name:** Daily Summary" in result
+        assert "**Schedule:** `0 9 * * *`" in result
+        assert "**Agent:** pickle" in result
+        assert "Generate a daily summary" in result
+        mock_context.cron_loader.load.assert_called_once_with("daily-summary")
+
+    def test_crons_show_detail_not_found(self, mock_session, mock_context):
+        """Test crons command handles non-existent cron."""
+        mock_session.shared_context = mock_context
+        mock_context.cron_loader.load.side_effect = ValueError("not found")
+
+        cmd = CronsCommand()
+        result = cmd.execute("nonexistent", mock_session)
+
+        assert "not found" in result
 
     def test_agent_show_detail(self, mock_session, mock_context):
         """Test agent command shows detail for specific agent."""
