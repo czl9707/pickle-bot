@@ -45,7 +45,7 @@ class TestCommandProperties:
                 ["agents"],
                 "List agents or show agent details",
             ),
-            (SkillsCommand, "skills", [], "List all skills"),
+            (SkillsCommand, "skills", [], "List all skills or show skill details"),
             (CronsCommand, "crons", [], "List all cron jobs"),
             (CompactCommand, "compact", [], "Compact conversation context manually"),
             (ContextCommand, "context", [], "Show session context information"),
@@ -135,6 +135,40 @@ class TestCommandExecute:
 
         result = SkillsCommand().execute("", mock_session)
         assert "No skills configured" in result
+
+    def test_skills_show_detail(self, mock_session, mock_context):
+        """Test skills command shows detail for specific skill."""
+        from picklebot.core.skill_loader import SkillDef
+
+        mock_skill = SkillDef(
+            id="brainstorm",
+            name="Brainstorming",
+            description="Turn ideas into designs",
+            content="## How to brainstorm\n\nFollow these steps...",
+        )
+        mock_session.shared_context = mock_context
+        mock_context.skill_loader.load_skill.return_value = mock_skill
+
+        cmd = SkillsCommand()
+        result = cmd.execute("brainstorm", mock_session)
+
+        assert "**Skill:** `brainstorm`" in result
+        assert "**Name:** Brainstorming" in result
+        assert "**Description:** Turn ideas into designs" in result
+        assert "## How to brainstorm" in result
+        mock_context.skill_loader.load_skill.assert_called_once_with("brainstorm")
+
+    def test_skills_show_detail_not_found(self, mock_session, mock_context):
+        """Test skills command handles non-existent skill."""
+        from picklebot.utils.def_loader import DefNotFoundError
+
+        mock_session.shared_context = mock_context
+        mock_context.skill_loader.load_skill.side_effect = DefNotFoundError("skill", "nonexistent")
+
+        cmd = SkillsCommand()
+        result = cmd.execute("nonexistent", mock_session)
+
+        assert "not found" in result
 
     def test_crons_no_crons(self, mock_session, mock_context):
         """CronsCommand with no crons should show message."""

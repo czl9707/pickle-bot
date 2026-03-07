@@ -134,19 +134,35 @@ class AgentCommand(Command):
 
 
 class SkillsCommand(Command):
-    """List all skills."""
+    """List all skills or show skill details."""
 
     name = "skills"
-    description = "List all skills"
+    description = "List all skills or show skill details"
 
     def execute(self, args: str, session: "AgentSession") -> str:
-        skills = session.shared_context.skill_loader.discover_skills()
-        if not skills:
-            return "No skills configured."
+        if not args:
+            skills = session.shared_context.skill_loader.discover_skills()
+            if not skills:
+                return "No skills configured."
 
-        lines = ["**Skills:**"]
-        for skill in skills:
-            lines.append(f"- `{skill.id}`: {skill.description}")
+            lines = ["**Skills:**"]
+            for skill in skills:
+                lines.append(f"- `{skill.id}`: {skill.description}")
+            return "\n".join(lines)
+
+        # Show specific skill details
+        skill_id = args.strip()
+        try:
+            skill = session.shared_context.skill_loader.load_skill(skill_id)
+        except Exception:
+            return f"✗ Skill `{skill_id}` not found."
+
+        lines = [
+            f"**Skill:** `{skill.id}`",
+            f"**Name:** {skill.name}",
+            f"**Description:** {skill.description}",
+            f"\n---\n\n**SKILL.md:**\n```\n{skill.content}\n```",
+        ]
         return "\n".join(lines)
 
 
