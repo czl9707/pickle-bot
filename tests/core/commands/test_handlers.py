@@ -43,7 +43,7 @@ class TestCommandProperties:
                 AgentCommand,
                 "agent",
                 ["agents"],
-                "Switch to a different agent (starts fresh session)",
+                "List agents or show agent details",
             ),
             (SkillsCommand, "skills", [], "List all skills"),
             (CronsCommand, "crons", [], "List all cron jobs"),
@@ -144,39 +144,42 @@ class TestCommandExecute:
         result = CronsCommand().execute("", mock_session)
         assert "No cron jobs configured" in result
 
-    def test_agent_switch_success(self, mock_session, mock_context):
-        """Test agent command switches agent."""
-        mock_session.shared_context = mock_context
-        mock_session.source = MagicMock()
-        mock_session.source.__str__ = MagicMock(return_value="platform-cli:test")
+    def test_agent_show_detail(self, mock_session, mock_context):
+        """Test agent command shows detail for specific agent."""
+        from picklebot.core.agent_loader import AgentDef
+        from picklebot.utils.config import LLMConfig
 
-        # Mock agent exists
-        mock_context.agent_loader.load.return_value = MagicMock()
+        llm_config = LLMConfig(provider="test", model="test-model", api_key="test-key")
+        mock_agent = MagicMock()
+        mock_agent.agent_def = AgentDef(
+            id="current-agent",
+            name="Current Agent",
+            description="Current agent desc",
+            agent_md="You are current.",
+            soul_md="Be friendly.",
+            llm=llm_config,
+        )
+        mock_session.agent = mock_agent
+        mock_session.shared_context = mock_context
+        mock_context.agent_loader.load.return_value = mock_agent.agent_def
 
         cmd = AgentCommand()
-        result = cmd.execute("cookie", mock_session)
+        result = cmd.execute("current-agent", mock_session)
 
-        assert "Switched to `cookie`" in result
-        mock_context.routing_table.add_runtime_binding.assert_called_once_with(
-            "platform-cli:test", "cookie"
-        )
-        mock_context.routing_table.clear_session_cache.assert_called_once_with(
-            "platform-cli:test"
-        )
+        assert "**Agent:** `current-agent`" in result
+        assert "**Name:** Current Agent" in result
+        assert "**Description:** Current agent desc" in result
+        mock_context.agent_loader.load.assert_called_once_with("current-agent")
 
-    def test_agent_switch_not_found(self, mock_session, mock_context):
-        """Test agent command handles invalid agent."""
+    def test_agent_show_detail_not_found(self, mock_session, mock_context):
+        """Test agent command handles non-existent agent."""
         mock_session.shared_context = mock_context
-
-        # Mock agent not found
         mock_context.agent_loader.load.side_effect = ValueError("not found")
 
         cmd = AgentCommand()
         result = cmd.execute("nonexistent", mock_session)
 
         assert "not found" in result
-        mock_context.routing_table.add_runtime_binding.assert_not_called()
-        mock_context.routing_table.clear_session_cache.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_compact_command(self, mock_session):

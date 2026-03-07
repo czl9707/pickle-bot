@@ -94,11 +94,11 @@ class HelpCommand(Command):
 
 
 class AgentCommand(Command):
-    """List agents or switch agent."""
+    """List agents or show agent details."""
 
     name = "agent"
     aliases = ["agents"]
-    description = "Switch to a different agent (starts fresh session)"
+    description = "List agents or show agent details"
 
     def execute(self, args: str, session: "AgentSession") -> str:
         if not args:
@@ -110,22 +110,27 @@ class AgentCommand(Command):
                 lines.append(f"- `{agent.id}`: {agent.name}{marker}")
             return "\n".join(lines)
 
-        # Switch agent
+        # Show specific agent details
         agent_id = args.strip()
-        source_str = str(session.source)
-
-        # Verify agent exists
         try:
-            session.shared_context.agent_loader.load(agent_id)
+            agent_def = session.shared_context.agent_loader.load(agent_id)
         except ValueError:
             return f"✗ Agent `{agent_id}` not found."
 
-        # Add runtime binding + clear cache
-        routing = session.shared_context.routing_table
-        routing.add_runtime_binding(source_str, agent_id)
-        routing.clear_session_cache(source_str)
+        lines = [
+            f"**Agent:** `{agent_def.id}`",
+            f"**Name:** {agent_def.name}",
+            f"**Description:** {agent_def.description}",
+            f"**LLM:** {agent_def.llm.model}",
+        ]
 
-        return f"✓ Switched to `{agent_id}`. Next message starts fresh conversation."
+        # Add content sections
+        lines.append(f"\n---\n\n**AGENT.md:**\n```\n{agent_def.agent_md}\n```")
+
+        if agent_def.soul_md:
+            lines.append(f"\n**SOUL.md:**\n```\n{agent_def.soul_md}\n```")
+
+        return "\n".join(lines)
 
 
 class SkillsCommand(Command):
