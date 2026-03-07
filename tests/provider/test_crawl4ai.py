@@ -22,7 +22,6 @@ class TestCrawl4AIProvider:
         provider = WebReadProvider.from_config(test_config)
         assert isinstance(provider, Crawl4AIProvider)
 
-    @pytest.mark.asyncio
     async def test_read_returns_markdown(self):
         """read should return ReadResult with markdown content."""
         provider = Crawl4AIProvider()
@@ -50,7 +49,6 @@ class TestCrawl4AIProvider:
         assert result.content == "# Example Page\n\nThis is content."
         assert result.error is None
 
-    @pytest.mark.asyncio
     async def test_read_handles_failure(self):
         """read should return error on failure."""
         provider = Crawl4AIProvider()
@@ -73,7 +71,6 @@ class TestCrawl4AIProvider:
         assert result.error == "Failed to load page"
         assert result.content == ""
 
-    @pytest.mark.asyncio
     async def test_read_handles_exception(self):
         """read should catch and return exceptions."""
         provider = Crawl4AIProvider()

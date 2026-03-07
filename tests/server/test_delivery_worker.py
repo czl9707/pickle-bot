@@ -47,7 +47,6 @@ def test_get_session_source_returns_none_if_not_found(mock_context):
     assert result is None
 
 
-@pytest.mark.asyncio
 async def test_handle_event_skips_if_no_source(mock_context):
     """handle_event should skip delivery if session has no source."""
     mock_context.history_store.list_sessions.return_value = []
@@ -67,7 +66,6 @@ async def test_handle_event_skips_if_no_source(mock_context):
         mock_ack.assert_not_called()
 
 
-@pytest.mark.asyncio
 async def test_handle_event_delivers_to_platform(mock_context):
     """handle_event should deliver to platform from session source."""
     from picklebot.core.history import HistorySession
@@ -160,7 +158,6 @@ def test_platform_limits():
 class TestDefaultDeliverySource:
     """Tests for default_delivery_source fallback in delivery."""
 
-    @pytest.mark.asyncio
     async def test_uses_default_when_no_platform(self, mock_context):
         """Should deliver to default_delivery_source when session has no platform."""
         from picklebot.core.history import HistorySession
@@ -198,7 +195,6 @@ class TestDefaultDeliverySource:
         mock_channel.reply.assert_called_once()
         mock_ack.assert_called_once_with(event)
 
-    @pytest.mark.asyncio
     async def test_skips_when_no_default_configured(self, mock_context):
         """Should skip with warning when no default_delivery_source configured."""
         from picklebot.core.history import HistorySession
@@ -227,7 +223,6 @@ class TestDefaultDeliverySource:
 
         mock_ack.assert_not_called()
 
-    @pytest.mark.asyncio
     async def test_platform_source_unchanged(self, mock_context):
         """Platform sources should still deliver directly (existing behavior)."""
         from picklebot.core.history import HistorySession
@@ -266,7 +261,6 @@ class TestDefaultDeliverySource:
         mock_channel.reply.assert_called_once()
         mock_ack.assert_called_once_with(event)
 
-    @pytest.mark.asyncio
     async def test_invalid_default_logs_error(self, mock_context):
         """Should log error and skip if default_delivery_source is invalid."""
         from picklebot.core.history import HistorySession
@@ -298,7 +292,6 @@ class TestDefaultDeliverySource:
         # Should skip without acking
         mock_ack.assert_not_called()
 
-    @pytest.mark.asyncio
     async def test_non_platform_default_logs_error(self, mock_context):
         """Should log error when default_delivery_source is a non-platform source."""
         from picklebot.core.history import HistorySession
@@ -332,7 +325,6 @@ class TestDefaultDeliverySource:
 class TestDeliverWithRetry:
     """Tests for _deliver_with_retry method."""
 
-    @pytest.mark.asyncio
     async def test_deliver_with_retry_success_first_try(self, mock_context):
         """Should return True when delivery succeeds on first attempt."""
         from picklebot.channel.telegram_channel import TelegramEventSource
@@ -349,7 +341,6 @@ class TestDeliverWithRetry:
         assert result is True
         mock_channel.reply.assert_called_once_with("Hello", source)
 
-    @pytest.mark.asyncio
     async def test_deliver_with_retry_retries_on_failure(self, mock_context):
         """Should retry with backoff when delivery fails."""
         from picklebot.channel.telegram_channel import TelegramEventSource
@@ -370,7 +361,6 @@ class TestDeliverWithRetry:
         assert mock_channel.reply.call_count == 2
         mock_sleep.assert_called_once()  # One sleep between retries
 
-    @pytest.mark.asyncio
     async def test_deliver_with_retry_returns_false_after_max_retries(
         self, mock_context
     ):
@@ -390,7 +380,6 @@ class TestDeliverWithRetry:
         assert result is False
         assert mock_channel.reply.call_count == MAX_RETRIES
 
-    @pytest.mark.asyncio
     async def test_deliver_with_retry_retries_all_chunks_on_failure(self, mock_context):
         """Should retry all chunks from scratch when any chunk fails."""
         from picklebot.channel.telegram_channel import TelegramEventSource

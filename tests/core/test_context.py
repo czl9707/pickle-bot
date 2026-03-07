@@ -72,7 +72,6 @@ class TestSharedContextEventBus:
         assert hasattr(context, "eventbus")
         assert isinstance(context.eventbus, EventBus)
 
-    @pytest.mark.asyncio
     async def test_subscribe_by_event_class(self, config_from_file):
         """EventBus.subscribe should accept event classes with type-safe handlers."""
         context = SharedContext(config_from_file)

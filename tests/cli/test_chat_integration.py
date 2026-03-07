@@ -120,7 +120,6 @@ def test_warnings_are_suppressed():
     assert has_ignore_filter, "chat.py should set warnings.filterwarnings('ignore')"
 
 
-@pytest.mark.asyncio
 async def test_chat_loop_subscribes_to_outbound_events(test_config_with_agent: Config):
     """Test that ChatLoop subscribes to OutboundEvents."""
     chat_loop = ChatLoop(test_config_with_agent)
@@ -171,7 +170,6 @@ def test_display_agent_response_prints_styled_output(test_config_with_agent: Con
     assert "Hello! How can I help you?" in output
 
 
-@pytest.mark.asyncio
 async def test_chat_loop_handles_quit_command(test_config_with_agent: Config):
     """Test that chat loop exits on quit command."""
     import io

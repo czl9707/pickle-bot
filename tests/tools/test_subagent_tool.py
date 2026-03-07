@@ -105,7 +105,6 @@ You are {name}.
         assert "agent-c" in enum_ids
         assert "agent-b" not in enum_ids  # Excluded!
 
-    @pytest.mark.anyio
     async def test_tool_dispatches_and_receives_result_via_eventbus(self, test_config):
         """Subagent dispatch tool should dispatch via EventBus and receive RESULT."""
         # Create target agent
@@ -183,7 +182,6 @@ You are the target agent.
             except asyncio.CancelledError:
                 pass
 
-    @pytest.mark.anyio
     async def test_tool_includes_context_in_message(self, test_config):
         """Subagent dispatch tool should include context in user message."""
         # Create target agent
@@ -258,7 +256,6 @@ You are the target agent.
             except asyncio.CancelledError:
                 pass
 
-    @pytest.mark.anyio
     async def test_tool_raises_for_unknown_agent(self, test_config):
         """Subagent dispatch tool should raise for unknown agent_id."""
         # Create an agent so tool_func is not None
@@ -285,7 +282,6 @@ You are an agent.
                 session=mock_session, agent_id="unknown-agent", task="Do something"
             )
 
-    @pytest.mark.anyio
     async def test_tool_raises_on_error_result(self, test_config):
         """Subagent dispatch tool should raise when RESULT contains error."""
         # Create target agent

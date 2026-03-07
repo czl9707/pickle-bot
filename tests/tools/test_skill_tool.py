@@ -72,7 +72,6 @@ description: {desc}
         }
         assert params["required"] == ["skill_name"]
 
-    @pytest.mark.anyio
     async def test_skill_tool_loads_content(self, test_config):
         """Skill tool should load and return skill content."""
         # Setup - create a valid skill
@@ -106,7 +105,6 @@ This is the skill content.
         assert "# Test Skill" in result
         assert "This is the skill content." in result
 
-    @pytest.mark.anyio
     async def test_skill_tool_handles_missing_skill(self, test_config):
         """Skill tool should return error message for missing skill."""
         # Setup - create one skill

@@ -16,26 +16,6 @@ class TestContextGuard:
         guard = ContextGuard(shared_context=None, token_threshold=1000)
         assert guard.token_threshold == 1000
 
-
-class TestTokenCounting:
-    def test_count_tokens_empty_messages(self):
-        """Count tokens returns 0 for empty messages."""
-        from picklebot.core.context_guard import ContextGuard
-
-        guard = ContextGuard(shared_context=None, token_threshold=1000)
-        count = guard._count_tokens([], "gpt-4")
-        assert count == 0
-
-    def test_count_tokens_with_messages(self):
-        """Count tokens returns positive count for messages."""
-        from picklebot.core.context_guard import ContextGuard
-
-        guard = ContextGuard(shared_context=None, token_threshold=1000)
-        messages = [{"role": "user", "content": "Hello, world!"}]
-        count = guard._count_tokens(messages, "gpt-4")
-        assert count > 0
-
-
 class TestMessageSerialization:
     def test_serialize_messages_for_summary(self):
         """Serialize messages to plain text for summarization."""
@@ -131,7 +111,6 @@ class TestCheckAndCompactWithSessionState:
         )
         return state
 
-    @pytest.mark.asyncio
     async def test_check_and_compact_returns_state(self, session_state):
         """check_and_compact returns SessionState (same or new)."""
         guard = ContextGuard(shared_context=None, token_threshold=10000)
@@ -146,7 +125,6 @@ class TestCheckAndCompactWithSessionState:
         # Under threshold, should return same state
         assert result is session_state
 
-    @pytest.mark.asyncio
     async def test_check_and_compact_under_threshold_no_roll(
         self, session_state, mock_context
     ):
@@ -160,7 +138,6 @@ class TestCheckAndCompactWithSessionState:
         # Should return the same state
         assert result is session_state
 
-    @pytest.mark.asyncio
     async def test_check_and_compact_over_threshold_triggers_roll(
         self, session_state, mock_context, mock_agent
     ):
@@ -208,7 +185,6 @@ class TestCheckAndCompactWithSessionState:
         assert result_state.agent is mock_agent
         assert result_state.source == session_state.source
 
-    @pytest.mark.asyncio
     async def test_roll_creates_new_session_in_history_store(
         self, session_state, mock_context, mock_agent
     ):
@@ -249,7 +225,6 @@ class TestCheckAndCompactWithSessionState:
         session_ids = [s.id for s in sessions]
         assert result_state.session_id in session_ids
 
-    @pytest.mark.asyncio
     async def test_roll_updates_source_mapping(
         self, session_state, mock_context, mock_agent
     ):
@@ -291,7 +266,6 @@ class TestCheckAndCompactWithSessionState:
 
 
 class TestSummaryGeneration:
-    @pytest.mark.asyncio
     async def test_build_compacted_messages(self, tmp_path):
         """Build compacted messages using SessionState."""
         from picklebot.core.context_guard import ContextGuard

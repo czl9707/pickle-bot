@@ -21,7 +21,6 @@ def test_event_bus_has_persistence_dir(event_bus, events_dir):
     assert event_bus.pending_dir == events_dir / "pending"
 
 
-@pytest.mark.asyncio
 async def test_persist_outbound_event(event_bus, events_dir):
     event = OutboundEvent(
         session_id="test-session",
@@ -44,7 +43,6 @@ async def test_persist_outbound_event(event_bus, events_dir):
     assert data["content"] == "Hello"
 
 
-@pytest.mark.asyncio
 async def test_persist_skips_non_outbound(event_bus, events_dir):
     inbound_event = InboundEvent(
         session_id="test-session",
@@ -61,7 +59,6 @@ async def test_persist_skips_non_outbound(event_bus, events_dir):
     assert len(pending_files) == 0
 
 
-@pytest.mark.asyncio
 async def test_ack_deletes_persisted_event(event_bus, events_dir):
     event = OutboundEvent(
         session_id="test-session",
@@ -84,7 +81,6 @@ async def test_ack_deletes_persisted_event(event_bus, events_dir):
     assert len(pending_files) == 0
 
 
-@pytest.mark.asyncio
 async def test_atomic_write(event_bus, events_dir):
     """Test that files are written atomically (tmp + fsync + rename)."""
     event = OutboundEvent(
@@ -105,7 +101,6 @@ async def test_atomic_write(event_bus, events_dir):
     assert len(json_files) == 1
 
 
-@pytest.mark.asyncio
 async def test_publish_outbound_persists_and_notifies(event_bus, events_dir):
     received = []
 
@@ -144,7 +139,6 @@ async def test_publish_outbound_persists_and_notifies(event_bus, events_dir):
             pass
 
 
-@pytest.mark.asyncio
 async def test_publish_inbound_no_persist_inbound(event_bus, events_dir):
     received = []
 

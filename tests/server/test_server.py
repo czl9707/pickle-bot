@@ -7,7 +7,6 @@ import pytest
 from picklebot.server.server import Server
 
 
-@pytest.mark.anyio
 async def test_server_starts_workers(test_context):
     """Server starts all workers as tasks."""
     server = Server(test_context)
@@ -20,7 +19,6 @@ async def test_server_starts_workers(test_context):
     await server._stop_all()
 
 
-@pytest.mark.anyio
 async def test_server_stops_workers_gracefully(test_context):
     """Server stops all workers on shutdown."""
     server = Server(test_context)
@@ -32,7 +30,6 @@ async def test_server_stops_workers_gracefully(test_context):
     assert all(not w.is_running() for w in server.workers)
 
 
-@pytest.mark.anyio
 async def test_server_monitor_restarts_crashed_worker(test_context):
     """Server monitoring restarts crashed workers."""
     server = Server(test_context)
@@ -85,7 +82,6 @@ def test_server_uses_context_queue():
         assert not hasattr(server, "agent_queue")
 
 
-@pytest.mark.anyio
 async def test_server_starts_config_reloader(test_context):
     """Server should start ConfigReloader alongside workers."""
     from unittest.mock import patch

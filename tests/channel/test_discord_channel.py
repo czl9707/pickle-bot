@@ -9,7 +9,6 @@ from picklebot.utils.config import DiscordConfig
 class TestDiscordChannelReply:
     """Tests for DiscordChannel.reply method."""
 
-    @pytest.mark.anyio
     async def test_reply_sends_to_channel_id(self):
         """reply should send to source.channel_id."""
         config = DiscordConfig(bot_token="test-token")
@@ -39,7 +38,6 @@ def _create_mock_discord_client():
 class TestDiscordChannelRunStop:
     """Tests for run/stop behavior."""
 
-    @pytest.mark.anyio
     async def test_run_stop_lifecycle(self):
         """Test that DiscordChannel can run and stop."""
         config = DiscordConfig(bot_token="test_token")
@@ -58,7 +56,6 @@ class TestDiscordChannelRunStop:
             mock_client.start.assert_called_once()
             mock_client.close.assert_called_once()
 
-    @pytest.mark.anyio
     async def test_run_raises_on_second_call(self):
         """Calling run twice should raise RuntimeError."""
         config = DiscordConfig(bot_token="test_token")
@@ -76,7 +73,6 @@ class TestDiscordChannelRunStop:
             with pytest.raises(RuntimeError, match="DiscordChannel already running"):
                 await channel.run(dummy_callback)
 
-    @pytest.mark.anyio
     async def test_stop_is_idempotent(self):
         """Calling stop twice should be safe - second call is no-op."""
         config = DiscordConfig(bot_token="test_token")
@@ -95,7 +91,6 @@ class TestDiscordChannelRunStop:
 
             mock_client.close.assert_called_once()
 
-    @pytest.mark.anyio
     async def test_stop_without_run_is_safe(self):
         """Calling stop without run should be safe - no-op."""
         config = DiscordConfig(bot_token="test_token")
@@ -103,7 +98,6 @@ class TestDiscordChannelRunStop:
 
         await channel.stop()  # Should not raise
 
-    @pytest.mark.anyio
     async def test_can_rerun_after_stop(self):
         """Should be able to run again after stop."""
         config = DiscordConfig(bot_token="test_token")

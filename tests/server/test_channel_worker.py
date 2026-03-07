@@ -81,7 +81,6 @@ class BlockingChannel(FakeChannel):
         return False
 
 
-@pytest.mark.anyio
 async def test_channel_worker_publishes_inbound_event(test_context, tmp_path):
     """ChannelWorker publishes INBOUND events to EventBus."""
     # Create test agent
@@ -147,7 +146,6 @@ You are a test assistant.
             pass
 
 
-@pytest.mark.anyio
 async def test_channel_worker_ignores_non_whitelisted(test_context, tmp_path):
     """ChannelWorker ignores messages from non-whitelisted senders."""
     # Create test agent
@@ -189,7 +187,6 @@ You are a test assistant.
     assert len(published_events) == 0
 
 
-@pytest.mark.anyio
 async def test_channel_worker_creates_per_user_session(test_context, tmp_path):
     """ChannelWorker creates a new session for each user."""
     # Create test agent
@@ -222,7 +219,6 @@ You are a test assistant.
     assert not hasattr(worker, "agent")
 
 
-@pytest.mark.anyio
 async def test_channel_worker_reuses_existing_session(test_context, tmp_path):
     """ChannelWorker reuses session from source cache for returning users."""
     # Create test agent
@@ -286,7 +282,6 @@ You are a test assistant.
             pass
 
 
-@pytest.mark.anyio
 async def test_channel_worker_includes_metadata(test_context, tmp_path):
     """ChannelWorker includes platform-specific metadata in events."""
     # Create test agent
@@ -380,7 +375,6 @@ class TestChannelWorkerSlashCommands:
         assert mock_context.command_registry is not None
         assert isinstance(mock_context.command_registry, CommandRegistry)
 
-    @pytest.mark.anyio
     async def test_channel_worker_passes_commands_through(self, mock_context):
         """Test that ChannelWorker passes slash commands to AgentWorker via InboundEvent."""
         # Setup
@@ -430,7 +424,6 @@ class TestDefaultDeliverySource:
         mock_context.config.default_delivery_source = None
         return mock_context
 
-    @pytest.mark.anyio
     async def test_first_platform_message_sets_default(self, mock_context_with_config):
         """First non-CLI platform message should set default_delivery_source."""
         mock_context = mock_context_with_config
@@ -451,7 +444,6 @@ class TestDefaultDeliverySource:
             mock_context.config.default_delivery_source == "platform-telegram:123:456"
         )
 
-    @pytest.mark.anyio
     async def test_cli_message_does_not_set_default(self, mock_context_with_config):
         """CLI messages should not update default_delivery_source."""
         mock_context = mock_context_with_config
@@ -472,7 +464,6 @@ class TestDefaultDeliverySource:
         # CLI should not set default
         assert mock_context.config.default_delivery_source is None
 
-    @pytest.mark.anyio
     async def test_subsequent_message_does_not_overwrite_default(
         self, mock_context_with_config
     ):
@@ -500,7 +491,6 @@ class TestDefaultDeliverySource:
         )
 
 
-@pytest.mark.anyio
 async def test_channel_worker_uses_routing_table(test_context, tmp_path):
     """ChannelWorker uses routing table to resolve agents."""
     # Create test agents
@@ -538,7 +528,6 @@ You are a test assistant.
     assert test_context.routing_table.resolve("platform-cli:123") == "test"
 
 
-@pytest.mark.anyio
 async def test_channel_worker_event_has_timestamp(test_context, tmp_path):
     """ChannelWorker events include timestamp."""
     # Create test agent

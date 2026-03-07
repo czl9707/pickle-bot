@@ -24,7 +24,6 @@ class TestBraveSearchProvider:
         assert isinstance(provider, BraveSearchProvider)
         assert provider.api_key == "test-key"
 
-    @pytest.mark.asyncio
     async def test_search_returns_normalized_results(self, test_config: Config):
         """search should return list of SearchResult."""
         test_config.websearch = BraveWebSearchConfig(api_key="test-key")
@@ -61,7 +60,6 @@ class TestBraveSearchProvider:
         assert results[0].url == "https://example.com"
         assert results[0].snippet == "Example description"
 
-    @pytest.mark.asyncio
     async def test_search_handles_empty_results(self, test_config: Config):
         """search should return empty list when no results."""
         test_config.websearch = BraveWebSearchConfig(api_key="test-key")

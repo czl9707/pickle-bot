@@ -298,16 +298,13 @@ def test_add_runtime_binding(routing_table, mock_context):
     mock_context.config.routing = {"bindings": []}
 
     # Add binding
-    routing_table.add_runtime_binding("platform-telegram:user_123:chat_456", "cookie")
+    routing_table.persist_binding("platform-telegram:user_123:chat_456", "cookie")
 
     # Verify binding added
-    bindings = mock_context.config.routing["bindings"]
-    assert len(bindings) == 1
-    assert bindings[0]["agent"] == "cookie"
-    assert bindings[0]["value"] == "platform-telegram:user_123:chat_456"
-
-    # Verify cache cleared (forces reload)
-    assert routing_table._bindings is None
+    mock_context.config.set_runtime.assert_called_once_with(
+        "routing.bindings",
+        [{"agent": "cookie", "value": "platform-telegram:user_123:chat_456"}]
+    )
 
 
 def test_add_runtime_binding_appends_existing(routing_table, mock_context):
@@ -318,13 +315,16 @@ def test_add_runtime_binding_appends_existing(routing_table, mock_context):
     }
 
     # Add new binding
-    routing_table.add_runtime_binding("platform-telegram:user_123:chat_456", "cookie")
+    routing_table.persist_binding("platform-telegram:user_123:chat_456", "cookie")
 
     # Verify both bindings present
-    bindings = mock_context.config.routing["bindings"]
-    assert len(bindings) == 2
-    assert bindings[0]["agent"] == "pickle"
-    assert bindings[1]["agent"] == "cookie"
+    mock_context.config.set_runtime.assert_called_once_with(
+        "routing.bindings",
+        [
+            {"agent": "pickle", "value": "platform-cli:.*"},
+            {"agent": "cookie", "value": "platform-telegram:user_123:chat_456"}
+        ]
+    )
 
 
 def test_clear_session_cache(routing_table, mock_context):
@@ -336,8 +336,11 @@ def test_clear_session_cache(routing_table, mock_context):
     # Clear cache
     routing_table.clear_session_cache(source_str)
 
-    # Verify source removed
+    # Verify source removed from dict and persisted
     assert source_str not in mock_context.config.sources
+    mock_context.config.set_runtime.assert_called_once_with(
+        "sources", {}
+    )
 
 
 def test_clear_session_cache_nonexistent(routing_table, mock_context):

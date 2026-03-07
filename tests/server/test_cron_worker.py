@@ -49,7 +49,6 @@ def test_find_due_jobs_empty_when_no_match():
     assert len(due) == 0
 
 
-@pytest.mark.anyio
 async def test_cron_worker_dispatches_due_job(test_context, test_agent_def):
     """CronWorker dispatches due jobs via EventBus as Dispatch events."""
     worker = CronWorker(test_context)
@@ -106,7 +105,6 @@ async def test_cron_worker_dispatches_due_job(test_context, test_agent_def):
             pass
 
 
-@pytest.mark.anyio
 @pytest.mark.parametrize(
     "one_off,should_delete",
     [

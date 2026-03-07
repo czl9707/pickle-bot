@@ -90,7 +90,6 @@ class TestCreatePostMessageTool:
 class TestPostMessageToolExecution:
     """Tests for post_message tool execution."""
 
-    @pytest.mark.anyio
     async def test_uses_session_for_event(self):
         """Should use session info for session_id and source."""
         context = _make_context_with_channels(enabled=True)
@@ -123,7 +122,6 @@ class TestPostMessageToolExecution:
         # Restore
         context.eventbus.publish = original_publish
 
-    @pytest.mark.anyio
     async def test_returns_error_on_exception(self):
         """Should return error message if publishing fails."""
         context = _make_context_with_channels(enabled=True)

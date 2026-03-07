@@ -14,7 +14,6 @@ def test_event_bus_creation(event_bus):
     assert event_bus._subscribers == {}
 
 
-@pytest.mark.asyncio
 async def test_subscribe_and_notify(event_bus):
     received = []
 
@@ -37,7 +36,6 @@ async def test_subscribe_and_notify(event_bus):
     assert received[0] == event
 
 
-@pytest.mark.asyncio
 async def test_multiple_subscribers(event_bus):
     received_1 = []
     received_2 = []
@@ -65,7 +63,6 @@ async def test_multiple_subscribers(event_bus):
     assert len(received_2) == 1
 
 
-@pytest.mark.asyncio
 async def test_unsubscribe(event_bus):
     received = []
 
@@ -88,7 +85,6 @@ async def test_unsubscribe(event_bus):
     assert len(received) == 0
 
 
-@pytest.mark.asyncio
 async def test_subscribe_to_multiple_types(event_bus):
     received_outbound = []
     received_inbound = []

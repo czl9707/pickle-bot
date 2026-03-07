@@ -39,7 +39,6 @@ class TestCreateWebsearchTool:
 class TestWebsearchToolExecution:
     """Tests for websearch tool execution."""
 
-    @pytest.mark.asyncio
     async def test_returns_formatted_results(self, test_config):
         """Tool should return formatted markdown results."""
         test_config.websearch = BraveWebSearchConfig(api_key="test-key")
@@ -74,7 +73,6 @@ class TestWebsearchToolExecution:
         assert "Another" in result
         assert "https://another.com" in result
 
-    @pytest.mark.asyncio
     async def test_returns_no_results_message(self, test_config):
         """Tool should return message when no results found."""
         test_config.websearch = BraveWebSearchConfig(api_key="test-key")

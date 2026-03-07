@@ -23,20 +23,6 @@ class ContextGuard:
     shared_context: "SharedContext"
     token_threshold: int = 160000  # 80% of 200k context
 
-    def _count_tokens(self, messages: list[Message], model: str) -> int:
-        """Count tokens using litellm's token_counter.
-
-        Args:
-            messages: List of messages to count
-            model: Model name for tokenizer selection
-
-        Returns:
-            Token count
-        """
-        if not messages:
-            return 0
-        return token_counter(model=model, messages=messages)
-
     def estimate_tokens(self, state: "SessionState") -> int:
         """Estimate token count for session state.
 
@@ -46,7 +32,9 @@ class ContextGuard:
         Returns:
             Estimated token count
         """
-        return self._count_tokens(state.messages, state.agent.agent_def.llm.model)
+        if not state.messages:
+            return 0
+        return token_counter(model=state.agent.agent_def.llm.model, messages=state.build_messages())
 
     async def check_and_compact(
         self,
@@ -62,8 +50,7 @@ class ContextGuard:
             SessionState to use (same state if under threshold,
             new rolled state if over threshold)
         """
-        messages = state.build_messages()
-        token_count = self._count_tokens(messages, state.agent.llm.model)
+        token_count = self.estimate_tokens(state)
 
         if token_count < self.token_threshold:
             return state

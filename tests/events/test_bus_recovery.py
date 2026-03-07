@@ -16,7 +16,6 @@ def mock_context(tmp_path):
     return context
 
 
-@pytest.mark.asyncio
 async def test_recover_republishes_pending_events(mock_context):
     # Create a pending event file manually
     pending_dir = mock_context.config.event_path / "pending"
@@ -64,7 +63,6 @@ async def test_recover_republishes_pending_events(mock_context):
             pass
 
 
-@pytest.mark.asyncio
 async def test_recover_empty_pending_dir(mock_context):
     bus = EventBus(mock_context)
 

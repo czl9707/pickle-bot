@@ -149,7 +149,6 @@ class TestEventSourceDataclasses:
 class TestChannelLifecycle:
     """Shared lifecycle tests for all channel implementations."""
 
-    @pytest.mark.anyio
     async def test_stop_without_run_is_safe(self, channel_type):
         """Calling stop without run should be safe - no-op."""
         if channel_type == "telegram":

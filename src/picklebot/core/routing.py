@@ -105,26 +105,6 @@ class RoutingTable:
 
         return session.session_id
 
-    def add_runtime_binding(self, source_pattern: str, agent_id: str) -> None:
-        """
-        Add a runtime routing binding.
-
-        Args:
-            source_pattern: Source pattern to match
-            agent_id: Agent to route to
-        """
-        # Get existing bindings
-        bindings = self._context.config.routing.get("bindings", [])
-
-        # Add new binding
-        bindings.append({"agent": agent_id, "value": source_pattern})
-
-        # Update runtime config
-        self._context.config.set_runtime("routing.bindings", bindings)
-
-        # Clear cache to force reload
-        self._bindings = None
-
     def persist_binding(self, source_pattern: str, agent_id: str) -> None:
         """
         Add and persist a routing binding to config.user.yaml.
@@ -133,17 +113,10 @@ class RoutingTable:
             source_pattern: Source pattern to match
             agent_id: Agent to route to
         """
-        # Get existing bindings from user config
         bindings = self._context.config.routing.get("bindings", [])
-
-        # Add new binding
         bindings.append({"agent": agent_id, "value": source_pattern})
+        self._context.config.set_runtime("routing.bindings", bindings)
 
-        # Persist to config.user.yaml
-        self._context.config.set_user("routing.bindings", bindings)
-
-        # Clear cache to force reload
-        self._bindings = None
 
     def clear_session_cache(self, source_str: str) -> None:
         """
@@ -153,8 +126,5 @@ class RoutingTable:
             source_str: Source string to clear
         """
         if source_str in self._context.config.sources:
-            # Remove from sources dict
             del self._context.config.sources[source_str]
-
-            # Persist to runtime config
             self._context.config.set_runtime("sources", self._context.config.sources)

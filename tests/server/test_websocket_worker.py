@@ -45,7 +45,6 @@ class TestWebSocketWorker:
         # Should subscribe to 4 event types
         assert mock_context.eventbus.subscribe.call_count == 4
 
-    @pytest.mark.asyncio
     async def test_handle_connection_adds_client(self, worker):
         """Test handle_connection adds client to set."""
         mock_ws = Mock()
@@ -58,7 +57,6 @@ class TestWebSocketWorker:
         # After error, client should be removed by finally block
         assert mock_ws not in worker.clients
 
-    @pytest.mark.asyncio
     async def test_handle_connection_removes_client_on_exit(self, worker):
         """Test handle_connection removes client when done."""
         mock_ws = Mock()

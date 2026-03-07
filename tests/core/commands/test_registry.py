@@ -62,7 +62,6 @@ class TestCommandRegistry:
             ("/mock test", "mock: test"),
         ],
     )
-    @pytest.mark.asyncio
     async def test_dispatch(self, input, expected):
         """dispatch() should execute or return None."""
         registry = CommandRegistry()
@@ -102,7 +101,6 @@ class TestCommandRegistryWithBuiltins:
         assert registry._commands.get("?") is not None
         assert registry._commands.get("agents") is not None
 
-    @pytest.mark.asyncio
     async def test_dispatch_help(self, mock_context):
         """dispatch /help should return command list."""
         from unittest.mock import MagicMock
@@ -116,7 +114,6 @@ class TestCommandRegistryWithBuiltins:
 
         assert "Available Commands" in result
 
-    @pytest.mark.asyncio
     async def test_dispatch_with_session(self, mock_context):
         """Test dispatch with AgentSession."""
         from unittest.mock import MagicMock
@@ -131,7 +128,6 @@ class TestCommandRegistryWithBuiltins:
         assert result is not None
         assert "**Available Commands:**" in result
 
-    @pytest.mark.asyncio
     async def test_dispatch_non_command_returns_none(self):
         """Test dispatch returns None for non-command input."""
         from unittest.mock import MagicMock

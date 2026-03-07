@@ -45,7 +45,6 @@ def mock_session():
 class TestCommand:
     """Tests for Command ABC."""
 
-    @pytest.mark.anyio
     async def test_command_creation_and_execution(self, mock_session):
         """Command should have properties and execute correctly."""
         cmd = ConcreteCommand()
@@ -60,7 +59,6 @@ class TestCommand:
         assert "args" in result
         assert mock_session.session_id in result
 
-    @pytest.mark.anyio
     async def test_command_execute_receives_session(self, mock_session):
         """Test that execute receives AgentSession with expected properties."""
         cmd = MockCommand()

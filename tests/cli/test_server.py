@@ -12,7 +12,6 @@ from picklebot.utils.config import ChannelConfig, TelegramConfig
 class TestServer:
     """Test Server class setup."""
 
-    @pytest.mark.anyio
     async def test_server_initializes_with_context(self, test_config):
         """Server initializes successfully with context."""
         context = SharedContext(test_config)
@@ -21,7 +20,6 @@ class TestServer:
         assert server.context == context
         assert server.workers == []
 
-    @pytest.mark.anyio
     async def test_server_setup_workers_when_channel_disabled(self, test_config):
         """Server sets up core workers when channel disabled."""
         context = SharedContext(test_config)
@@ -38,7 +36,6 @@ class TestServer:
         assert "WebSocketWorker" in worker_types
         assert "ChannelWorker" not in worker_types
 
-    @pytest.mark.anyio
     async def test_server_setup_workers_when_channel_enabled(self, test_config):
         """Server sets up ChannelWorker when channel enabled."""
         test_config.channels = ChannelConfig(
@@ -62,7 +59,6 @@ class TestServer:
             assert "WebSocketWorker" in worker_types
             assert mock_worker_class.called  # ChannelWorker was created
 
-    @pytest.mark.anyio
     async def test_server_does_not_setup_channel_worker_when_no_channels(
         self, test_config
     ):

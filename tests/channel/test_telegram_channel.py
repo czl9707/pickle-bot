@@ -11,7 +11,6 @@ from picklebot.utils.config import TelegramConfig
 class TestTelegramChannelReply:
     """Tests for TelegramChannel.reply method."""
 
-    @pytest.mark.anyio
     async def test_reply_raises_when_not_started(self):
         """reply should raise when not started."""
         config = TelegramConfig(bot_token="test_token")
@@ -21,7 +20,6 @@ class TestTelegramChannelReply:
         with pytest.raises(RuntimeError, match="TelegramChannel not started"):
             await channel.reply(content="Hello, world!", source=source)
 
-    @pytest.mark.anyio
     async def test_reply_sends_to_chat_id(self):
         """reply should send to source.chat_id."""
         config = TelegramConfig(bot_token="test-token")
@@ -58,7 +56,6 @@ def _create_mock_telegram_app():
 class TestTelegramChannelRunStop:
     """Tests for run/stop behavior."""
 
-    @pytest.mark.anyio
     async def test_run_stop_lifecycle(self):
         """Test that TelegramChannel can run and stop."""
         config = TelegramConfig(bot_token="test_token")
@@ -82,7 +79,6 @@ class TestTelegramChannelRunStop:
             mock_app.start.assert_called_once()
             mock_app.updater.start_polling.assert_called_once()
 
-    @pytest.mark.anyio
     async def test_run_raises_on_second_call(self):
         """Calling run twice should raise RuntimeError."""
         config = TelegramConfig(bot_token="test_token")
@@ -106,7 +102,6 @@ class TestTelegramChannelRunStop:
             await channel.stop()
             await run_task
 
-    @pytest.mark.anyio
     async def test_stop_is_idempotent(self):
         """Calling stop twice should be safe - second call is no-op."""
         config = TelegramConfig(bot_token="test_token")
@@ -129,7 +124,6 @@ class TestTelegramChannelRunStop:
 
             mock_app.stop.assert_called_once()
 
-    @pytest.mark.anyio
     async def test_stop_without_run_is_safe(self):
         """Calling stop without run should be safe - no-op."""
         config = TelegramConfig(bot_token="test_token")
@@ -137,7 +131,6 @@ class TestTelegramChannelRunStop:
 
         await channel.stop()  # Should not raise
 
-    @pytest.mark.anyio
     async def test_can_rerun_after_stop(self):
         """Should be able to run again after stop."""
         config = TelegramConfig(bot_token="test_token")

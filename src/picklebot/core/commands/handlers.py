@@ -30,11 +30,8 @@ class ContextCommand(Command):
 
     async def execute(self, args: str, session: "AgentSession") -> str:
         lines = [
-            f"**Session:** `{session.session_id}`",
-            f"**Agent:** {session.agent.agent_def.name}",
-            f"**Source:** `{session.source}`",
             f"**Messages:** {len(session.state.messages)}",
-            f"**Tokens:** {session.context_guard.estimate_tokens(session.state):,}",
+            f"**Tokens:** {session.context_guard.estimate_tokens(session.state) / session.context_guard.token_threshold}",
         ]
         return "\n".join(lines)
 

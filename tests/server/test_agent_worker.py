@@ -57,7 +57,6 @@ def make_dispatch_event(
     )
 
 
-@pytest.mark.anyio
 async def test_agent_worker_processes_event(test_context, tmp_path):
     """AgentWorker processes an event."""
     create_test_agent(
@@ -74,7 +73,6 @@ async def test_agent_worker_processes_event(test_context, tmp_path):
     await asyncio.sleep(0.5)
 
 
-@pytest.mark.anyio
 async def test_agent_router_publishes_error_for_nonexistent_agent(test_context):
     """AgentWorker publishes RESULT with error when agent doesn't exist."""
     router = AgentWorker(test_context)
@@ -112,7 +110,6 @@ async def test_agent_router_publishes_error_for_nonexistent_agent(test_context):
             pass
 
 
-@pytest.mark.anyio
 async def test_exec_session_requeues_on_transient_error(test_context, tmp_path):
     """AgentWorker.exec_session requeues via INBOUND event on transient errors."""
     create_test_agent(tmp_path, agent_id="test-agent")
@@ -156,7 +153,6 @@ async def test_exec_session_requeues_on_transient_error(test_context, tmp_path):
             pass
 
 
-@pytest.mark.anyio
 async def test_exec_session_recovers_missing_session(test_context, tmp_path):
     """AgentWorker.exec_session creates new session with same ID if session not found."""
     create_test_agent(tmp_path, agent_id="test-agent")
@@ -175,7 +171,6 @@ async def test_exec_session_recovers_missing_session(test_context, tmp_path):
     assert nonexistent_session_id in session_ids
 
 
-@pytest.mark.anyio
 async def test_exec_session_runs_session(test_context, tmp_path):
     """AgentWorker.exec_session runs a session successfully."""
     create_test_agent(
@@ -192,7 +187,6 @@ async def test_exec_session_runs_session(test_context, tmp_path):
     await router.exec_session(event, agent_def)
 
 
-@pytest.mark.anyio
 async def test_exec_session_respects_semaphore(test_context, tmp_path):
     """AgentWorker.exec_session waits on semaphore before executing."""
     create_test_agent(tmp_path, agent_id="test-agent", name="Test Agent")
@@ -223,7 +217,6 @@ async def test_exec_session_respects_semaphore(test_context, tmp_path):
     await task
 
 
-@pytest.mark.anyio
 async def test_agent_router_creates_semaphore_per_agent(test_context, tmp_path):
     """AgentWorker creates a semaphore for each agent on first event."""
     # Create two test agents
@@ -259,7 +252,6 @@ async def test_agent_router_creates_semaphore_per_agent(test_context, tmp_path):
     assert "agent-b" in router._semaphores
 
 
-@pytest.mark.anyio
 async def test_agent_router_concurrent_agents_dont_block(test_context, tmp_path):
     """AgentWorker allows concurrent agents to run without blocking each other."""
     # Create two agents with concurrency 1 each
@@ -284,7 +276,6 @@ async def test_agent_router_concurrent_agents_dont_block(test_context, tmp_path)
     await asyncio.sleep(0.5)
 
 
-@pytest.mark.anyio
 async def test_semaphore_cleanup_removes_unused_semaphores(test_context, tmp_path):
     """AgentWorker removes semaphores when they have no waiters."""
     # Create a test agent
@@ -316,7 +307,6 @@ async def test_semaphore_cleanup_removes_unused_semaphores(test_context, tmp_pat
 # ============================================================================
 
 
-@pytest.mark.anyio
 async def test_exec_session_publishes_result_on_success(test_context, tmp_path):
     """AgentWorker.exec_session should publish RESULT event when session succeeds."""
     create_test_agent(tmp_path, agent_id="test-agent")
@@ -371,7 +361,6 @@ async def test_exec_session_publishes_result_on_success(test_context, tmp_path):
             pass
 
 
-@pytest.mark.anyio
 async def test_exec_session_requeues_on_first_failure(test_context, tmp_path):
     """AgentWorker.exec_session should requeue via event with incremented retry_count on failure."""
     create_test_agent(tmp_path, agent_id="test-agent")
@@ -416,7 +405,6 @@ async def test_exec_session_requeues_on_first_failure(test_context, tmp_path):
             pass
 
 
-@pytest.mark.anyio
 async def test_exec_session_publishes_result_with_error_after_max_retries(
     test_context, tmp_path
 ):
@@ -473,7 +461,6 @@ async def test_exec_session_publishes_result_with_error_after_max_retries(
 # ============================================================================
 
 
-@pytest.mark.anyio
 async def test_agent_dispatcher_handles_inbound_event(test_context):
     """AgentWorker should handle INBOUND events."""
     router = AgentWorker(test_context)
@@ -502,7 +489,6 @@ async def test_agent_dispatcher_handles_inbound_event(test_context):
     assert dispatched.session_id == "test-session"
 
 
-@pytest.mark.anyio
 async def test_agent_dispatcher_handles_dispatch_event(test_context):
     """AgentWorker should handle DISPATCH events."""
     router = AgentWorker(test_context)
@@ -539,7 +525,6 @@ async def test_agent_dispatcher_handles_dispatch_event(test_context):
 # ============================================================================
 
 
-@pytest.mark.anyio
 async def test_agent_worker_dispatches_command(test_context, tmp_path):
     """Test AgentWorker dispatches slash commands before chat."""
     from picklebot.core.events import OutboundEvent, CliEventSource
@@ -587,7 +572,6 @@ async def test_agent_worker_dispatches_command(test_context, tmp_path):
             pass
 
 
-@pytest.mark.anyio
 async def test_command_skips_agent_chat(test_context, tmp_path):
     """Test that commands don't trigger agent chat."""
     from picklebot.core.events import CliEventSource

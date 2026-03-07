@@ -39,7 +39,6 @@ class TestCreateWebreadTool:
 class TestWebreadToolExecution:
     """Tests for webread tool execution."""
 
-    @pytest.mark.asyncio
     async def test_returns_markdown_content(self, test_config):
         """Tool should return markdown content."""
         test_config.webread = Crawl4AIWebReadConfig()
@@ -66,7 +65,6 @@ class TestWebreadToolExecution:
         assert "# Example" in result
         assert "This is content." in result
 
-    @pytest.mark.asyncio
     async def test_returns_error_message(self, test_config):
         """Tool should return error message on failure."""
         test_config.webread = Crawl4AIWebReadConfig()

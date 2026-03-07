@@ -10,7 +10,6 @@ from picklebot.core.events import InboundEvent, OutboundEvent, CliEventSource
 from picklebot.server.agent_worker import AgentWorker
 
 
-@pytest.mark.anyio
 async def test_clear_command_flow(test_context, tmp_path):
     """Test /clear command clears conversation."""
     create_test_agent(tmp_path, agent_id="pickle", name="Pickle")

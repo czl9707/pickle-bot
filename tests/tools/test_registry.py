@@ -72,7 +72,6 @@ class TestToolRegistry:
         assert schemas[0]["type"] == "function"
         assert schemas[0]["function"]["name"] == "mock_tool"
 
-    @pytest.mark.anyio
     async def test_execute_tool_passes_kwargs_to_tool(self):
         """execute_tool() should pass kwargs and session to tool."""
         registry = ToolRegistry()
@@ -89,7 +88,6 @@ class TestToolRegistry:
         assert tool.last_session == mock_session
         assert result == "mock result"
 
-    @pytest.mark.anyio
     async def test_execute_tool_raises_for_nonexistent_tool(self):
         """execute_tool() should raise ValueError for nonexistent tool."""
         registry = ToolRegistry()

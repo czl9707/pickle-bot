@@ -320,7 +320,6 @@ class TestAgentSessionWithSessionState:
 class TestSessionRollingIntegration:
     """Integration tests for session rolling with SessionState."""
 
-    @pytest.mark.asyncio
     async def test_messages_go_to_new_session_after_roll(self, test_agent):
         """After rolling, new messages should go to the new session."""
         from unittest.mock import AsyncMock, patch
