@@ -51,7 +51,6 @@ class ContextGuard:
     async def check_and_compact(
         self,
         state: "SessionState",
-        force: bool = False,
     ) -> "SessionState":
         """Check token count, compact and roll session if needed.
 
@@ -66,14 +65,10 @@ class ContextGuard:
         messages = state.build_messages()
         token_count = self._count_tokens(messages, state.agent.llm.model)
 
-        if force:
-            # Force compaction regardless of token count
-            return await self._compact_and_roll(state)
-
         if token_count < self.token_threshold:
             return state
 
-        return await self._compact_and_roll(state)
+        return await self.compact_and_roll(state)
 
     def _compress_message_count(self, state: "SessionState") -> int:
         keep_count = max(4, int(len(state.messages) * 0.2))
@@ -108,7 +103,7 @@ class ContextGuard:
                 lines.append(f"{role.upper()}: {content}")
         return "\n".join(lines)
 
-    async def _compact_and_roll(
+    async def compact_and_roll(
         self,
         state: "SessionState",
     ) -> "SessionState":

@@ -17,10 +17,7 @@ class CompactCommand(Command):
     description = "Compact conversation context manually"
 
     async def execute(self, args: str, session: "AgentSession") -> str:
-        # Force compaction via context_guard
-        session.state = await session.context_guard.check_and_compact(
-            session.state, force=True
-        )
+        session.state = await session.context_guard.compact_and_roll(session.state)
         msg_count = len(session.state.messages)
         return f"✓ Context compacted. {msg_count} messages retained."
 
@@ -31,7 +28,7 @@ class ContextCommand(Command):
     name = "context"
     description = "Show session context information"
 
-    def execute(self, args: str, session: "AgentSession") -> str:
+    async def execute(self, args: str, session: "AgentSession") -> str:
         lines = [
             f"**Session:** `{session.session_id}`",
             f"**Agent:** {session.agent.agent_def.name}",
@@ -48,7 +45,7 @@ class ClearCommand(Command):
     name = "clear"
     description = "Clear conversation and start fresh"
 
-    def execute(self, args: str, session: "AgentSession") -> str:
+    async def execute(self, args: str, session: "AgentSession") -> str:
         # Clear session cache
         source_str = str(session.source)
         session.shared_context.routing_table.clear_session_cache(source_str)
@@ -62,7 +59,7 @@ class SessionCommand(Command):
     name = "session"
     description = "Show current session details"
 
-    def execute(self, args: str, session: "AgentSession") -> str:
+    async def execute(self, args: str, session: "AgentSession") -> str:
         info = session.shared_context.history_store.get_session_info(session.session_id)
 
         # Handle case where session not found in index
@@ -85,7 +82,7 @@ class HelpCommand(Command):
     aliases = ["?"]
     description = "Show available commands"
 
-    def execute(self, args: str, session: "AgentSession") -> str:
+    async def execute(self, args: str, session: "AgentSession") -> str:
         lines = ["**Available Commands:**"]
         for cmd in session.shared_context.command_registry.list_commands():
             names = [f"/{cmd.name}"] + [f"/{a}" for a in cmd.aliases]
@@ -100,7 +97,7 @@ class AgentCommand(Command):
     aliases = ["agents"]
     description = "List agents or show agent details"
 
-    def execute(self, args: str, session: "AgentSession") -> str:
+    async def execute(self, args: str, session: "AgentSession") -> str:
         if not args:
             # List agents
             agents = session.shared_context.agent_loader.discover_agents()
@@ -139,7 +136,7 @@ class SkillsCommand(Command):
     name = "skills"
     description = "List all skills or show skill details"
 
-    def execute(self, args: str, session: "AgentSession") -> str:
+    async def execute(self, args: str, session: "AgentSession") -> str:
         if not args:
             skills = session.shared_context.skill_loader.discover_skills()
             if not skills:
@@ -172,7 +169,7 @@ class CronsCommand(Command):
     name = "crons"
     description = "List all cron jobs or show cron details"
 
-    def execute(self, args: str, session: "AgentSession") -> str:
+    async def execute(self, args: str, session: "AgentSession") -> str:
         if not args:
             crons = session.shared_context.cron_loader.discover_crons()
             if not crons:
@@ -206,7 +203,7 @@ class RouteCommand(Command):
     name = "route"
     description = "Create a routing binding (persists to config)"
 
-    def execute(self, args: str, session: "AgentSession") -> str:
+    async def execute(self, args: str, session: "AgentSession") -> str:
         parts = args.strip().split(None, 1)
         if len(parts) != 2:
             return "**Usage:** `/route <source_pattern> <agent_id>`\n\nExample: `/route platform-telegram:.* pickle`"
@@ -237,7 +234,7 @@ class BindingsCommand(Command):
     name = "bindings"
     description = "Show all routing bindings"
 
-    def execute(self, args: str, session: "AgentSession") -> str:
+    async def execute(self, args: str, session: "AgentSession") -> str:
         bindings = session.shared_context.config.routing.get("bindings", [])
 
         if not bindings:

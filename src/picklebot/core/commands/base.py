@@ -15,6 +15,6 @@ class Command(ABC):
     description: str = ""
 
     @abstractmethod
-    def execute(self, args: str, session: "AgentSession") -> str:
+    async def execute(self, args: str, session: "AgentSession") -> str:
         """Execute the command and return response string."""
         pass

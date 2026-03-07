@@ -73,10 +73,7 @@ class CommandRegistry:
             return None
 
         cmd, args = resolved
-        result = cmd.execute(args, session)
-        if asyncio.iscoroutine(result):
-            return await result
-        return result
+        return await cmd.execute(args, session)
 
     @classmethod
     def with_builtins(cls) -> "CommandRegistry":

@@ -18,7 +18,7 @@ class ConcreteCommand(Command):
     aliases = ["t", "tst"]
     description = "A test command"
 
-    def execute(self, args: str, session: "AgentSession") -> str:
+    async def execute(self, args: str, session: "AgentSession") -> str:
         return f"executed with: {args}, session: {session.session_id}"
 
 
@@ -28,7 +28,7 @@ class MockCommand(Command):
     name = "test"
     description = "Test command"
 
-    def execute(self, args: str, session: "AgentSession") -> str:
+    async def execute(self, args: str, session: "AgentSession") -> str:
         return f"Executed with session: {session.session_id}"
 
 
@@ -45,7 +45,8 @@ def mock_session():
 class TestCommand:
     """Tests for Command ABC."""
 
-    def test_command_creation_and_execution(self, mock_session):
+    @pytest.mark.anyio
+    async def test_command_creation_and_execution(self, mock_session):
         """Command should have properties and execute correctly."""
         cmd = ConcreteCommand()
 
@@ -55,15 +56,16 @@ class TestCommand:
         assert cmd.description == "A test command"
 
         # Check execution with session parameter
-        result = cmd.execute("args", mock_session)
+        result = await cmd.execute("args", mock_session)
         assert "args" in result
         assert mock_session.session_id in result
 
-    def test_command_execute_receives_session(self, mock_session):
+    @pytest.mark.anyio
+    async def test_command_execute_receives_session(self, mock_session):
         """Test that execute receives AgentSession with expected properties."""
         cmd = MockCommand()
 
-        result = cmd.execute("test-args", mock_session)
+        result = await cmd.execute("test-args", mock_session)
 
         # Verify session_id is used correctly
         assert "session-" in result

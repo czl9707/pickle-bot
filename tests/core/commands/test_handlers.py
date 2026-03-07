@@ -16,8 +16,10 @@ from picklebot.core.commands.handlers import (
     RouteCommand,
     BindingsCommand,
 )
+from picklebot.core.commands.registry import CommandRegistry
 from picklebot.utils.def_loader import DefNotFoundError
-
+from picklebot.core.agent_loader import AgentDef
+from picklebot.utils.config import LLMConfig
 
 @pytest.fixture
 def mock_session():
@@ -63,7 +65,8 @@ class TestCommandProperties:
             (BindingsCommand, "bindings", [], "Show all routing bindings"),
         ],
     )
-    def test_command_properties(self, cls, name, aliases, description):
+    @pytest.mark.anyio
+    async def test_command_properties(self, cls, name, aliases, description):
         """Command should have correct properties."""
         cmd = cls()
         assert cmd.name == name
@@ -74,22 +77,21 @@ class TestCommandProperties:
 class TestCommandExecute:
     """Tests for command execute behavior."""
 
-    def test_help_command_with_session(self, mock_session):
+    @pytest.mark.anyio
+    async def test_help_command_with_session(self, mock_session):
         """Test help command with session context."""
-        from picklebot.core.commands.registry import CommandRegistry
 
         registry = CommandRegistry.with_builtins()
         mock_session.shared_context.command_registry = registry
 
         cmd = HelpCommand()
-        result = cmd.execute("", mock_session)
+        result = await cmd.execute("", mock_session)
         assert "**Available Commands:**" in result
 
-    def test_agent_command_list_with_session(self, mock_session, mock_context):
-        """Test agent command lists agents."""
-        from picklebot.core.agent_loader import AgentDef
-        from picklebot.utils.config import LLMConfig
 
+    @pytest.mark.anyio
+    async def test_agent_command_list_with_session(self, mock_session, mock_context):
+        """Test agent command lists agents."""
         # Create a proper LLMConfig
         llm_config = LLMConfig(provider="test", model="test-model", api_key="test-key")
 
@@ -125,28 +127,31 @@ class TestCommandExecute:
         mock_context.agent_loader.discover_agents.return_value = mock_agents
 
         cmd = AgentCommand()
-        result = cmd.execute("", mock_session)
+        result = await cmd.execute("", mock_session)
         assert "**Agents:**" in result
         assert "current-agent" in result
         assert "other-agent" in result
 
-    def test_agent_no_agents(self, mock_session, mock_context):
+    @pytest.mark.anyio
+    async def test_agent_no_agents(self, mock_session, mock_context):
         """AgentCommand with no agents should show empty list."""
         mock_session.shared_context = mock_context
         mock_context.agent_loader.discover_agents.return_value = []
 
-        result = AgentCommand().execute("", mock_session)
+        result = await AgentCommand().execute("", mock_session)
         assert "**Agents:**" in result
 
-    def test_skills_no_skills(self, mock_session, mock_context):
+    @pytest.mark.anyio
+    async def test_skills_no_skills(self, mock_session, mock_context):
         """SkillsCommand with no skills should show message."""
         mock_session.shared_context = mock_context
         mock_context.skill_loader.discover_skills.return_value = []
 
-        result = SkillsCommand().execute("", mock_session)
+        result = await SkillsCommand().execute("", mock_session)
         assert "No skills configured" in result
 
-    def test_skills_show_detail(self, mock_session, mock_context):
+    @pytest.mark.anyio
+    async def test_skills_show_detail(self, mock_session, mock_context):
         """Test skills command shows detail for specific skill."""
         from picklebot.core.skill_loader import SkillDef
 
@@ -160,7 +165,7 @@ class TestCommandExecute:
         mock_context.skill_loader.load_skill.return_value = mock_skill
 
         cmd = SkillsCommand()
-        result = cmd.execute("brainstorm", mock_session)
+        result = await cmd.execute("brainstorm", mock_session)
 
         assert "**Skill:** `brainstorm`" in result
         assert "**Name:** Brainstorming" in result
@@ -168,7 +173,8 @@ class TestCommandExecute:
         assert "## How to brainstorm" in result
         mock_context.skill_loader.load_skill.assert_called_once_with("brainstorm")
 
-    def test_skills_show_detail_not_found(self, mock_session, mock_context):
+    @pytest.mark.anyio
+    async def test_skills_show_detail_not_found(self, mock_session, mock_context):
         """Test skills command handles non-existent skill."""
         from picklebot.utils.def_loader import DefNotFoundError
 
@@ -178,19 +184,21 @@ class TestCommandExecute:
         )
 
         cmd = SkillsCommand()
-        result = cmd.execute("nonexistent", mock_session)
+        result = await cmd.execute("nonexistent", mock_session)
 
         assert "not found" in result
 
-    def test_crons_no_crons(self, mock_session, mock_context):
+    @pytest.mark.anyio
+    async def test_crons_no_crons(self, mock_session, mock_context):
         """CronsCommand with no crons should show message."""
         mock_session.shared_context = mock_context
         mock_context.cron_loader.discover_crons.return_value = []
 
-        result = CronsCommand().execute("", mock_session)
+        result = await CronsCommand().execute("", mock_session)
         assert "No cron jobs configured" in result
 
-    def test_crons_show_detail(self, mock_session, mock_context):
+    @pytest.mark.anyio
+    async def test_crons_show_detail(self, mock_session, mock_context):
         """Test crons command shows detail for specific cron."""
         from picklebot.core.cron_loader import CronDef
 
@@ -206,7 +214,7 @@ class TestCommandExecute:
         mock_context.cron_loader.load.return_value = mock_cron
 
         cmd = CronsCommand()
-        result = cmd.execute("daily-summary", mock_session)
+        result = await cmd.execute("daily-summary", mock_session)
 
         assert "**Cron:** `daily-summary`" in result
         assert "**Name:** Daily Summary" in result
@@ -215,7 +223,8 @@ class TestCommandExecute:
         assert "Generate a daily summary" in result
         mock_context.cron_loader.load.assert_called_once_with("daily-summary")
 
-    def test_crons_show_detail_not_found(self, mock_session, mock_context):
+    @pytest.mark.anyio
+    async def test_crons_show_detail_not_found(self, mock_session, mock_context):
         """Test crons command handles non-existent cron."""
         mock_session.shared_context = mock_context
         mock_context.cron_loader.load.side_effect = DefNotFoundError(
@@ -223,11 +232,12 @@ class TestCommandExecute:
         )
 
         cmd = CronsCommand()
-        result = cmd.execute("nonexistent", mock_session)
+        result = await cmd.execute("nonexistent", mock_session)
 
         assert "not found" in result
 
-    def test_agent_show_detail(self, mock_session, mock_context):
+    @pytest.mark.anyio
+    async def test_agent_show_detail(self, mock_session, mock_context):
         """Test agent command shows detail for specific agent."""
         from picklebot.core.agent_loader import AgentDef
         from picklebot.utils.config import LLMConfig
@@ -247,7 +257,7 @@ class TestCommandExecute:
         mock_context.agent_loader.load.return_value = mock_agent.agent_def
 
         cmd = AgentCommand()
-        result = cmd.execute("current-agent", mock_session)
+        result = await cmd.execute("current-agent", mock_session)
 
         assert "**Agent:** `current-agent`" in result
         assert "**Name:** Current Agent" in result
@@ -259,17 +269,19 @@ class TestCommandExecute:
         assert "Be friendly." in result
         mock_context.agent_loader.load.assert_called_once_with("current-agent")
 
-    def test_agent_show_detail_not_found(self, mock_session, mock_context):
+    @pytest.mark.anyio
+    async def test_agent_show_detail_not_found(self, mock_session, mock_context):
         """Test agent command handles non-existent agent."""
         mock_session.shared_context = mock_context
         mock_context.agent_loader.load.side_effect = ValueError("not found")
 
         cmd = AgentCommand()
-        result = cmd.execute("nonexistent", mock_session)
+        result = await cmd.execute("nonexistent", mock_session)
 
         assert "not found" in result
 
-    def test_agent_show_detail_without_soul(self, mock_session, mock_context):
+    @pytest.mark.anyio
+    async def test_agent_show_detail_without_soul(self, mock_session, mock_context):
         """Test agent command shows detail without SOUL.md section."""
         from picklebot.core.agent_loader import AgentDef
         from picklebot.utils.config import LLMConfig
@@ -289,7 +301,7 @@ class TestCommandExecute:
         mock_context.agent_loader.load.return_value = mock_agent.agent_def
 
         cmd = AgentCommand()
-        result = cmd.execute("no-soul-agent", mock_session)
+        result = await cmd.execute("no-soul-agent", mock_session)
 
         assert "**Agent:** `no-soul-agent`" in result
         assert "**AGENT.md:**" in result
@@ -298,7 +310,7 @@ class TestCommandExecute:
     @pytest.mark.asyncio
     async def test_compact_command(self, mock_session):
         """Test compact command triggers compaction."""
-        mock_session.context_guard.check_and_compact = AsyncMock(
+        mock_session.context_guard.compact_and_roll = AsyncMock(
             return_value=mock_session.state
         )
         mock_session.context_guard.estimate_tokens = MagicMock(return_value=1000)
@@ -308,37 +320,40 @@ class TestCommandExecute:
 
         assert "✓ Context compacted" in result
         assert "messages retained" in result
-        mock_session.context_guard.check_and_compact.assert_called_once_with(
-            mock_session.state, force=True
+        mock_session.context_guard.compact_and_roll.assert_called_once_with(
+            mock_session.state
         )
 
-    def test_context_command(self, mock_session):
+    @pytest.mark.anyio
+    async def test_context_command(self, mock_session):
         """Test context command shows session info."""
         mock_session.context_guard.estimate_tokens = MagicMock(return_value=1000)
 
         cmd = ContextCommand()
-        result = cmd.execute("", mock_session)
+        result = await cmd.execute("", mock_session)
 
         assert "**Session:**" in result
         assert "**Agent:**" in result
         assert "**Messages:**" in result
         assert "**Tokens:**" in result
 
-    def test_clear_command(self, mock_session, mock_context):
+    @pytest.mark.anyio
+    async def test_clear_command(self, mock_session, mock_context):
         """Test clear command clears session cache."""
         mock_session.shared_context = mock_context
         mock_session.source = MagicMock()
         mock_session.source.__str__ = MagicMock(return_value="platform-cli:test")
 
         cmd = ClearCommand()
-        result = cmd.execute("", mock_session)
+        result = await cmd.execute("", mock_session)
 
         assert "✓ Conversation cleared" in result
         mock_context.routing_table.clear_session_cache.assert_called_once_with(
             "platform-cli:test"
         )
 
-    def test_session_command(self, mock_session, mock_context):
+    @pytest.mark.anyio
+    async def test_session_command(self, mock_session, mock_context):
         """Test session command shows session details."""
         mock_session.shared_context = mock_context
         mock_info = MagicMock()
@@ -346,7 +361,7 @@ class TestCommandExecute:
         mock_context.history_store.get_session_info.return_value = mock_info
 
         cmd = SessionCommand()
-        result = cmd.execute("", mock_session)
+        result = await cmd.execute("", mock_session)
 
         assert "**Session ID:**" in result
         assert "**Agent:**" in result
@@ -358,7 +373,8 @@ class TestCommandExecute:
 class TestRouteCommand:
     """Tests for RouteCommand."""
 
-    def test_route_creates_binding(self, mock_session, mock_context):
+    @pytest.mark.anyio
+    async def test_route_creates_binding(self, mock_session, mock_context):
         """Test route command creates a binding."""
         mock_session.shared_context = mock_context
         mock_context.agent_loader.load.return_value = MagicMock()
@@ -366,7 +382,7 @@ class TestRouteCommand:
         mock_context.config.sources = {}
 
         cmd = RouteCommand()
-        result = cmd.execute("platform-telegram:.* pickle", mock_session)
+        result = await cmd.execute("platform-telegram:.* pickle", mock_session)
 
         assert "✓ Route bound" in result
         assert "platform-telegram:.*" in result
@@ -375,31 +391,34 @@ class TestRouteCommand:
             "platform-telegram:.*", "pickle"
         )
 
-    def test_route_missing_args(self, mock_session, mock_context):
+    @pytest.mark.anyio
+    async def test_route_missing_args(self, mock_session, mock_context):
         """Test route command with missing args."""
         mock_session.shared_context = mock_context
 
         cmd = RouteCommand()
-        result = cmd.execute("", mock_session)
+        result = await cmd.execute("", mock_session)
 
         assert "Usage:" in result
 
-    def test_route_agent_not_found(self, mock_session, mock_context):
+    @pytest.mark.anyio
+    async def test_route_agent_not_found(self, mock_session, mock_context):
         """Test route command with invalid agent."""
         mock_session.shared_context = mock_context
         mock_context.agent_loader.load.side_effect = ValueError("not found")
 
         cmd = RouteCommand()
-        result = cmd.execute("platform-telegram:.* nonexistent", mock_session)
+        result = await cmd.execute("platform-telegram:.* nonexistent", mock_session)
 
         assert "not found" in result
 
-    def test_route_invalid_regex(self, mock_session, mock_context):
+    @pytest.mark.anyio
+    async def test_route_invalid_regex(self, mock_session, mock_context):
         """Test route command with invalid regex pattern."""
         mock_session.shared_context = mock_context
 
         cmd = RouteCommand()
-        result = cmd.execute("[invalid pickle", mock_session)
+        result = await cmd.execute("[invalid pickle", mock_session)
 
         assert "Invalid regex pattern" in result
 
@@ -407,7 +426,8 @@ class TestRouteCommand:
 class TestBindingsCommand:
     """Tests for BindingsCommand."""
 
-    def test_bindings_shows_all(self, mock_session, mock_context):
+    @pytest.mark.anyio
+    async def test_bindings_shows_all(self, mock_session, mock_context):
         """Test bindings command shows all bindings."""
         mock_session.shared_context = mock_context
         mock_context.config.routing = {
@@ -418,7 +438,7 @@ class TestBindingsCommand:
         }
 
         cmd = BindingsCommand()
-        result = cmd.execute("", mock_session)
+        result = await cmd.execute("", mock_session)
 
         assert "**Routing Bindings:**" in result
         assert "platform-telegram:.*" in result
@@ -426,12 +446,13 @@ class TestBindingsCommand:
         assert "platform-discord:.*" in result
         assert "cookie" in result
 
-    def test_bindings_empty(self, mock_session, mock_context):
+    @pytest.mark.anyio
+    async def test_bindings_empty(self, mock_session, mock_context):
         """Test bindings command with no bindings."""
         mock_session.shared_context = mock_context
         mock_context.config.routing = {"bindings": []}
 
         cmd = BindingsCommand()
-        result = cmd.execute("", mock_session)
+        result = await cmd.execute("", mock_session)
 
         assert "No routing bindings configured" in result
