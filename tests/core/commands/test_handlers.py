@@ -186,6 +186,32 @@ class TestCommandExecute:
 
         assert "not found" in result
 
+    def test_agent_show_detail_without_soul(self, mock_session, mock_context):
+        """Test agent command shows detail without SOUL.md section."""
+        from picklebot.core.agent_loader import AgentDef
+        from picklebot.utils.config import LLMConfig
+
+        llm_config = LLMConfig(provider="test", model="test-model", api_key="test-key")
+        mock_agent = MagicMock()
+        mock_agent.agent_def = AgentDef(
+            id="no-soul-agent",
+            name="No Soul Agent",
+            description="An agent without SOUL.md",
+            agent_md="You are an agent.",
+            soul_md="",  # Empty - no SOUL.md
+            llm=llm_config,
+        )
+        mock_session.agent = mock_agent
+        mock_session.shared_context = mock_context
+        mock_context.agent_loader.load.return_value = mock_agent.agent_def
+
+        cmd = AgentCommand()
+        result = cmd.execute("no-soul-agent", mock_session)
+
+        assert "**Agent:** `no-soul-agent`" in result
+        assert "**AGENT.md:**" in result
+        assert "**SOUL.md:**" not in result  # Should NOT appear when empty
+
     @pytest.mark.asyncio
     async def test_compact_command(self, mock_session):
         """Test compact command triggers compaction."""
