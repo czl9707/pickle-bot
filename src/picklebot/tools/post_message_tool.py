@@ -60,7 +60,6 @@ def create_post_message_tool(context: "SharedContext") -> BaseTool | None:
             # Publish OUTBOUND event for the DeliveryWorker to handle
             event = OutboundEvent(
                 session_id=session.session_id,
-                agent_id=session.agent.agent_def.id,
                 source=AgentEventSource(agent_id=session.agent.agent_def.id),
                 content=content,
                 timestamp=time.time(),

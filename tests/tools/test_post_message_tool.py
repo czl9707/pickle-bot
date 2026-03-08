@@ -112,7 +112,8 @@ class TestPostMessageToolExecution:
         # Verify event uses session info
         assert isinstance(event, OutboundEvent)
         assert event.session_id == "test-session-123"
-        assert event.agent_id == "test-agent"
+        # Verify OutboundEvent does not have agent_id (removed from Event base class)
+        assert not hasattr(event, "agent_id")
         assert str(event.source) == "agent:test-agent"
         assert event.content == "Hello from agent!"
 
