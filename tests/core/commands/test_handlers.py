@@ -331,8 +331,8 @@ class TestCommandExecute:
         result = await cmd.execute("", mock_session)
 
         assert "✓ Conversation cleared" in result
-        mock_context.routing_table.clear_session_cache.assert_called_once_with(
-            "platform-cli:test"
+        mock_context.routing_table.config_source_session_cache.assert_called_once_with(
+            "platform-cli:test", None
         )
 
     async def test_session_command(self, mock_session, mock_context):

@@ -262,10 +262,10 @@ class TestCheckAndCompactWithSessionState:
         ):
             await guard.check_and_compact(session_state)
 
-        # Verify set_runtime was called to update source mapping
-        mock_context.config.set_runtime.assert_called_once()
-        call_args = mock_context.config.set_runtime.call_args
-        assert call_args[0][0].startswith("sources.")
+        # Verify config_source_session_cache was called to update source mapping
+        mock_context.routing_table.config_source_session_cache.assert_called_once_with(
+            str(session_state.source), new_session_id
+        )
 
 
 class TestSummaryGeneration:

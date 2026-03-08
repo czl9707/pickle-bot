@@ -107,9 +107,8 @@ class ContextGuard:
             Tuple of (compacted messages, new SessionState)
         """
         new_session = state.agent.new_session(state.source)
-        self.shared_context.config.set_runtime(
-            f"sources.{state.source}",
-            SourceSessionConfig(session_id=new_session.session_id)
+        self.shared_context.routing_table.config_source_session_cache(
+            str(state.source), new_session.session_id
         )
 
         compacted_history = await self._build_compacted_messages(state)

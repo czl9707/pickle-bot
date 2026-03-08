@@ -336,7 +336,7 @@ def test_clear_session_cache(routing_table, mock_context):
     )}
 
     # Clear cache
-    routing_table.clear_session_cache(source_str)
+    routing_table.config_source_session_cache(source_str, None)
 
     # Verify source removed from dict and persisted
     assert source_str not in mock_context.config.sources
@@ -349,7 +349,7 @@ def test_clear_session_cache_nonexistent(routing_table, mock_context):
     mock_context.config.sources = {}
 
     # Clear nonexistent source (should not error)
-    routing_table.clear_session_cache("platform-telegram:user:chat")
+    routing_table.config_source_session_cache("platform-telegram:user:chat", None)
 
     # Verify still empty
     assert len(mock_context.config.sources) == 0
