@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 from picklebot.core.agent import Agent
 from picklebot.core.events import EventSource
+from picklebot.utils.config import SourceSessionConfig
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
@@ -90,22 +91,18 @@ class RoutingTable:
         """
         source_str = str(source)
 
-        # Check cache first (existing session)
-        source_info = self._context.config.sources.get(source_str)
-        if source_info:
-            return source_info["session_id"]
+        source_session = self._context.config.sources.get(source_str)
+        if source_session:
+            return source_session.session_id
 
-        # New session: resolve agent from routing
         agent_id = self.resolve(source_str)
-
-        # Create new session
         agent_def = self._context.agent_loader.load(agent_id)
         agent = Agent(agent_def, self._context)
         session = agent.new_session(source)
 
         # Cache the session
         self._context.config.set_runtime(
-            f"sources.{source_str}", {"session_id": session.session_id}
+            f"sources.{source_str}", SourceSessionConfig(session_id=session.session_id)
         )
 
         return session.session_id

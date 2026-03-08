@@ -415,7 +415,7 @@ sources:
 
         assert len(config.routing["bindings"]) == 1
         assert config.routing["bindings"][0]["agent"] == "cookie"
-        assert config.sources["telegram:123456"]["session_id"] == "uuid-abc"
+        assert config.sources["telegram:123456"].session_id == "uuid-abc"
 
 
 def test_telegram_config_no_sessions_field():

@@ -4,6 +4,10 @@ import pytest
 from unittest.mock import patch
 
 from picklebot.core.routing import Binding, RoutingTable
+from picklebot.channel.telegram_channel import TelegramEventSource
+from unittest.mock import MagicMock
+
+from picklebot.utils.config import SourceSessionConfig
 
 
 def test_binding_compiles_pattern():
@@ -184,9 +188,6 @@ def test_routing_table_rebuilds_on_config_change():
 
 def test_get_or_create_session_id_cache_hit(mock_context):
     """Test that existing session_id is returned from cache without creating new session."""
-    from picklebot.channel.telegram_channel import TelegramEventSource
-    from picklebot.core.routing import RoutingTable
-    from unittest.mock import MagicMock
 
     # Setup
     routing = RoutingTable(mock_context)
@@ -197,7 +198,9 @@ def test_get_or_create_session_id_cache_hit(mock_context):
     mock_context.agent_loader = MagicMock()
 
     # Pre-populate cache - use a real dict instead of MagicMock
-    mock_context.config.sources = {str(source): {"session_id": existing_session_id}}
+    mock_context.config.sources = {str(source): SourceSessionConfig(
+        session_id=existing_session_id
+    )}
 
     # Execute
     result = routing.get_or_create_session_id(source)
@@ -210,9 +213,6 @@ def test_get_or_create_session_id_cache_hit(mock_context):
 
 def test_get_or_create_session_id_creates_new_session(mock_context):
     """Test that new session is created when not in cache."""
-    from picklebot.channel.telegram_channel import TelegramEventSource
-    from picklebot.core.routing import RoutingTable
-    from unittest.mock import MagicMock
 
     # Setup
     routing = RoutingTable(mock_context)
@@ -250,7 +250,7 @@ def test_get_or_create_session_id_creates_new_session(mock_context):
         # Verify cache update
         expected_cache_key = f"sources.{str(source)}"
         mock_context.config.set_runtime.assert_called_once_with(
-            expected_cache_key, {"session_id": new_session_id}
+            expected_cache_key, SourceSessionConfig(session_id=new_session_id)
         )
 
 
@@ -331,7 +331,9 @@ def test_clear_session_cache(routing_table, mock_context):
     """Test clearing session cache for a source."""
     # Setup: source has cached session
     source_str = "platform-telegram:user_123:chat_456"
-    mock_context.config.sources = {source_str: {"session_id": "existing-session-123"}}
+    mock_context.config.sources = {source_str: SourceSessionConfig(
+        session_id="existing-session-123"
+    )}
 
     # Clear cache
     routing_table.clear_session_cache(source_str)
@@ -423,7 +425,9 @@ def test_get_or_create_session_id_returns_cached_for_existing(
 
     # Pre-cache a session
     existing_session_id = "existing-session-789"
-    mock_context.config.sources = {source_str: {"session_id": existing_session_id}}
+    mock_context.config.sources = {source_str: SourceSessionConfig(
+        session_id=existing_session_id
+    )}
 
     # Now change routing to different agent
     mock_context.config.default_agent = "cookie"

@@ -50,6 +50,12 @@ class DiscordConfig(BaseModel):
     allowed_user_ids: list[str] = Field(default_factory=list)
 
 
+class SourceSessionConfig(BaseModel):
+    """Session affinity configuration for a source."""
+
+    session_id: str
+
+
 class ApiConfig(BaseModel):
     """HTTP API configuration."""
 
@@ -110,7 +116,7 @@ class Config(BaseModel):
     websearch: BraveWebSearchConfig | None = None
     webread: Crawl4AIWebReadConfig | None = None
     routing: dict = Field(default_factory=lambda: {"bindings": []})
-    sources: dict[str, dict] = Field(default_factory=dict)
+    sources: dict[str, SourceSessionConfig] = Field(default_factory=dict)
     default_delivery_source: str | None = None
 
     @model_validator(mode="after")

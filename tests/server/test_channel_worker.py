@@ -11,6 +11,7 @@ from picklebot.core.events import InboundEvent
 from picklebot.channel.telegram_channel import TelegramEventSource
 from picklebot.channel.discord_channel import DiscordEventSource
 from picklebot.core.events import CliEventSource
+from picklebot.utils.config import SourceSessionConfig
 
 
 class FakeChannel:
@@ -240,7 +241,7 @@ You are a test assistant.
 
     # Pre-configure a session in source cache
     test_context.config.sources = {
-        "platform-telegram:123:456": {"session_id": "existing-session-uuid"}
+        "platform-telegram:123:456": SourceSessionConfig(session_id="existing-session-uuid")
     }
 
     channel = FakeTelegramChannel()

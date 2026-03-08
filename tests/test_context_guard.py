@@ -210,6 +210,7 @@ class TestCheckAndCompactWithSessionState:
         )
         mock_session = MagicMock()
         mock_session.state = new_state
+        mock_session.session_id = new_session_id
         mock_agent.new_session = MagicMock(return_value=mock_session)
 
         with patch.object(
@@ -250,6 +251,7 @@ class TestCheckAndCompactWithSessionState:
         )
         mock_session = MagicMock()
         mock_session.state = new_state
+        mock_session.session_id = new_session_id
         mock_agent.new_session = MagicMock(return_value=mock_session)
 
         with patch.object(

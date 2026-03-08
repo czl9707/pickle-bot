@@ -10,6 +10,7 @@ from litellm.types.completion import (
 )
 
 from picklebot.core.session_state import SessionState
+from picklebot.utils.config import SourceSessionConfig
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
@@ -108,7 +109,7 @@ class ContextGuard:
         new_session = state.agent.new_session(state.source)
         self.shared_context.config.set_runtime(
             f"sources.{state.source}",
-            {"session_id": new_session.session_id},
+            SourceSessionConfig(session_id=new_session.session_id)
         )
 
         compacted_history = await self._build_compacted_messages(state)

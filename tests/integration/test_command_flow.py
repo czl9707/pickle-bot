@@ -3,6 +3,7 @@
 import asyncio
 
 
+from picklebot.utils.config import SourceSessionConfig
 from tests.helpers import create_test_agent
 
 from picklebot.core.events import InboundEvent, OutboundEvent, CliEventSource
@@ -43,7 +44,9 @@ async def test_clear_command_flow(test_context, tmp_path):
 
         # Add session to cache
         source_str = "platform-cli:cli-user"
-        test_context.config.sources[source_str] = {"session_id": "session-1"}
+        test_context.config.sources[source_str] = SourceSessionConfig(
+            session_id="session-1"
+        )
 
         # Message 2: Clear command
         event2 = InboundEvent(
