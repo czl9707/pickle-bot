@@ -303,7 +303,7 @@ def test_add_runtime_binding(routing_table, mock_context):
     # Verify binding added
     mock_context.config.set_runtime.assert_called_once_with(
         "routing.bindings",
-        [{"agent": "cookie", "value": "platform-telegram:user_123:chat_456"}]
+        [{"agent": "cookie", "value": "platform-telegram:user_123:chat_456"}],
     )
 
 
@@ -322,8 +322,8 @@ def test_add_runtime_binding_appends_existing(routing_table, mock_context):
         "routing.bindings",
         [
             {"agent": "pickle", "value": "platform-cli:.*"},
-            {"agent": "cookie", "value": "platform-telegram:user_123:chat_456"}
-        ]
+            {"agent": "cookie", "value": "platform-telegram:user_123:chat_456"},
+        ],
     )
 
 
@@ -338,9 +338,7 @@ def test_clear_session_cache(routing_table, mock_context):
 
     # Verify source removed from dict and persisted
     assert source_str not in mock_context.config.sources
-    mock_context.config.set_runtime.assert_called_once_with(
-        "sources", {}
-    )
+    mock_context.config.set_runtime.assert_called_once_with("sources", {})
 
 
 def test_clear_session_cache_nonexistent(routing_table, mock_context):
@@ -390,7 +388,6 @@ def test_get_or_create_session_id_resolves_agent_for_new_session(
     from unittest.mock import MagicMock
 
     source = CliEventSource()
-    source_str = str(source)
 
     # Mock routing to return 'cookie' agent
     mock_context.config.routing = {"bindings": []}
