@@ -31,7 +31,6 @@ class TestEventRoundtrip:
         source = TelegramEventSource(user_id="123", chat_id="456")
         original = event_cls(
             session_id="sess-1",
-            agent_id="pickle",
             source=source,
             content="Hello",
             timestamp=12345.0,
@@ -48,7 +47,6 @@ class TestEventRoundtrip:
         restored = deserialize_event(data)
         assert isinstance(restored, event_cls)
         assert restored.session_id == "sess-1"
-        assert restored.agent_id == "pickle"
         assert restored.content == "Hello"
         assert isinstance(restored.source, TelegramEventSource)
         assert restored.source.user_id == "123"
@@ -64,7 +62,6 @@ class TestEventRoundtrip:
         # OutboundEvent with error
         outbound = OutboundEvent(
             session_id="sess-1",
-            agent_id="pickle",
             source=source,
             content="",
             timestamp=12345.0,
@@ -78,7 +75,6 @@ class TestEventRoundtrip:
         # DispatchResultEvent with error
         dispatch_result = DispatchResultEvent(
             session_id="job-1",
-            agent_id="cookie",
             source=source,
             content="",
             timestamp=12345.0,
@@ -93,7 +89,6 @@ class TestEventRoundtrip:
         data = {
             "type": "unknown_type",
             "session_id": "sess-1",
-            "agent_id": "pickle",
             "source": "agent:test",
             "content": "test",
             "timestamp": 12345.0,
@@ -112,7 +107,6 @@ class TestEventBaseClass:
         before = time.time()
         event = InboundEvent(
             session_id="s1",
-            agent_id="a1",
             source=AgentEventSource(agent_id="test"),
             content="hello",
         )
@@ -125,7 +119,6 @@ class TestEventBaseClass:
         source = AgentEventSource(agent_id="pickle")
         event = InboundEvent(
             session_id="sess-1",
-            agent_id="pickle",
             source=source,
             content="hello",
         )

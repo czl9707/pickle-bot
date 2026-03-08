@@ -122,7 +122,6 @@ class WebSocketWorker(SubscriberWorker):
 
         return InboundEvent(
             session_id=session_id,
-            agent_id=agent_id,
             source=source,
             content=msg.content,
             timestamp=time.time(),

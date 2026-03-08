@@ -72,7 +72,6 @@ class TestWebSocketWorker:
         event = worker._normalize_message(msg)
 
         assert isinstance(event, InboundEvent)
-        assert event.agent_id == "pickle"
         assert event.content == "Hello!"
         assert isinstance(event.source, WebSocketEventSource)
         assert event.source.user_id == "user-123"
@@ -92,7 +91,6 @@ class TestWebSocketWorker:
 
         event = worker._normalize_message(msg)
 
-        assert event.agent_id == "cookie"
         assert event.session_id == "session-xyz"
         mock_context.routing_table.resolve.assert_called_once_with(
             "platform-ws:user-456"

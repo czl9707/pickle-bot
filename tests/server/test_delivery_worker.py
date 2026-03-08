@@ -54,7 +54,6 @@ async def test_handle_event_skips_if_no_source(mock_context):
     worker = DeliveryWorker(mock_context)
     event = OutboundEvent(
         session_id="unknown",
-        agent_id="pickle",
         source="agent:pickle",
         content="Hello",
     )
@@ -87,7 +86,6 @@ async def test_handle_event_delivers_to_platform(mock_context):
     worker = DeliveryWorker(mock_context)
     event = OutboundEvent(
         session_id="session-123",
-        agent_id="pickle",
         source="agent:pickle",
         content="Hello",
     )
@@ -184,7 +182,6 @@ class TestDefaultDeliverySource:
         worker = DeliveryWorker(mock_context)
         event = OutboundEvent(
             session_id="session-123",
-            agent_id="pickle",
             source="agent:pickle",
             content="Hello",
         )
@@ -213,7 +210,6 @@ class TestDefaultDeliverySource:
         worker = DeliveryWorker(mock_context)
         event = OutboundEvent(
             session_id="session-123",
-            agent_id="pickle",
             source="agent:pickle",
             content="Hello",
         )
@@ -249,7 +245,6 @@ class TestDefaultDeliverySource:
         worker = DeliveryWorker(mock_context)
         event = OutboundEvent(
             session_id="session-123",
-            agent_id="pickle",
             source="agent:pickle",
             content="Hello",
         )
@@ -281,7 +276,6 @@ class TestDefaultDeliverySource:
         worker = DeliveryWorker(mock_context)
         event = OutboundEvent(
             session_id="session-123",
-            agent_id="pickle",
             source="agent:pickle",
             content="Hello",
         )
@@ -310,7 +304,6 @@ class TestDefaultDeliverySource:
         worker = DeliveryWorker(mock_context)
         event = OutboundEvent(
             session_id="session-123",
-            agent_id="pickle",
             source="agent:pickle",
             content="Hello",
         )

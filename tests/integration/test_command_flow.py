@@ -33,7 +33,6 @@ async def test_clear_command_flow(test_context, tmp_path):
         pickle_def = test_context.agent_loader.load("pickle")
         event1 = InboundEvent(
             session_id="session-1",
-            agent_id="pickle",
             source=CliEventSource(),
             content="Hello",
             timestamp=1000.0,
@@ -50,7 +49,6 @@ async def test_clear_command_flow(test_context, tmp_path):
         # Message 2: Clear command
         event2 = InboundEvent(
             session_id="session-1",
-            agent_id="pickle",
             source=CliEventSource(),
             content="/clear",
             timestamp=1001.0,

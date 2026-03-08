@@ -25,7 +25,6 @@ async def test_recover_republishes_pending_events(mock_context):
     event_data = {
         "type": "OutboundEvent",
         "session_id": "test-session",
-        "agent_id": "pickle",
         "content": "Hello",
         "source": "agent:pickle",
         "timestamp": 12345.0,
@@ -54,7 +53,7 @@ async def test_recover_republishes_pending_events(mock_context):
         # Event should have been recovered and dispatched
         assert len(received) == 1
         assert received[0].session_id == "test-session"
-        assert received[0].agent_id == "pickle"
+        assert received[0].content == "Hello"
     finally:
         eventbus_task.cancel()
         try:

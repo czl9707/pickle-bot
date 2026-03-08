@@ -24,7 +24,6 @@ async def test_subscribe_and_notify(event_bus):
 
     event = OutboundEvent(
         session_id="test-session",
-        agent_id="pickle",
         content="Hello",
         source=AgentEventSource(agent_id="pickle"),
         timestamp=12345.0,
@@ -51,7 +50,6 @@ async def test_multiple_subscribers(event_bus):
 
     event = OutboundEvent(
         session_id="test-session",
-        agent_id="pickle",
         content="Hello",
         source=AgentEventSource(agent_id="pickle"),
         timestamp=12345.0,
@@ -74,7 +72,6 @@ async def test_unsubscribe(event_bus):
 
     event = OutboundEvent(
         session_id="test-session",
-        agent_id="pickle",
         content="Hello",
         source=AgentEventSource(agent_id="pickle"),
         timestamp=12345.0,
@@ -100,14 +97,12 @@ async def test_subscribe_to_multiple_types(event_bus):
 
     outbound_event = OutboundEvent(
         session_id="test",
-        agent_id="test",
         content="Out",
         source=AgentEventSource(agent_id="test"),
         timestamp=1.0,
     )
     inbound_event = InboundEvent(
         session_id="test",
-        agent_id="test",
         content="In",
         source=TelegramEventSource(user_id="user1", chat_id="chat1"),
         timestamp=2.0,

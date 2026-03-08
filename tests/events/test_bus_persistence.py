@@ -24,7 +24,6 @@ def test_event_bus_has_persistence_dir(event_bus, events_dir):
 async def test_persist_outbound_event(event_bus, events_dir):
     event = OutboundEvent(
         session_id="test-session",
-        agent_id="pickle",
         content="Hello",
         source=AgentEventSource(agent_id="pickle"),
         timestamp=12345.0,
@@ -46,7 +45,6 @@ async def test_persist_outbound_event(event_bus, events_dir):
 async def test_persist_skips_non_outbound(event_bus, events_dir):
     inbound_event = InboundEvent(
         session_id="test-session",
-        agent_id="test",
         content="Hi",
         source=TelegramEventSource(user_id="user1", chat_id="chat1"),
         timestamp=12345.0,
@@ -62,7 +60,6 @@ async def test_persist_skips_non_outbound(event_bus, events_dir):
 async def test_ack_deletes_persisted_event(event_bus, events_dir):
     event = OutboundEvent(
         session_id="test-session",
-        agent_id="pickle",
         content="Hello",
         source=AgentEventSource(agent_id="pickle"),
         timestamp=12345.0,
@@ -85,7 +82,6 @@ async def test_atomic_write(event_bus, events_dir):
     """Test that files are written atomically (tmp + fsync + rename)."""
     event = OutboundEvent(
         session_id="test-session",
-        agent_id="pickle",
         content="Hello",
         source=AgentEventSource(agent_id="pickle"),
         timestamp=12345.0,
@@ -115,7 +111,6 @@ async def test_publish_outbound_persists_and_notifies(event_bus, events_dir):
     try:
         event = OutboundEvent(
             session_id="test-session",
-            agent_id="pickle",
             content="Hello",
             source=AgentEventSource(agent_id="pickle"),
             timestamp=12345.0,
@@ -153,7 +148,6 @@ async def test_publish_inbound_no_persist_inbound(event_bus, events_dir):
     try:
         event = InboundEvent(
             session_id="test-session",
-            agent_id="test",
             content="Hi",
             source=TelegramEventSource(user_id="user1", chat_id="chat1"),
             timestamp=12345.0,

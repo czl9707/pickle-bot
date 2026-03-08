@@ -47,7 +47,6 @@ def test_chat_loop_processes_user_input_and_displays_response(
         # Publish inbound event (simulating user input)
         inbound = InboundEvent(
             session_id="test-session",
-            agent_id="default",
             source=CliEventSource(),
             content=user_input,
             timestamp=time.time(),
@@ -57,7 +56,6 @@ def test_chat_loop_processes_user_input_and_displays_response(
         # Simulate agent response
         outbound = OutboundEvent(
             session_id="test-session",
-            agent_id="default",
             source=CliEventSource(),
             content=expected_response,
             timestamp=time.time(),
