@@ -121,7 +121,6 @@ def create_subagent_dispatch_tool(
             # Publish DISPATCH event
             event = DispatchEvent(
                 session_id=session_id,
-                agent_id=agent_id,
                 source=AgentEventSource(agent_id=current_agent_id),
                 content=user_message,
                 timestamp=time.time(),

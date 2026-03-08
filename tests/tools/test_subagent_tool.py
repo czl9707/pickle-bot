@@ -150,7 +150,6 @@ You are the target agent.
 
                 result_event = DispatchResultEvent(
                     session_id=session_id,
-                    agent_id="target-agent",
                     source="agent:target-agent",
                     content="Task completed successfully",
                     timestamp=time.time(),
@@ -169,7 +168,8 @@ You are the target agent.
             assert len(dispatched_events) == 1
             event = dispatched_events[0]
             assert isinstance(event, DispatchEvent)
-            assert event.agent_id == "target-agent"
+            # Verify DispatchEvent does not have agent_id (removed from Event base class)
+            assert not hasattr(event, "agent_id")
 
             # Verify result from RESULT event
             parsed = json.loads(result)
@@ -225,7 +225,6 @@ You are the target agent.
 
                 result_event = DispatchResultEvent(
                     session_id=session_id,
-                    agent_id="target-agent",
                     source="agent:target-agent",
                     content="Done",
                     timestamp=time.time(),
@@ -325,7 +324,6 @@ You are the target agent.
 
                 result_event = DispatchResultEvent(
                     session_id=session_id,
-                    agent_id="target-agent",
                     source="agent:target-agent",
                     content="",
                     timestamp=time.time(),
