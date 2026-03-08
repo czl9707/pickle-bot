@@ -675,3 +675,74 @@ class TestChannelWorkerRouting:
 
         # Verify event was published (using default_agent)
         assert mock_context.eventbus.publish.called
+
+
+@pytest.mark.asyncio
+async def test_callback_creates_inbound_event_without_agent_id(test_context, tmp_path):
+    """ChannelWorker callback should create InboundEvent without agent_id."""
+    from picklebot.server.channel_worker import ChannelWorker
+    from picklebot.core.events import InboundEvent, CliEventSource
+    from unittest.mock import AsyncMock, patch, Mock
+
+    # Create test agent
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir(parents=True)
+    test_agent_dir = agents_dir / "test"
+    test_agent_dir.mkdir(parents=True)
+
+    agent_md = test_agent_dir / "AGENT.md"
+    agent_md.write_text(
+        """---
+name: Test Agent
+description: A test agent
+---
+
+You are a test assistant.
+"""
+    )
+
+    # Create a fake CLI channel
+    channel = FakeCliChannel()
+
+    # Capture published events
+    published_events = []
+    async def capture_event(event):
+        published_events.append(event)
+
+    with patch.object(test_context, "channels", [channel]):
+        # Mock routing table methods
+        test_context.routing_table.get_or_create_session_id = Mock(
+            return_value="test-session-123"
+        )
+        worker = ChannelWorker(test_context)
+        test_context.eventbus.subscribe(InboundEvent, capture_event)
+
+    # Start EventBus worker to process queued events
+    eventbus_task = test_context.eventbus.start()
+
+    try:
+        # Create callback
+        callback = worker._create_callback("cli")
+
+        # Send message
+        source = CliEventSource()
+        await callback("test message", source)
+
+        # Wait for event to be processed
+        await asyncio.sleep(0.1)
+
+        # Verify event was published
+        assert len(published_events) == 1
+        event = published_events[0]
+
+        # Should not have agent_id
+        assert not hasattr(event, "agent_id")
+        assert event.session_id is not None
+        assert event.source == source
+        assert event.content == "test message"
+    finally:
+        eventbus_task.cancel()
+        try:
+            await eventbus_task
+        except asyncio.CancelledError:
+            pass

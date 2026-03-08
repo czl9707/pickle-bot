@@ -57,15 +57,11 @@ class ChannelWorker(Worker):
                         # Update in-memory value immediately for other workers
                         self.context.config.default_delivery_source = source_str_value
 
-                agent_id = self.context.routing_table.resolve(str(source))
-                session_id = self.context.routing_table.get_or_create_session_id(
-                    source, agent_id
-                )
+                session_id = self.context.routing_table.get_or_create_session_id(source)
 
                 # Publish INBOUND event with typed source
                 event = InboundEvent(
                     session_id=session_id,
-                    agent_id=agent_id,
                     source=source,
                     content=message,
                     timestamp=time.time(),
