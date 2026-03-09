@@ -194,7 +194,7 @@ class HistoryStore:
         session = HistorySession(
             id=session_id,
             agent_id=agent_id,
-            source=source,
+            source=str(source),
             title=None,
             message_count=0,
             created_at=now,
@@ -238,34 +238,17 @@ class HistoryStore:
         sessions.sort(key=lambda s: s.updated_at, reverse=True)
         self._write_index(sessions)
 
-    def update_session_title(self, session_id: str, title: str) -> None:
-        """Update a session's title."""
-        sessions = self._read_index()
-        idx = self._find_session_index(sessions, session_id)
-        if idx >= 0:
-            sessions[idx].title = title
-            sessions[idx].updated_at = _now_iso()
-            self._write_index(sessions)
-        else:
-            raise ValueError(f"Session not found: {session_id}")
-
     def list_sessions(self) -> list[HistorySession]:
         """List all sessions, most recently updated first."""
         sessions = self._read_index()
         sessions.sort(key=lambda s: s.updated_at, reverse=True)
         return sessions
 
-    def get_messages(
-        self, session_id: str, max_history: int | None = None
-    ) -> list[HistoryMessage]:
+    def get_messages(self, session_id: str) -> list[HistoryMessage]:
         """Get all messages for a session.
-
-        Token limiting is handled by ContextGuard, not here.
-        The max_history parameter is kept for backward compatibility but is deprecated.
 
         Args:
             session_id: The session ID to get messages for
-            max_history: Deprecated - maximum messages to return (kept for backward compatibility)
 
         Returns:
             List of HistoryMessage objects in chronological order
@@ -283,10 +266,6 @@ class HistoryStore:
                         messages.append(HistoryMessage.model_validate_json(line))
                     except Exception:
                         continue
-
-        # Backward compatibility: limit if max_history is explicitly provided
-        if max_history is not None and len(messages) > max_history:
-            return messages[-max_history:]
 
         return messages
 

@@ -301,50 +301,6 @@ class TestGetMessages:
         assert messages[0].role == "user"
         assert messages[1].role == "assistant"
 
-    def test_max_history_backward_compatibility(self, history_store):
-        """get_messages should respect max_history for backward compatibility."""
-        source = CliEventSource()
-        history_store.create_session("agent", "session-1", source=source)
-
-        # Add 5 messages
-        for i in range(5):
-            history_store.save_message(
-                "session-1", HistoryMessage(role="user", content=f"msg{i}")
-            )
-
-        # With max_history=3, should return last 3
-        messages = history_store.get_messages("session-1", max_history=3)
-        assert len(messages) == 3
-        assert messages[0].content == "msg2"
-        assert messages[1].content == "msg3"
-        assert messages[2].content == "msg4"
-
-    def test_returns_all_when_max_history_is_none(self, history_store):
-        """get_messages should return all messages when max_history is None."""
-        source = CliEventSource()
-        history_store.create_session("agent", "session-1", source=source)
-
-        # Add 10 messages
-        for i in range(10):
-            history_store.save_message(
-                "session-1", HistoryMessage(role="user", content=f"msg{i}")
-            )
-
-        # With max_history=None, should return all
-        messages = history_store.get_messages("session-1", max_history=None)
-        assert len(messages) == 10
-
-
-class TestUpdateSessionTitle:
-    def test_updates_title_in_index(self, history_store):
-        """update_session_title should update title in index."""
-        source = CliEventSource()
-        history_store.create_session("agent", "session-1", source=source)
-
-        history_store.update_session_title("session-1", "New Title")
-
-        sessions = history_store.list_sessions()
-        assert sessions[0].title == "New Title"
 
 
 class TestListSessions:
