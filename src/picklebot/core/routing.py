@@ -119,7 +119,9 @@ class RoutingTable:
         bindings.append({"agent": agent_id, "value": source_pattern})
         self._context.config.set_runtime("routing.bindings", bindings)
 
-    def config_source_session_cache(self, source_str: str, session_id: str | None) -> None:
+    def config_source_session_cache(
+        self, source_str: str, session_id: str | None
+    ) -> None:
         """
         Clear session cache for a source.
 
@@ -129,6 +131,10 @@ class RoutingTable:
         if session_id is None:
             if source_str in self._context.config.sources:
                 del self._context.config.sources[source_str]
-                self._context.config.set_runtime("sources", self._context.config.sources)
+                self._context.config.set_runtime(
+                    "sources", self._context.config.sources
+                )
         else:
-            self._context.config.set_runtime(f"""sources.{source_str}""", SourceSessionConfig(session_id=session_id))
+            self._context.config.set_runtime(
+                f"""sources.{source_str}""", SourceSessionConfig(session_id=session_id)
+            )

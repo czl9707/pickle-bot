@@ -302,7 +302,6 @@ class TestGetMessages:
         assert messages[1].role == "assistant"
 
 
-
 class TestListSessions:
     def test_returns_empty_list_when_no_sessions(self, history_store):
         """list_sessions should return empty list initially."""

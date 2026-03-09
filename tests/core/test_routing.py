@@ -198,9 +198,9 @@ def test_get_or_create_session_id_cache_hit(mock_context):
     mock_context.agent_loader = MagicMock()
 
     # Pre-populate cache - use a real dict instead of MagicMock
-    mock_context.config.sources = {str(source): SourceSessionConfig(
-        session_id=existing_session_id
-    )}
+    mock_context.config.sources = {
+        str(source): SourceSessionConfig(session_id=existing_session_id)
+    }
 
     # Execute
     result = routing.get_or_create_session_id(source)
@@ -331,9 +331,9 @@ def test_clear_session_cache(routing_table, mock_context):
     """Test clearing session cache for a source."""
     # Setup: source has cached session
     source_str = "platform-telegram:user_123:chat_456"
-    mock_context.config.sources = {source_str: SourceSessionConfig(
-        session_id="existing-session-123"
-    )}
+    mock_context.config.sources = {
+        source_str: SourceSessionConfig(session_id="existing-session-123")
+    }
 
     # Clear cache
     routing_table.config_source_session_cache(source_str, None)
@@ -425,9 +425,9 @@ def test_get_or_create_session_id_returns_cached_for_existing(
 
     # Pre-cache a session
     existing_session_id = "existing-session-789"
-    mock_context.config.sources = {source_str: SourceSessionConfig(
-        session_id=existing_session_id
-    )}
+    mock_context.config.sources = {
+        source_str: SourceSessionConfig(session_id=existing_session_id)
+    }
 
     # Now change routing to different agent
     mock_context.config.default_agent = "cookie"

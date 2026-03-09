@@ -308,3 +308,239 @@ class TestSummaryGeneration:
         assert "[Previous conversation summary]" in result[0]["content"]
         assert "Summary text" in result[0]["content"]
         mock_agent.llm.chat.assert_called_once()
+
+
+class TestCheckAndCompactWithTruncation:
+    """Tests for truncation integration in check_and_compact."""
+
+    @pytest.fixture
+    def mock_context(self, tmp_path):
+        """Create a mock SharedContext with HistoryStore."""
+        mock_context = MagicMock()
+        mock_context.history_store = HistoryStore(tmp_path / "history")
+        mock_context.config = MagicMock()
+        mock_context.config.set_runtime = MagicMock()
+        mock_context.prompt_builder = MagicMock()
+        mock_context.prompt_builder.build = MagicMock(return_value="System prompt")
+        mock_context.routing_table = MagicMock()
+        return mock_context
+
+    @pytest.fixture
+    def mock_agent(self):
+        """Create a mock Agent."""
+        mock_agent = MagicMock()
+        mock_agent.agent_def.id = "test-agent"
+        mock_agent.agent_def.agent_md = "You are a test assistant."
+        mock_agent.agent_def.soul_md = None
+        mock_agent.llm.model = "gpt-4"
+        mock_agent.llm.chat = AsyncMock(return_value=("Summary text", []))
+        return mock_agent
+
+    async def test_truncation_not_applied_when_under_threshold(
+        self, mock_context, mock_agent, tmp_path
+    ):
+        """When under threshold, tool results are NOT truncated."""
+        guard = ContextGuard(shared_context=mock_context, token_threshold=100000)
+        source = TelegramEventSource(user_id="123", chat_id="456")
+        mock_context.history_store.create_session("test-agent", "test-session", source)
+
+        large_content = "x" * 20000
+        state = SessionState(
+            session_id="test-session",
+            agent=mock_agent,
+            messages=[
+                {"role": "user", "content": "Hi"},
+                {"role": "tool", "tool_call_id": "tc1", "content": large_content},
+            ],
+            source=source,
+            shared_context=mock_context,
+        )
+
+        result = await guard.check_and_compact(state)
+
+        # Should return same state, content NOT truncated
+        assert result is state
+        assert result.messages[1]["content"] == large_content
+
+    async def test_truncation_applied_when_over_threshold(
+        self, mock_context, mock_agent, tmp_path
+    ):
+        """When over threshold, large tool results ARE truncated."""
+        guard = ContextGuard(shared_context=mock_context, token_threshold=100)
+        source = TelegramEventSource(user_id="123", chat_id="456")
+        mock_context.history_store.create_session("test-agent", "test-session", source)
+
+        large_content = "x" * 20000
+        state = SessionState(
+            session_id="test-session",
+            agent=mock_agent,
+            messages=[
+                {"role": "user", "content": "Hi"},
+                {"role": "tool", "tool_call_id": "tc1", "content": large_content},
+            ],
+            source=source,
+            shared_context=mock_context,
+        )
+
+        result = await guard.check_and_compact(state)
+
+        # Content should be truncated
+        assert len(result.messages[1]["content"]) < len(large_content)
+        assert "[Truncated" in result.messages[1]["content"]
+
+    async def test_truncation_avoids_compaction_if_sufficient(
+        self, mock_context, mock_agent, tmp_path
+    ):
+        """If truncation brings tokens under threshold, no compaction needed."""
+        guard = ContextGuard(shared_context=mock_context, token_threshold=500)
+        source = TelegramEventSource(user_id="123", chat_id="456")
+        mock_context.history_store.create_session("test-agent", "test-session", source)
+
+        # One large tool result that when truncated will fit
+        large_content = "x" * 20000
+        state = SessionState(
+            session_id="test-session",
+            agent=mock_agent,
+            messages=[
+                {"role": "user", "content": "Hi"},
+                {"role": "tool", "tool_call_id": "tc1", "content": large_content},
+            ],
+            source=source,
+            shared_context=mock_context,
+        )
+
+        result = await guard.check_and_compact(state)
+
+        # Should NOT have called compact_and_roll (no LLM summary)
+        mock_agent.llm.chat.assert_not_called()
+        # Same session, just truncated
+        assert result.session_id == "test-session"
+
+
+class TestTruncateLargeToolResults:
+    """Tests for _truncate_large_tool_results method."""
+
+    def test_truncate_small_tool_results_unchanged(self):
+        """Small tool results are not modified."""
+        guard = ContextGuard(shared_context=None, token_threshold=1000)
+        messages = [
+            {"role": "user", "content": "Check this file"},
+            {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                    {
+                        "id": "tc1",
+                        "type": "function",
+                        "function": {"name": "read_file", "arguments": "{}"},
+                    }
+                ],
+            },
+            {"role": "tool", "tool_call_id": "tc1", "content": "Small content"},
+        ]
+
+        result = guard._truncate_large_tool_results(messages)
+
+        assert result == messages
+        assert result[2]["content"] == "Small content"
+
+    def test_truncate_large_tool_result_content(self):
+        """Large tool result content is truncated with notice."""
+        guard = ContextGuard(shared_context=None, token_threshold=1000)
+        large_content = "x" * 20000  # 20k chars
+        messages = [
+            {"role": "user", "content": "Check this file"},
+            {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                    {
+                        "id": "tc1",
+                        "type": "function",
+                        "function": {"name": "read_file", "arguments": "{}"},
+                    }
+                ],
+            },
+            {"role": "tool", "tool_call_id": "tc1", "content": large_content},
+        ]
+
+        result = guard._truncate_large_tool_results(messages)
+
+        # Should be truncated
+        assert len(result[2]["content"]) < len(large_content)
+        assert "[truncated" in result[2]["content"].lower()
+
+    def test_truncate_preserves_non_tool_messages(self):
+        """Non-tool messages are preserved unchanged."""
+        guard = ContextGuard(shared_context=None, token_threshold=1000)
+        large_content = "x" * 20000
+        messages = [
+            {"role": "user", "content": "Important user message"},
+            {
+                "role": "assistant",
+                "content": "Important assistant message",
+                "tool_calls": [
+                    {
+                        "id": "tc1",
+                        "type": "function",
+                        "function": {"name": "read_file", "arguments": "{}"},
+                    }
+                ],
+            },
+            {"role": "tool", "tool_call_id": "tc1", "content": large_content},
+        ]
+
+        result = guard._truncate_large_tool_results(messages)
+
+        # Non-tool messages unchanged
+        assert result[0]["content"] == "Important user message"
+        assert result[1]["content"] == "Important assistant message"
+        # Tool message truncated
+        assert len(result[2]["content"]) < len(large_content)
+
+    def test_truncate_multiple_large_tool_results(self):
+        """Multiple large tool results are all truncated."""
+        guard = ContextGuard(shared_context=None, token_threshold=1000)
+        large_content_1 = "a" * 15000
+        large_content_2 = "b" * 18000
+        messages = [
+            {"role": "user", "content": "Check files"},
+            {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                    {
+                        "id": "tc1",
+                        "type": "function",
+                        "function": {"name": "read_file", "arguments": "{}"},
+                    },
+                    {
+                        "id": "tc2",
+                        "type": "function",
+                        "function": {"name": "read_file", "arguments": "{}"},
+                    },
+                ],
+            },
+            {"role": "tool", "tool_call_id": "tc1", "content": large_content_1},
+            {"role": "tool", "tool_call_id": "tc2", "content": large_content_2},
+        ]
+
+        result = guard._truncate_large_tool_results(messages)
+
+        assert len(result[2]["content"]) < len(large_content_1)
+        assert len(result[3]["content"]) < len(large_content_2)
+        assert "[truncated" in result[2]["content"].lower()
+        assert "[truncated" in result[3]["content"].lower()
+
+    def test_truncate_shows_original_size_in_notice(self):
+        """Truncation notice includes original size."""
+        guard = ContextGuard(shared_context=None, token_threshold=1000)
+        large_content = "x" * 20000
+        messages = [
+            {"role": "tool", "tool_call_id": "tc1", "content": large_content},
+        ]
+
+        result = guard._truncate_large_tool_results(messages)
+
+        # Should show original size (20000 chars)
+        assert "20000" in result[0]["content"]

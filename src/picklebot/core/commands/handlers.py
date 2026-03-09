@@ -44,7 +44,9 @@ class ClearCommand(Command):
 
     async def execute(self, args: str, session: "AgentSession") -> str:
         source_str = str(session.source)
-        session.shared_context.routing_table.config_source_session_cache(source_str, None)
+        session.shared_context.routing_table.config_source_session_cache(
+            source_str, None
+        )
 
         return "✓ Conversation cleared. Next message starts fresh."
 

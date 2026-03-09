@@ -241,7 +241,9 @@ You are a test assistant.
 
     # Pre-configure a session in source cache
     test_context.config.sources = {
-        "platform-telegram:123:456": SourceSessionConfig(session_id="existing-session-uuid")
+        "platform-telegram:123:456": SourceSessionConfig(
+            session_id="existing-session-uuid"
+        )
     }
 
     channel = FakeTelegramChannel()

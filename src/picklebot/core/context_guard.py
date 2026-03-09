@@ -7,14 +7,18 @@ from litellm import token_counter
 from litellm.types.completion import (
     ChatCompletionMessageParam as Message,
     ChatCompletionAssistantMessageParam,
+    ChatCompletionToolMessageParam,
 )
 
 from picklebot.core.session_state import SessionState
-from picklebot.utils.config import SourceSessionConfig
 
 if TYPE_CHECKING:
     from picklebot.core.context import SharedContext
     from picklebot.core.session_state import SessionState
+
+
+# Default max size for tool result content before truncation
+MAX_TOOL_RESULT_CHARS = 10000
 
 
 @dataclass
@@ -23,6 +27,7 @@ class ContextGuard:
 
     shared_context: "SharedContext"
     token_threshold: int = 160000  # 80% of 200k context
+    max_tool_result_chars: int = MAX_TOOL_RESULT_CHARS
 
     def estimate_tokens(self, state: "SessionState") -> int:
         """Estimate token count for session state.
@@ -45,14 +50,23 @@ class ContextGuard:
     ) -> "SessionState":
         """Check token count, compact and roll session if needed.
 
+        Applies truncation to large tool results when over threshold,
+        then falls back to full compaction if still needed.
+
         Args:
             state: Current session state
-            force: If True, compact even if under threshold
 
         Returns:
             SessionState to use (same state if under threshold,
-            new rolled state if over threshold)
+            same state with truncated content if truncation was sufficient,
+            new rolled state if compaction was needed)
         """
+        token_count = self.estimate_tokens(state)
+
+        if token_count < self.token_threshold:
+            return state
+
+        state.messages = self._truncate_large_tool_results(state.messages)
         token_count = self.estimate_tokens(state)
 
         if token_count < self.token_threshold:
@@ -64,6 +78,35 @@ class ContextGuard:
         keep_count = max(4, int(len(state.messages) * 0.2))
         compress_count = max(2, int(len(state.messages) * 0.5))
         return min(compress_count, len(state.messages) - keep_count)
+
+    def _truncate_large_tool_results(self, messages: list[Message]) -> list[Message]:
+        """Truncate oversized tool results to reduce context size.
+
+        Args:
+            messages: List of messages to process
+
+        Returns:
+            List of messages with large tool results truncated
+        """
+        result: list[Message] = []
+        for msg in messages:
+            if msg.get("role") == "tool":
+                content = msg.get("content", "")
+                if (
+                    isinstance(content, str)
+                    and len(content) > self.max_tool_result_chars
+                ):
+                    original_size = len(content)
+                    truncated = content[: self.max_tool_result_chars]
+                    truncated_content = (
+                        f"{truncated}\n\n"
+                        f"[Truncated - original size: {original_size} chars]"
+                    )
+
+                    msg = cast(ChatCompletionToolMessageParam, {**msg, "content": truncated_content})
+
+            result.append(msg)
+        return result
 
     def _serialize_messages_for_summary(self, messages: list[Message]) -> str:
         """Serialize messages to plain text for summarization.
