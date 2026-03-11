@@ -109,7 +109,6 @@ class ChatLoop:
 
                 event = InboundEvent(
                     session_id=session_id,
-                    agent_id=self.agent.id,
                     source=CliEventSource(),
                     content=user_input,
                 )

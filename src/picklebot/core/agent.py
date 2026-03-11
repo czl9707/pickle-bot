@@ -103,7 +103,6 @@ class Agent:
         session_id = session_id or str(uuid.uuid4())
 
         # Build tools for this session
-        # Note: include_post_message logic moved to be source-based
         include_post_message = source.is_cron
         tools = self._build_tools(include_post_message)
 
@@ -193,7 +192,7 @@ class AgentSession:
     """Chat orchestrator - operates on swappable SessionState."""
 
     agent: Agent
-    state: SessionState  # Swappable reference
+    state: SessionState
     context_guard: ContextGuard
     tools: ToolRegistry
     started_at: datetime = field(default_factory=datetime.now)

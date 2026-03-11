@@ -9,7 +9,6 @@ from .worker import SubscriberWorker
 from picklebot.core.agent import Agent
 from picklebot.core.events import (
     AgentEventSource,
-    Event,
     InboundEvent,
     OutboundEvent,
     DispatchEvent,
@@ -66,14 +65,12 @@ class AgentWorker(SubscriberWorker):
         except DefNotFoundError as e:
             logger.error(f"Agent not found: {agent_id}: {e}")
 
-            result_event = self.create_reponse_event(
+            return await self._emit_response(
                 event,
-                agent_id,
+                agent_id=agent_id,
                 content="",
                 error=str(e),
             )
-            await self.context.eventbus.publish(result_event)
-            return
 
         asyncio.create_task(self.exec_session(event, agent_def))
 
@@ -103,19 +100,18 @@ class AgentWorker(SubscriberWorker):
                     )
                     if result:
                         # Emit response and skip agent chat
-                        await self._emit_response(event, result, session, agent_def.id)
+                        await self._emit_response(event, content=result, agent_id=agent_def.id)
                         logger.info(f"Command completed: {session_id}")
                         return
 
                 response = await session.chat(event.content)
                 logger.info(f"Session completed: {session_id}")
 
-                result_event = self.create_reponse_event(
+                await self._emit_response(
                     event,
-                    agent_def.id,
-                    response,
+                    agent_id=agent_def.id,
+                    content=response,
                 )
-                await self.context.eventbus.publish(result_event)
 
             except Exception as e:
                 logger.error(f"Session failed: {e}")
@@ -129,51 +125,37 @@ class AgentWorker(SubscriberWorker):
                     )
                     await self.context.eventbus.publish(retry_event)
                 else:
-                    result_event = self.create_reponse_event(
+                    await self._emit_response(
                         event,
-                        agent_def.id,
                         content="",
+                        agent_id=agent_def.id,
                         error=str(e),
                     )
-                    await self.context.eventbus.publish(result_event)
 
         self._maybe_cleanup_semaphores(agent_def)
 
-    def create_reponse_event(
+    async def _emit_response(
         self,
         event: ProcessableEvent,
-        agent_id: str,
         content: str,
+        agent_id: str,
         error: str | None = None,
-    ) -> Event:
+    ) -> None:
+        """Emit response event with content."""
         if isinstance(event, DispatchEvent):
-            return DispatchResultEvent(
+            result_event: DispatchResultEvent | OutboundEvent = DispatchResultEvent(
                 session_id=event.session_id,
                 source=AgentEventSource(agent_id),
                 content=content,
                 error=str(error) if error else None,
             )
         else:
-            return OutboundEvent(
+            result_event = OutboundEvent(
                 session_id=event.session_id,
                 source=AgentEventSource(agent_id),
                 content=content,
                 error=str(error) if error else None,
             )
-
-    async def _emit_response(
-        self,
-        event: ProcessableEvent,
-        content: str,
-        session,
-        agent_id: str,
-    ) -> None:
-        """Emit response event with content."""
-        result_event = self.create_reponse_event(
-            event,
-            agent_id,
-            content,
-        )
         await self.context.eventbus.publish(result_event)
 
     def _get_or_create_semaphore(self, agent_def: "AgentDef") -> asyncio.Semaphore:

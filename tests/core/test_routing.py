@@ -175,14 +175,14 @@ def test_routing_table_rebuilds_on_config_change():
     table = RoutingTable(context)
 
     table.resolve("telegram:123")
-    old_bindings = table._bindings
+    old_bindings = table.bindings
 
     # Change config
     context.config.routing["bindings"] = [{"agent": "cookie", "value": "telegram:.*"}]
 
     # Should rebuild
     table.resolve("telegram:123")
-    assert table._bindings != old_bindings
+    assert table.bindings != old_bindings
     assert table.resolve("telegram:123") == "cookie"
 
 
