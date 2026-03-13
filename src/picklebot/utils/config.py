@@ -232,6 +232,10 @@ class Config(BaseModel):
         else:
             data = {}
 
+        # Convert Pydantic models to dicts for proper YAML serialization
+        if isinstance(value, BaseModel):
+            value = value.model_dump()
+
         # Update the key (supports nested via dot notation)
         self._set_nested(data, key, value)
 

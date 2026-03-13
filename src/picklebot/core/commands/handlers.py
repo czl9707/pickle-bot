@@ -102,7 +102,7 @@ class AgentCommand(Command):
             lines = ["**Agents:**"]
             for agent in agents:
                 marker = " (current)" if agent.id == session.agent.agent_def.id else ""
-                lines.append(f"- `{agent.id}`: {agent.name}{marker}")
+                lines.append(f"- `{agent.id}`: {agent.description}{marker}")
             return "\n".join(lines)
 
         # Show specific agent details

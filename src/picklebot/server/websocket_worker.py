@@ -116,9 +116,7 @@ class WebSocketWorker(SubscriberWorker):
         if agent_id is None:
             agent_id = self.context.routing_table.resolve(str(source))
 
-        session_id = self.context.routing_table.get_or_create_session_id(
-            source, agent_id
-        )
+        session_id = self.context.routing_table.get_or_create_session_id(source)
 
         return InboundEvent(
             session_id=session_id,
