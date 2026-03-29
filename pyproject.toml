@@ -1,6 +1,6 @@
 [project]
 name = "pickle-bot"
-version = "1.0.3"
+version = "1.0.4"
 description = "Personal AI assistant with pluggable skills"
 readme = "README.md"
 authors = [
@@ -66,7 +66,7 @@ packages = ["src/picklebot"]
 "default_workspace/" = "picklebot/default_workspace/"
 
 [tool.bumpversion]
-current_version = "1.0.3"
+current_version = "1.0.4"
 parse = """(?x)
   (?P<major>0|[1-9]\\d*)\\.
   (?P<minor>0|[1-9]\\d*)\\.
