@@ -366,7 +366,8 @@ class TestCheckAndCompactWithTruncation:
         self, mock_context, mock_agent, tmp_path
     ):
         """When over threshold, large tool results ARE truncated."""
-        guard = ContextGuard(shared_context=mock_context, token_threshold=100)
+        # Use threshold where truncation alone is sufficient (no compaction needed)
+        guard = ContextGuard(shared_context=mock_context, token_threshold=2000)
         source = TelegramEventSource(user_id="123", chat_id="456")
         mock_context.history_store.create_session("test-agent", "test-session", source)
 
@@ -392,7 +393,8 @@ class TestCheckAndCompactWithTruncation:
         self, mock_context, mock_agent, tmp_path
     ):
         """If truncation brings tokens under threshold, no compaction needed."""
-        guard = ContextGuard(shared_context=mock_context, token_threshold=500)
+        # Use threshold where truncation alone is sufficient (> 1283 tokens after truncation)
+        guard = ContextGuard(shared_context=mock_context, token_threshold=2000)
         source = TelegramEventSource(user_id="123", chat_id="456")
         mock_context.history_store.create_session("test-agent", "test-session", source)
 

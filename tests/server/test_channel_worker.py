@@ -419,8 +419,19 @@ class TestDefaultDeliverySource:
         """Mock context with real config for set_runtime."""
         from picklebot.utils.config import Config, LLMConfig
 
+        workspace = mock_context.config.event_path.parent
+        # Create config.user.yaml so reload() works
+        user_config = workspace / "config.user.yaml"
+        user_config.write_text(
+            "llm:\n"
+            "  provider: openai\n"
+            "  model: gpt-4\n"
+            "  api_key: test-key\n"
+            "default_agent: test\n"
+        )
+
         mock_context.config = Config(
-            workspace=mock_context.config.event_path.parent,
+            workspace=workspace,
             llm=LLMConfig(provider="openai", model="gpt-4", api_key="test-key"),
             default_agent="test",
         )
@@ -443,6 +454,8 @@ class TestDefaultDeliverySource:
 
         await callback("hello", TelegramEventSource(user_id="123", chat_id="456"))
 
+        # Reload config to pick up the runtime change
+        mock_context.config.reload()
         assert (
             mock_context.config.default_delivery_source == "platform-telegram:123:456"
         )
