@@ -71,11 +71,12 @@ class ChannelConfig(BaseModel):
     discord: DiscordConfig | None = None
 
 
-class BraveWebSearchConfig(BaseModel):
+class WebSearchConfig(BaseModel):
     """Configuration for web search provider."""
 
-    provider: Literal["brave"] = "brave"
-    api_key: str
+    provider: str
+    api_key: str | None = None
+    api_base: str | None = None
 
 
 class Crawl4AIWebReadConfig(BaseModel):
@@ -113,7 +114,7 @@ class Config(BaseModel):
     memories_path: Path = Field(default=Path("memories"))
     channels: ChannelConfig = Field(default_factory=ChannelConfig)
     api: ApiConfig | None = None
-    websearch: BraveWebSearchConfig | None = None
+    websearch: WebSearchConfig | None = None
     webread: Crawl4AIWebReadConfig | None = None
     routing: dict = Field(default_factory=lambda: {"bindings": []})
     sources: dict[str, SourceSessionConfig] = Field(default_factory=dict)
