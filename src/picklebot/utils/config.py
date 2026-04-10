@@ -114,7 +114,7 @@ class Config(BaseModel):
     memories_path: Path = Field(default=Path("memories"))
     channels: ChannelConfig = Field(default_factory=ChannelConfig)
     api: ApiConfig | None = None
-    websearch: BraveWebSearchConfig | None = None
+    websearch: WebSearchConfig | None = None
     webread: Crawl4AIWebReadConfig | None = None
     routing: dict = Field(default_factory=lambda: {"bindings": []})
     sources: dict[str, SourceSessionConfig] = Field(default_factory=dict)
