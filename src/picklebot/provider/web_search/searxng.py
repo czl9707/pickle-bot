@@ -59,4 +59,7 @@ class SearxngSearchProvider(WebSearchProvider):
                 )
             )
 
+        # Limit results to 10
+        results = results[:10]
+
         return results

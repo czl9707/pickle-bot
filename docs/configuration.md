@@ -70,6 +70,7 @@ llm:
 websearch:
   provider: brave
   api_key: "your-brave-api-key"    # Get from https://brave.com/search/api/
+  api_base: "https://..."          # API endpoint (only for searxng)
 
 webread:
   provider: crawl4ai               # No API key needed, uses local browser
