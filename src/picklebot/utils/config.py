@@ -75,8 +75,8 @@ class WebSearchConfig(BaseModel):
     """Configuration for web search provider."""
 
     provider: str
-    api_key: str
-    api_base: str
+    api_key: str | None = None
+    api_base: str | None = None
 
 
 class Crawl4AIWebReadConfig(BaseModel):
