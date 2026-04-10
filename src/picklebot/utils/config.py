@@ -71,11 +71,12 @@ class ChannelConfig(BaseModel):
     discord: DiscordConfig | None = None
 
 
-class BraveWebSearchConfig(BaseModel):
+class WebSearchConfig(BaseModel):
     """Configuration for web search provider."""
 
-    provider: Literal["brave"] = "brave"
+    provider: str
     api_key: str
+    api_base: str
 
 
 class Crawl4AIWebReadConfig(BaseModel):
