@@ -113,6 +113,14 @@ websearch:
 
 Get API key at https://brave.com/search/api/
 
+Or using [Searxng](https://github.com/searxng/searxng)
+
+```yaml
+websearch:
+  provider: searxng
+  api_base: "http://..."
+```
+
 ### Web Read
 
 Read web pages via `webread` tool using Crawl4AI.
