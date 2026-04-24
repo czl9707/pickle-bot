@@ -29,7 +29,7 @@ class TestAgentWebTools:
     @pytest.mark.parametrize(
         "tool_name,config_factory,should_exist",
         [
-            ("websearch", lambda: WebSearchConfig(api_key="test-key"), True),
+            ("websearch", lambda: WebSearchConfig(provider="brave", api_key="test-key"), True),
             ("websearch", lambda: None, False),
             ("webread", lambda: Crawl4AIWebReadConfig(), True),
             ("webread", lambda: None, False),
