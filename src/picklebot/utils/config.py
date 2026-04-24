@@ -74,7 +74,7 @@ class ChannelConfig(BaseModel):
 class WebSearchConfig(BaseModel):
     """Configuration for web search provider."""
 
-    provider: str
+    provider: Literal["brave", "searxng"]
     api_key: str | None = None
     api_base: str | None = None
 
