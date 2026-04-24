@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch, MagicMock
 
 from picklebot.provider.web_search.brave import BraveSearchProvider
 from picklebot.provider.web_search.base import SearchResult, WebSearchProvider
-from picklebot.utils.config import Config, BraveWebSearchConfig
+from picklebot.utils.config import Config, WebSearchConfig
 
 
 class TestBraveSearchProvider:
@@ -12,20 +12,20 @@ class TestBraveSearchProvider:
 
     def test_init(self, test_config: Config):
         """BraveSearchProvider should store api_key from config."""
-        test_config.websearch = BraveWebSearchConfig(api_key="test-key")
+        test_config.websearch = WebSearchConfig(provider="brave", api_key="test-key")
         provider = BraveSearchProvider(test_config)
         assert provider.api_key == "test-key"
 
     def test_from_config(self, test_config: Config):
         """from_config should create provider from config."""
-        test_config.websearch = BraveWebSearchConfig(api_key="test-key")
+        test_config.websearch = WebSearchConfig(provider="brave", api_key="test-key")
         provider = WebSearchProvider.from_config(test_config)
         assert isinstance(provider, BraveSearchProvider)
         assert provider.api_key == "test-key"
 
     async def test_search_returns_normalized_results(self, test_config: Config):
         """search should return list of SearchResult."""
-        test_config.websearch = BraveWebSearchConfig(api_key="test-key")
+        test_config.websearch = WebSearchConfig(provider="brave", api_key="test-key")
         provider = BraveSearchProvider(test_config)
 
         mock_response = MagicMock()
@@ -61,7 +61,7 @@ class TestBraveSearchProvider:
 
     async def test_search_handles_empty_results(self, test_config: Config):
         """search should return empty list when no results."""
-        test_config.websearch = BraveWebSearchConfig(api_key="test-key")
+        test_config.websearch = WebSearchConfig(provider="brave", api_key="test-key")
         provider = BraveSearchProvider(test_config)
 
         mock_response = MagicMock()

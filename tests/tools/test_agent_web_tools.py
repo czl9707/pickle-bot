@@ -8,7 +8,7 @@ from picklebot.core.context import SharedContext
 from picklebot.utils.config import (
     Config,
     LLMConfig,
-    BraveWebSearchConfig,
+    WebSearchConfig,
     Crawl4AIWebReadConfig,
 )
 
@@ -29,7 +29,7 @@ class TestAgentWebTools:
     @pytest.mark.parametrize(
         "tool_name,config_factory,should_exist",
         [
-            ("websearch", lambda: BraveWebSearchConfig(api_key="test-key"), True),
+            ("websearch", lambda: WebSearchConfig(provider="brave", api_key="test-key"), True),
             ("websearch", lambda: None, False),
             ("webread", lambda: Crawl4AIWebReadConfig(), True),
             ("webread", lambda: None, False),

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from picklebot.tools.websearch_tool import create_websearch_tool
 from picklebot.provider.web_search.base import SearchResult
 from picklebot.core.context import SharedContext
-from picklebot.utils.config import BraveWebSearchConfig
+from picklebot.utils.config import WebSearchConfig
 
 
 def _make_mock_session():
@@ -21,7 +21,7 @@ class TestCreateWebsearchTool:
 
     def test_creates_tool_with_correct_schema(self, test_config):
         """Factory should create a tool with correct name, description, and parameters."""
-        test_config.websearch = BraveWebSearchConfig(api_key="test-key")
+        test_config.websearch = WebSearchConfig(provider="brave", api_key="test-key")
         context = SharedContext(config=test_config)
 
         tool = create_websearch_tool(context)
@@ -40,7 +40,7 @@ class TestWebsearchToolExecution:
 
     async def test_returns_formatted_results(self, test_config):
         """Tool should return formatted markdown results."""
-        test_config.websearch = BraveWebSearchConfig(api_key="test-key")
+        test_config.websearch = WebSearchConfig(provider="brave", api_key="test-key")
         context = SharedContext(config=test_config)
 
         mock_results = [
@@ -74,7 +74,7 @@ class TestWebsearchToolExecution:
 
     async def test_returns_no_results_message(self, test_config):
         """Tool should return message when no results found."""
-        test_config.websearch = BraveWebSearchConfig(api_key="test-key")
+        test_config.websearch = WebSearchConfig(provider="brave", api_key="test-key")
         context = SharedContext(config=test_config)
 
         with patch(
