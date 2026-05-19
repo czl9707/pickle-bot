@@ -6,9 +6,12 @@ from typing import Any, Optional, cast, TYPE_CHECKING
 
 from litellm import acompletion, Choices
 from litellm.types.completion import ChatCompletionMessageParam as Message
+from litellm.types.utils import OpenAIChatCompletionFinishReason
 
 if TYPE_CHECKING:
     from picklebot.utils.config import LLMConfig
+
+StopReason = OpenAIChatCompletionFinishReason
 
 
 @dataclass
@@ -103,12 +106,15 @@ class LLMProvider(ABC):
         messages: list[Message],
         tools: Optional[list[dict[str, Any]]] = None,
         **kwargs: Any,
-    ) -> tuple[str, list[LLMToolCall]]:
+    ) -> tuple[str, list[LLMToolCall], StopReason]:
         """
         Send a chat request to the LLM.
 
         Default implementation using litellm. Subclasses can override
         if provider-specific behavior is needed.
+
+        Returns:
+            Tuple of (content, tool_calls, stop_reason)
         """
         request_kwargs: dict[str, Any] = {
             "model": self.model,
@@ -126,7 +132,9 @@ class LLMProvider(ABC):
 
         response = await acompletion(**request_kwargs)
 
-        message = cast(Choices, response.choices[0]).message
+        choice = cast(Choices, response.choices[0])
+        message = choice.message
+        stop_reason = choice.finish_reason
 
         return (
             message.content or "",
@@ -138,4 +146,5 @@ class LLMProvider(ABC):
                 )
                 for tc in (message.tool_calls or [])
             ],
+            stop_reason,
         )

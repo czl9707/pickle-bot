@@ -349,7 +349,7 @@ class TestSessionRollingIntegration:
             test_agent.llm,
             "chat",
             new_callable=AsyncMock,
-            return_value=("Response", []),
+            return_value=("Response", [], "stop"),
         ):
             # Mock check_and_compact to trigger a roll
             with patch.object(
