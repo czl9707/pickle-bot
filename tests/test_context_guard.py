@@ -90,7 +90,7 @@ class TestCheckAndCompactWithSessionState:
         mock_agent.agent_def.agent_md = "You are a test assistant."
         mock_agent.agent_def.soul_md = None
         mock_agent.llm.model = "gpt-4"
-        mock_agent.llm.chat = AsyncMock(return_value=("Summary text", []))
+        mock_agent.llm.chat = AsyncMock(return_value=("Summary text", [], "stop"))
         return mock_agent
 
     @pytest.fixture
@@ -277,7 +277,7 @@ class TestSummaryGeneration:
 
         # Mock agent with LLM
         mock_agent = MagicMock()
-        mock_agent.llm.chat = AsyncMock(return_value=("Summary text", []))
+        mock_agent.llm.chat = AsyncMock(return_value=("Summary text", [], "stop"))
 
         # Mock context
         mock_context = MagicMock()
@@ -333,7 +333,7 @@ class TestCheckAndCompactWithTruncation:
         mock_agent.agent_def.agent_md = "You are a test assistant."
         mock_agent.agent_def.soul_md = None
         mock_agent.llm.model = "gpt-4"
-        mock_agent.llm.chat = AsyncMock(return_value=("Summary text", []))
+        mock_agent.llm.chat = AsyncMock(return_value=("Summary text", [], "stop"))
         return mock_agent
 
     async def test_truncation_not_applied_when_under_threshold(
