@@ -15,7 +15,7 @@ The project started with the mindset of building-you-own-openclaw, but end up st
 pip install pickle-bot
 
 # Or from source
-git clone https://github.com/zane-chen/pickle-bot.git
+git clone https://github.com/czl9707/pickle-bot.git
 cd pickle-bot
 uv sync
 ```
